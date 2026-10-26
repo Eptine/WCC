@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+             x:Class="Wcc.App.Views.Controls.WccFieldImagePreviewView"
+             x:DataType="vm:WccFieldImagePreviewVm"
+             MinWidth="44" MinHeight="44" MaxHeight="160" ToolTip.Tip="{Binding Status}">
+  <Border Background="#18383838" BorderBrush="#44444444" BorderThickness="1" CornerRadius="4" Padding="4">
+    <Grid>
+      <Image Source="{Binding Bitmap}" Stretch="Uniform" IsVisible="{Binding HasBitmap}"/>
+      <TextBlock Text="◇" FontSize="22" Opacity="0.5" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding HasNoBitmap}"/>
+      <TextBlock Text="↻" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsLoading}"/>
+      <Border Background="#AA303030" CornerRadius="3" Padding="3,1" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+              IsVisible="{Binding IsInherited}">
+        <TextBlock Text="Inherited" FontSize="10" Opacity="0.7"/>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

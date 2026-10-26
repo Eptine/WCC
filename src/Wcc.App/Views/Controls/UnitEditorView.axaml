@@ -1,0 +1,1137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.UnitEditorView"
+             x:DataType="vm:MainWindowViewModel"
+             x:Name="root">
+
+  <UserControl.Styles>
+    <Style Selector="TextBox.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
+    <Style Selector="ComboBox.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
+    <Style Selector="TextBlock.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="10">
+
+    <TextBlock DockPanel.Dock="Top"
+               Text="Read-only inspection"
+               FontWeight="Bold"
+               Margin="0,0,0,8"
+               IsVisible="{Binding IsReadOnly}"/>
+
+    <TextBlock DockPanel.Dock="Bottom"
+               Text="{Binding Status}"
+               Margin="0,10,0,0"/>
+
+    <DockPanel>
+      <Border DockPanel.Dock="Left"
+              Width="280"
+              Padding="8"
+              BorderThickness="1"
+              IsVisible="{Binding ShowNavigationPane, ElementName=root}">
+        <StackPanel>
+          <TextBlock Text="Units" FontWeight="Bold" Margin="0,0,0,6"/>
+          <ListBox ItemsSource="{Binding Units}"
+                   SelectedItem="{Binding SelectedUnit}"
+                   SelectionChanged="UnitSelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:UnitDocVm">
+                <TextBlock Text="{Binding DisplayName}"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+      </Border>
+
+      <ScrollViewer Margin="10,0,0,0" x:Name="EditorScrollViewer">
+        <StackPanel Spacing="14">
+
+         <TextBlock Text="Unit" FontWeight="Bold"/>
+
+         <Border BorderThickness="1"
+                 Padding="10"
+                 IsVisible="{Binding UnitHasBaseUnit}">
+           <StackPanel Spacing="4">
+             <TextBlock Text="Inherited unit" FontWeight="Bold"/>
+             <TextBlock Text="{Binding UnitInheritanceInfo}" TextWrapping="Wrap"/>
+           </StackPanel>
+         </Border>
+
+<!-- Top row: General + Images -->
+<Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+
+  <!-- General -->
+  <Border Grid.Column="0" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="General" FontWeight="Bold" FontSize="16"/>
+
+      <Grid ColumnDefinitions="140,*,Auto"
+            RowDefinitions="Auto,Auto,Auto"
+            ColumnSpacing="8"
+            RowSpacing="8">
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="ID"/>
+        <TextBox Grid.Row="0" Grid.Column="1"
+                 Text="{Binding DisplayUnitId}"
+                 Classes.inherited="{Binding UnitIdIsInherited}"
+                 IsEnabled="{Binding UnitIdIsEditable}"/>
+        <Button Grid.Row="0" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitIdHasRawEditor}"
+                Tag="id"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Race"/>
+        <Grid Grid.Row="1" Grid.Column="1"
+              ColumnDefinitions="*,Auto,Auto"
+              ColumnSpacing="8">
+            <TextBox Grid.Column="0"
+                     Text="{Binding UnitRace}"
+                 Classes.inherited="{Binding UnitRaceIsInherited}"
+                     IsEnabled="{Binding UnitRaceIsEditable}"/>
+            <Button Grid.Column="1"
+                    Content="Pick..."
+                    icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the unit race" Click="OpenRacePickerClicked"
+                    IsEnabled="{Binding CanPickRace}"/>
+            <Button Grid.Column="2"
+                    Content="Manage..."
+                    icons:WccButtonIcon.Action="Manage" ToolTip.Tip="Manage race definitions" Click="OpenRacePresetManagerClicked"/>
+        </Grid>
+        <Button Grid.Row="1" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitRaceHasRawEditor}"
+                Tag="race"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0"
+                   VerticalAlignment="Top"
+                   Text="Description"/>
+        <TextBox Grid.Row="2" Grid.Column="1"
+                 Text="{Binding UnitDescriptionWml}"
+                 Classes.inherited="{Binding UnitDescriptionWmlIsInherited}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 MinHeight="150"
+                 IsEnabled="{Binding UnitDescriptionIsEditable}"/>
+        <Button Grid.Row="2" Grid.Column="2"
+                Width="28" Height="28"
+                VerticalAlignment="Top"
+                Content="?"
+                IsVisible="{Binding UnitDescriptionHasRawEditor}"
+                Tag="description"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+      </Grid>
+    </StackPanel>
+  </Border>
+
+  <!-- Base/default and explicit gender variants share one editor surface. -->
+  <Border Grid.Column="1" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="Visual &amp; Gender Variants" FontWeight="Bold" FontSize="16"/>
+
+      <ListBox Height="42"
+               ItemsSource="{Binding VisualVariants}"
+               SelectedItem="{Binding SelectedVisualVariant}">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal"/>
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="wccvm:UnitVisualVariantVm">
+            <TextBlock Text="{Binding DisplayName}"/>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <TextBlock Text="{Binding SelectedVisualVariantInfo}" TextWrapping="Wrap"/>
+      <Button Content="Refresh Previews"
+              icons:WccButtonIcon.Action="Preview" icons:WccButtonIcon.ShowLabel="True"
+              HorizontalAlignment="Left"
+              ToolTip.Tip="Apply the current visual fields to the preview. Image modifiers are rendered by Wesnoth and may take a moment the first time."
+              Click="RefreshVisualPreviewsClicked"/>
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Effective Unit Image" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding SelectedVisualImagePreviewIndicator}"
+                       FontWeight="Bold"
+                       ToolTip.Tip="{Binding SelectedVisualImagePreviewStatus}"/>
+          </StackPanel>
+          <Border Height="140" BorderThickness="1" Padding="6">
+            <Image Source="{Binding SelectedVisualImagePreviewBitmap}" Stretch="Uniform"/>
+          </Border>
+          <TextBlock Text="{Binding VisualImageInheritanceInfo}"/>
+          <TextBlock Text="{Binding SelectedVisualImagePreviewStatus}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding SelectedVisualImagePreviewResolvedPath}"
+                     FontSize="10" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Effective Profile" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding SelectedVisualPortraitPreviewIndicator}"
+                       FontWeight="Bold"
+                       ToolTip.Tip="{Binding SelectedVisualPortraitPreviewStatus}"/>
+          </StackPanel>
+          <Border Height="140" BorderThickness="1" Padding="6">
+            <Image Source="{Binding SelectedVisualPortraitPreviewBitmap}" Stretch="Uniform"/>
+          </Border>
+          <TextBlock Text="{Binding VisualPortraitInheritanceInfo}"/>
+          <TextBlock Text="{Binding SelectedVisualPortraitPreviewStatus}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding SelectedVisualPortraitPreviewResolvedPath}"
+                     FontSize="10" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Spacing="4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Effective Small Profile" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding SelectedVisualSmallProfilePreviewIndicator}"
+                       FontWeight="Bold"
+                       ToolTip.Tip="{Binding SelectedVisualSmallProfilePreviewStatus}"/>
+          </StackPanel>
+          <Border Height="140" BorderThickness="1" Padding="6">
+            <Image Source="{Binding SelectedVisualSmallProfilePreviewBitmap}" Stretch="Uniform"/>
+          </Border>
+          <TextBlock Text="{Binding VisualSmallProfileInheritanceInfo}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding SelectedVisualSmallProfilePreviewStatus}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding SelectedVisualSmallProfilePreviewResolvedPath}"
+                     FontSize="10" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+
+      <Grid ColumnDefinitions="110,*,Auto,Auto"
+            RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+            ColumnSpacing="8"
+            RowSpacing="8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Name"/>
+        <TextBox Grid.Row="0" Grid.Column="1"
+                 Text="{Binding VisualNameWml}"
+                 Classes.inherited="{Binding VisualNameWmlIsInherited}"
+                 IsEnabled="{Binding VisualNameIsEditable}"/>
+        <Button Grid.Row="0" Grid.Column="3" Width="28" Height="28"
+                Content="?" IsVisible="{Binding VisualNameHasRawEditor}"
+                Tag="name" icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Runtime Gender"/>
+        <ComboBox Grid.Row="1" Grid.Column="1"
+                  ItemsSource="{Binding UnitGenderSuggestions}"
+                  Text="{Binding VisualGender, Mode=TwoWay}"
+                 Classes.inherited="{Binding VisualGenderIsInherited}"
+                  IsEditable="True"
+                  IsEnabled="{Binding VisualGenderIsEditable}"/>
+        <Button Grid.Row="1" Grid.Column="3" Width="28" Height="28"
+                Content="?" IsVisible="{Binding VisualGenderHasRawEditor}"
+                Tag="gender" icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit Image"/>
+        <TextBox Grid.Row="2" Grid.Column="1"
+                 Text="{Binding VisualImage}"
+                 Classes.inherited="{Binding VisualImageIsInherited}"
+                 IsEnabled="{Binding VisualImageIsEditable}"/>
+        <Button Grid.Row="2" Grid.Column="2"
+                Content="Pick..."
+                Tag="image"
+                icons:WccButtonIcon.Action="Browse"
+                IsEnabled="{Binding CanPickVisualImage}"
+                ToolTip.Tip="Copy an image into the writable package and use its WML path."
+                Click="PickVisualAssetClicked"/>
+        <Button Grid.Row="2" Grid.Column="3" Width="28" Height="28"
+                Content="?" IsVisible="{Binding VisualImageHasRawEditor}"
+                Tag="image" icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Profile"/>
+        <TextBox Grid.Row="3" Grid.Column="1"
+                 Text="{Binding VisualProfile}"
+                 Classes.inherited="{Binding VisualProfileIsInherited}"
+                 IsEnabled="{Binding VisualProfileIsEditable}"/>
+        <Button Grid.Row="3" Grid.Column="2"
+                Content="Pick..."
+                Tag="profile"
+                icons:WccButtonIcon.Action="Browse"
+                IsEnabled="{Binding CanPickVisualProfile}"
+                ToolTip.Tip="Copy a portrait into the writable package and use its WML path."
+                Click="PickVisualAssetClicked"/>
+        <Button Grid.Row="3" Grid.Column="3" Width="28" Height="28"
+                Content="?" IsVisible="{Binding VisualProfileHasRawEditor}"
+                Tag="profile" icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Small Profile"/>
+        <TextBox Grid.Row="4" Grid.Column="1"
+                 Text="{Binding VisualSmallProfile}"
+                 Classes.inherited="{Binding VisualSmallProfileIsInherited}"
+                 IsEnabled="{Binding VisualSmallProfileIsEditable}"/>
+        <Button Grid.Row="4" Grid.Column="2"
+                Content="Pick..."
+                Tag="small_profile"
+                icons:WccButtonIcon.Action="Browse"
+                IsEnabled="{Binding CanPickVisualSmallProfile}"
+                ToolTip.Tip="Copy a small portrait into the writable package and use its WML path."
+                Click="PickVisualAssetClicked"/>
+        <Button Grid.Row="4" Grid.Column="3" Width="28" Height="28"
+                Content="?" IsVisible="{Binding VisualSmallProfileHasRawEditor}"
+                Tag="small_profile" icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+      </Grid>
+
+      <Button Content="Edit Selected Variant Raw..."
+              HorizontalAlignment="Left"
+              IsVisible="{Binding IsSelectedVisualOverride}"
+              IsEnabled="{Binding CanEditSelectedVisualRaw}"
+              icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="EditSelectedGenderVariantRawClicked"/>
+    </StackPanel>
+  </Border>
+</Grid>
+
+<!-- Read-only projection of direct value expressions containing WML macros. -->
+<Border BorderThickness="1"
+        Padding="10"
+        IsVisible="{Binding HasResolvedUnitValues}">
+  <Expander Header="Macro-resolved values"
+            IsExpanded="True">
+    <StackPanel Margin="0,8,0,0" Spacing="8">
+      <TextBlock Text="Preview only: raw WML remains authoritative. Conditional, ambiguous, or unavailable definitions are reported instead of guessed."
+                 TextWrapping="Wrap"/>
+      <ItemsControl ItemsSource="{Binding ResolvedUnitValues}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="wccvm:ResolvedWmlValueVm">
+            <Border BorderThickness="1,1,1,0"
+                    Padding="8">
+              <StackPanel Spacing="3">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                  <TextBlock Grid.Column="0"
+                             Text="{Binding Scope}"
+                             FontWeight="SemiBold"/>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding FieldName}"/>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding State}"
+                             FontWeight="SemiBold"
+                             ToolTip.Tip="{Binding Diagnostics}"/>
+                </Grid>
+                <Grid ColumnDefinitions="80,*" ColumnSpacing="8">
+                  <TextBlock Grid.Column="0" Text="Raw" Opacity="0.7"/>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding RawValue}"
+                             FontFamily="Consolas"
+                             TextWrapping="Wrap"/>
+                </Grid>
+                <Grid ColumnDefinitions="80,*" ColumnSpacing="8">
+                  <TextBlock Grid.Column="0" Text="Effective" Opacity="0.7"/>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding EffectiveValue}"
+                             FontFamily="Consolas"
+                             TextWrapping="Wrap"/>
+                </Grid>
+                <Grid ColumnDefinitions="80,*" ColumnSpacing="8">
+                  <TextBlock Grid.Column="0" Text="Definition" Opacity="0.7"/>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding SourceDefinitions}"
+                             TextWrapping="Wrap"/>
+                </Grid>
+                <TextBlock Text="{Binding Diagnostics}"
+                           FontSize="10"
+                           TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Expander>
+</Border>
+
+<!-- Bottom row: Base Values / Unit Settings / AI Options -->
+<Grid ColumnDefinitions="*,*,*" ColumnSpacing="14">
+
+  <!-- Base Values -->
+  <Border Grid.Column="0" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="Base Values" FontWeight="Bold" FontSize="16"/>
+
+      <Grid ColumnDefinitions="140,120,Auto"
+            RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+            ColumnSpacing="8"
+            RowSpacing="8">
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Hitpoints"/>
+        <TextBox Grid.Row="0" Grid.Column="1"
+                 Text="{Binding UnitHitpoints}"
+                 Classes.inherited="{Binding UnitHitpointsIsInherited}"
+                 IsEnabled="{Binding UnitHitpointsIsEditable}"/>
+        <Button Grid.Row="0" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitHitpointsHasRawEditor}"
+                Tag="hitpoints"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Movepoints"/>
+        <TextBox Grid.Row="1" Grid.Column="1"
+                 Text="{Binding UnitMovement}"
+                 Classes.inherited="{Binding UnitMovementIsInherited}"
+                 IsEnabled="{Binding UnitMovementIsEditable}"/>
+        <Button Grid.Row="1" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitMovementHasRawEditor}"
+                Tag="movement"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Level"/>
+        <TextBox Grid.Row="2" Grid.Column="1"
+                 Text="{Binding UnitLevel}"
+                 Classes.inherited="{Binding UnitLevelIsInherited}"
+                 IsEnabled="{Binding UnitLevelIsEditable}"/>
+        <Button Grid.Row="2" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitLevelHasRawEditor}"
+                Tag="level"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Experience"/>
+        <TextBox Grid.Row="3" Grid.Column="1"
+                 Text="{Binding UnitExperience}"
+                 Classes.inherited="{Binding UnitExperienceIsInherited}"
+                 IsEnabled="{Binding UnitExperienceIsEditable}"/>
+        <Button Grid.Row="2" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitExperienceHasRawEditor}"
+                Tag="experience"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Cost"/>
+        <TextBox Grid.Row="4" Grid.Column="1"
+                 Text="{Binding UnitCost}"
+                 Classes.inherited="{Binding UnitCostIsInherited}"
+                 IsEnabled="{Binding UnitCostIsEditable}"/>
+        <Button Grid.Row="4" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitCostHasRawEditor}"
+                Tag="cost"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+      </Grid>
+    </StackPanel>
+  </Border>
+
+  <!-- Unit Settings -->
+  <Border Grid.Column="1" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="Unit Settings" FontWeight="Bold" FontSize="16"/>
+
+      <Grid ColumnDefinitions="140,*,Auto"
+            RowDefinitions="Auto,Auto,Auto"
+            ColumnSpacing="8"
+            RowSpacing="8">
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Alignment"/>
+        <ComboBox Grid.Row="0" Grid.Column="1"
+                  ItemsSource="{Binding UnitAlignmentSuggestions}"
+                  Text="{Binding UnitAlignment, Mode=TwoWay}"
+                 Classes.inherited="{Binding UnitAlignmentIsInherited}"
+                  IsEditable="True"
+                  IsEnabled="{Binding UnitAlignmentIsEditable}"/>
+        <Button Grid.Row="0" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitAlignmentHasRawEditor}"
+                Tag="alignment"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Movement Type"/>
+        <Grid Grid.Row="1" Grid.Column="1"
+              ColumnDefinitions="*,Auto,Auto"
+              ColumnSpacing="8">
+            <TextBox Grid.Column="0"
+                     Text="{Binding UnitMovementType}"
+                 Classes.inherited="{Binding UnitMovementTypeIsInherited}"
+                     IsEnabled="{Binding UnitMovementTypeIsEditable}"/>
+            <Button Grid.Column="1"
+                    Content="Pick..."
+                    icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the movement type" Click="OpenMovementTypePickerClicked"
+                    IsEnabled="{Binding CanPickMovementType}"/>
+            <Button Grid.Column="2"
+                    Content="Manage..."
+                    icons:WccButtonIcon.Action="Manage" ToolTip.Tip="Manage movement-type definitions" Click="OpenMovementTypePresetManagerClicked"/>
+        </Grid>
+        <Button Grid.Row="1" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitMovementTypeHasRawEditor}"
+                Tag="movement_type"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Advances To"/>
+        <Grid Grid.Row="2" Grid.Column="1"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="8">
+          <TextBox Grid.Column="0"
+                   Text="{Binding UnitAdvancesTo}"
+                 Classes.inherited="{Binding UnitAdvancesToIsInherited}"
+                   IsEnabled="{Binding UnitAdvancesToIsEditable}"/>
+          <Button Grid.Column="1"
+                  Content="Pick..."
+                  icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose advancement targets" Click="OpenAdvancesToPickerClicked"
+                  IsEnabled="{Binding CanPickAdvancesTo}"/>
+        </Grid>
+        <Button Grid.Row="1" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitAdvancesToHasRawEditor}"
+                Tag="advances_to"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+
+      </Grid>
+    </StackPanel>
+  </Border>
+
+  <!-- AI Options -->
+  <Border Grid.Column="2" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="AI Options" FontWeight="Bold" FontSize="16"/>
+
+      <Grid ColumnDefinitions="140,*,Auto"
+            RowDefinitions="Auto"
+            ColumnSpacing="8"
+            RowSpacing="8">
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Usage"/>
+        <ComboBox Grid.Row="0" Grid.Column="1"
+                  ItemsSource="{Binding UnitUsageSuggestions}"
+                  Text="{Binding UnitUsage, Mode=TwoWay}"
+                 Classes.inherited="{Binding UnitUsageIsInherited}"
+                  IsEditable="True"
+                  IsEnabled="{Binding UnitUsageIsEditable}"/>
+        <Button Grid.Row="0" Grid.Column="2"
+                Width="28" Height="28"
+                Content="?"
+                IsVisible="{Binding UnitUsageHasRawEditor}"
+                Tag="usage"
+                icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                PointerEntered="UnitFieldRawPointerEntered"/>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Grid> 
+         
+<Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+
+  <!-- Abilities -->
+  <Border Grid.Column="0" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="Abilities"
+                 FontWeight="Bold"
+                 FontSize="16"/>
+
+      <StackPanel Spacing="4" IsVisible="{Binding HasEffectiveAbilityDefinitions}">
+        <TextBlock Text="Effective abilities (read-only)" FontWeight="SemiBold"/>
+        <ItemsControl ItemsSource="{Binding EffectiveAbilityDefinitions}" Foreground="Gray"/>
+      </StackPanel>
+
+      <TextBlock Text="{Binding AbilitySpecialRegistryStatus}"
+                 TextWrapping="Wrap"
+                 Opacity="0.75"
+                 IsVisible="{Binding HasAbilitySpecialRegistryStatus}"/>
+
+      <TextBlock Text="Reusable definitions"
+                 FontWeight="SemiBold"/>
+
+      <ListBox Height="195"
+               ItemsSource="{Binding AbilityApplications}"
+               SelectedItem="{Binding SelectedAbilityApplication}">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="wccvm:AbilitySpecialApplicationVm">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+              <Border Grid.Column="0" BorderThickness="1" Padding="5,2">
+                <TextBlock Text="{Binding SourceKindLabel}" FontSize="11"/>
+              </Border>
+              <TextBlock Grid.Column="1"
+                         Text="{Binding DisplayName}"
+                         TextWrapping="Wrap"
+                         VerticalAlignment="Center"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Pick..."
+                  icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose unit abilities" Click="OpenAbilityPickerClicked"
+                  IsEnabled="{Binding CanPickAbilities}"/>
+          <Button Content="Manage Library..."
+                  icons:WccButtonIcon.Action="Manage" ToolTip.Tip="Manage ability definitions" Click="OpenAbilityPresetManagerClicked"/>
+          <Button Content="Remove Selected"
+                  icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected ability reference"
+                  IsEnabled="{Binding CanRemoveSelectedAbilityApplication}"
+                  Click="RemoveAbilityApplicationClicked"/>
+          <Button Content="IDs RAW..."
+                  IsVisible="{Binding UnitAbilityIdsHasRawEditor}"
+                  Tag="abilities_list"
+                  icons:WccButtonIcon.Action="EditCode" Click="OpenUnitFieldRawClicked"
+                  PointerEntered="UnitFieldRawPointerEntered"/>
+      </StackPanel>
+
+      <StackPanel Spacing="6"
+                  IsVisible="{Binding HasInlineAbilityDefinitions}">
+        <TextBlock Text="Literal inline ability definitions"
+                   FontWeight="SemiBold"/>
+        <ListBox Height="80"
+                 ItemsSource="{Binding InlineAbilityDefinitions}"/>
+        <TextBlock Text="Preserved separately from macros and registry IDs; edit the full definition in RAW WML for now."
+                   TextWrapping="Wrap"
+                   Opacity="0.7"/>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+
+    <!-- Attacks -->
+  <Border Grid.Column="1" BorderThickness="1" Padding="10">
+    <StackPanel Spacing="10">
+      <TextBlock Text="Attacks"
+                 FontWeight="Bold"
+                 FontSize="16"/>
+
+      <Grid ColumnDefinitions="220,*"
+            ColumnSpacing="10">
+
+        <!-- Keep list actions beside the list, independent of the taller detail pane. -->
+        <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Top">
+          <ListBox Height="180"
+                 ItemsSource="{Binding Attacks}"
+                 AutoScrollToSelectedItem="False"
+                 SelectedItem="{Binding SelectedAttack}">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="wccvm:AttackVm">
+              <Grid ColumnDefinitions="36,*" ColumnSpacing="8">
+                <Border Grid.Column="0"
+                        Width="32"
+                        Height="32"
+                        ToolTip.Tip="{Binding IconStatus}">
+                  <Grid>
+                    <Image Source="{Binding IconBitmap}"
+                           Width="32"
+                           Height="32"
+                           Stretch="Uniform"
+                           IsVisible="{Binding HasIconPreview}"/>
+                    <TextBlock Text="—"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding IsIconPreviewMissing}"/>
+                  </Grid>
+                </Border>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding DisplayName}"
+                           Classes.inherited="{Binding IsInherited}"
+                           VerticalAlignment="Center"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+          </ListBox>
+
+          <StackPanel Orientation="Horizontal"
+                    Spacing="8">
+          <Button Content="{Binding AddAttackButtonText}"
+                  icons:WccButtonIcon.Action="Add"
+                  ToolTip.Tip="{Binding AddAttackHelp}"
+                  Click="AddAttackClicked"
+                  IsEnabled="{Binding CanAddAttack}"/>
+          <Button Content="Edit Raw..."
+                  icons:WccButtonIcon.Action="EditCode" Click="EditSelectedAttackRawClicked"
+                  IsEnabled="{Binding CanEditSelectedAttackRaw}"/>
+          <Button Content="-"
+                  icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected attack"
+                  Click="RemoveSelectedAttackClicked"
+                  IsEnabled="{Binding CanRemoveSelectedAttack}"/>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1"
+                    Spacing="10">
+          <Grid ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto"
+                RowSpacing="8" ColumnSpacing="8">
+            <TextBlock Text="Attack name" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding AttackDescription, Mode=TwoWay}"
+                     Classes.inherited="{Binding AttackDescriptionIsInherited}"
+                     IsEnabled="{Binding AttackDescriptionIsEditable}" Watermark="Defaults to internal name"
+                     ToolTip.Tip="Displayed, translatable attack name (WML description). Enter ordinary text; WCC handles quoting."
+                     TextWrapping="Wrap" AcceptsReturn="True" MaxHeight="90"/>
+            <Button Grid.Column="2" Classes="fieldIcon" Content="?" Tag="description"
+                    IsVisible="{Binding AttackDescriptionHasRawEditor}" icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+            <TextBlock Grid.Row="1" Text="Internal name / ID" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AttackName, Mode=TwoWay}"
+                     Classes.inherited="{Binding AttackNameIsInherited}" IsEnabled="{Binding AttackNameIsEditable}"
+                     ToolTip.Tip="WML name: used by animation filters and the default attacks/&lt;name&gt;.png icon. Changing this does not rename animation filters."/>
+            <Button Grid.Row="1" Grid.Column="2" Classes="fieldIcon" Content="?" Tag="name"
+                    IsVisible="{Binding AttackNameHasRawEditor}" icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+            <TextBlock Grid.Row="2" Text="Attack icon" VerticalAlignment="Center"/>
+            <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+              <TextBox Text="{Binding AttackIcon, Mode=TwoWay}"
+                       Classes.inherited="{Binding AttackIconIsInherited}" IsEnabled="{Binding AttackIconIsEditable}"
+                       Watermark="Default icon from internal name" ToolTip.Tip="Attack icon path; empty uses the default icon from the internal name."/>
+              <Button Grid.Column="1" Content="Pick icon…" icons:WccButtonIcon.Action="Select" VerticalAlignment="Center"
+                      ToolTip.Tip="Choose an attack icon from Core or this package" Click="PickAttackIconClicked" IsEnabled="{Binding CanPickAttackIcon}"/>
+              <Button Grid.Column="2" Content="Upload…" icons:WccButtonIcon.Action="Browse" VerticalAlignment="Center"
+                      Click="UploadAttackIconClicked" IsEnabled="{Binding CanPickAttackIcon}"
+                      ToolTip.Tip="Copy an image into this unit's attack icon folder, then save its reference with the unit."/>
+            </Grid>
+            <Button Grid.Row="2" Grid.Column="2" Classes="fieldIcon" Content="?" Tag="icon"
+                    IsVisible="{Binding AttackIconHasRawEditor}" icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*,Auto"
+                RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                RowSpacing="8"
+                ColumnSpacing="8">
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Damage Type"/>
+            <ComboBox Grid.Row="0" Grid.Column="1"
+                      ItemsSource="{Binding AttackTypeSuggestions}"
+                      Text="{Binding AttackType, Mode=TwoWay}"
+                 Classes.inherited="{Binding AttackTypeIsInherited}"
+                      IsEditable="True"
+                      IsEnabled="{Binding AttackTypeIsEditable}"/>
+            <Button Grid.Row="0" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackTypeHasRawEditor}"
+                    Tag="type"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Range"/>
+            <ComboBox Grid.Row="1" Grid.Column="1"
+                      ItemsSource="{Binding AttackRangeSuggestions}"
+                      Text="{Binding AttackRange, Mode=TwoWay}"
+                 Classes.inherited="{Binding AttackRangeIsInherited}"
+                      IsEditable="True"
+                      IsEnabled="{Binding AttackRangeIsEditable}"/>
+            <Button Grid.Row="1" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackRangeHasRawEditor}"
+                    Tag="range"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0"
+                       Text="Attack Alignment"
+                       IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <ComboBox Grid.Row="2" Grid.Column="1"
+                      ItemsSource="{Binding AttackAlignmentSuggestions}"
+                      Text="{Binding AttackAlignment, Mode=TwoWay}"
+                 Classes.inherited="{Binding AttackAlignmentIsInherited}"
+                      IsEditable="True"
+                      IsEnabled="{Binding AttackAlignmentIsEditable}"
+                      IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <Button Grid.Row="2" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackAlignmentHasRawEditor}"
+                    Tag="alignment"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0"
+                       Text="Minimum Distance"
+                       IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <TextBox Grid.Row="3" Grid.Column="1"
+                     Text="{Binding AttackMinRange}"
+                 Classes.inherited="{Binding AttackMinRangeIsInherited}"
+                     IsEnabled="{Binding AttackMinRangeIsEditable}"
+                     IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <Button Grid.Row="3" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackMinRangeHasRawEditor}"
+                    Tag="min_range"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0"
+                       Text="Maximum Distance"
+                       IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <TextBox Grid.Row="4" Grid.Column="1"
+                     Text="{Binding AttackMaxRange}"
+                 Classes.inherited="{Binding AttackMaxRangeIsInherited}"
+                     IsEnabled="{Binding AttackMaxRangeIsEditable}"
+                     IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+            <Button Grid.Row="4" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackMaxRangeHasRawEditor}"
+                    Tag="max_range"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="Damage"/>
+            <TextBox Grid.Row="5" Grid.Column="1"
+                     Text="{Binding AttackDamage}"
+                 Classes.inherited="{Binding AttackDamageIsInherited}"
+                     IsEnabled="{Binding AttackDamageIsEditable}"/>
+            <Button Grid.Row="5" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackDamageHasRawEditor}"
+                    Tag="damage"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="Number"/>
+            <TextBox Grid.Row="6" Grid.Column="1"
+                     Text="{Binding AttackNumber}"
+                 Classes.inherited="{Binding AttackNumberIsInherited}"
+                     IsEnabled="{Binding AttackNumberIsEditable}"/>
+            <Button Grid.Row="6" Grid.Column="2"
+                    Width="28" Height="28"
+                    Content="?"
+                    IsVisible="{Binding AttackNumberHasRawEditor}"
+                    Tag="number"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+          </Grid>
+
+          <TextBlock Text="{Binding Wesnoth120AttackDistanceInfo}"
+                     TextWrapping="Wrap"
+                     Opacity="0.75"
+                     IsVisible="{Binding SupportsWesnoth120UnitAttackFields}"/>
+
+          <TextBlock Text="Reusable weapon-special definitions"
+                     FontWeight="SemiBold"/>
+
+          <ListBox Height="155"
+                   ItemsSource="{Binding SelectedAttackSpecialApplications}"
+                   SelectedItem="{Binding SelectedAttackSpecialApplication}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:AbilitySpecialApplicationVm">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                  <Border Grid.Column="0" BorderThickness="1" Padding="5,2">
+                    <TextBlock Text="{Binding SourceKindLabel}" FontSize="11"/>
+                  </Border>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding DisplayName}"
+                             TextWrapping="Wrap"
+                             VerticalAlignment="Center"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Pick..."
+                    icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose weapon specials" Click="OpenAttackSpecialPickerClicked"
+                    IsEnabled="{Binding CanPickAttackAbilitySpecials}"/>
+            <Button Content="Manage Library..."
+                    icons:WccButtonIcon.Action="Manage" ToolTip.Tip="Manage weapon-special definitions" Click="OpenWeaponSpecialPresetManagerClicked"/>
+            <Button Content="Remove Selected"
+                    icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected weapon-special reference"
+                    IsEnabled="{Binding CanRemoveSelectedAttackSpecialApplication}"
+                    Click="RemoveAttackSpecialApplicationClicked"/>
+            <Button Content="IDs RAW..."
+                    IsVisible="{Binding AttackSpecialIdsHasRawEditor}"
+                    Tag="specials_list"
+                    icons:WccButtonIcon.Action="EditCode" Click="OpenAttackFieldRawClicked"
+                    PointerEntered="AttackFieldRawPointerEntered"/>
+          </StackPanel>
+
+          <StackPanel Spacing="4" IsVisible="{Binding HasEffectiveSelectedAttackSpecials}">
+            <TextBlock Text="Effective weapon specials (read-only)" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding EffectiveSelectedAttackSpecials}" Foreground="Gray"/>
+          </StackPanel>
+
+          <StackPanel Spacing="6"
+                      IsVisible="{Binding HasSelectedAttackInlineSpecialDefinitions}">
+            <TextBlock Text="Literal inline weapon-special definitions"
+                       FontWeight="SemiBold"/>
+            <ListBox Height="70"
+                     ItemsSource="{Binding SelectedAttackInlineSpecialDefinitions}"/>
+            <TextBlock Text="Preserved separately from macros and registry IDs; edit the full definition in RAW WML for now."
+                       TextWrapping="Wrap"
+                       Opacity="0.7"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Grid>
+
+<!-- Animations -->
+<Border BorderThickness="1" Padding="10">
+  <StackPanel Spacing="10">
+    <TextBlock Text="Animations"
+               FontWeight="Bold"
+               FontSize="16"/>
+
+    <Grid ColumnDefinitions="250,*"
+          ColumnSpacing="10">
+
+      <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Top">
+        <ListBox Height="280"
+               ItemsSource="{Binding Animations}"
+               AutoScrollToSelectedItem="False"
+               SelectedItem="{Binding SelectedAnimation}">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="wccvm:UnitAnimationVm">
+            <Grid ColumnDefinitions="52,*,Auto"
+                  ColumnSpacing="6"
+                  ToolTip.Tip="{Binding MacroOrigin}">
+              <Border Grid.Column="0"
+                      Padding="3,1"
+                      BorderThickness="1"
+                      BorderBrush="#808080"
+                      CornerRadius="3">
+                <TextBlock Text="{Binding PrefixText}"
+                           FontFamily="Consolas"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"/>
+              </Border>
+              <TextBlock Grid.Column="1"
+                         Text="{Binding AnimationName}"
+                         Classes.inherited="{Binding IsInherited}"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"/>
+              <TextBlock Grid.Column="2"
+                         Text="{Binding DirectionSuffix}"
+                         VerticalAlignment="Center"
+                         Opacity="0.7"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Orientation="Horizontal"
+                  Spacing="8">
+        <Button Content="{Binding AddAnimationButtonText}"
+                icons:WccButtonIcon.Action="Add"
+                ToolTip.Tip="{Binding AddAnimationHelp}"
+                Click="AddAnimationClicked"
+                IsEnabled="{Binding CanAddAnimation}"/>
+        <Button Content="Edit Raw..."
+                icons:WccButtonIcon.Action="EditCode" Click="EditSelectedAnimationRawClicked"
+                IsEnabled="{Binding CanEditSelectedAnimationRaw}"/>
+        <Button Content="Remove Selected"
+                icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected animation"
+                Click="RemoveSelectedAnimationClicked"
+                IsEnabled="{Binding CanRemoveSelectedAnimation}"/>
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1"
+                  Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Animation Scene Preview"
+                     FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding AnimationPreviewIndicator}"
+                     FontWeight="Bold"
+                     ToolTip.Tip="{Binding AnimationPreviewStatus}"/>
+        </StackPanel>
+
+          <TextBlock Text="{Binding AnimationPreviewSummary}"
+                     TextWrapping="Wrap"/>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Direction"
+                       VerticalAlignment="Center"/>
+            <ComboBox Width="72"
+                      ItemsSource="{Binding AnimationPreviewDirectionOptions}"
+                      SelectedItem="{Binding AnimationPreviewDirection, Mode=TwoWay}"/>
+            <TextBlock Text="Outcome"
+                       VerticalAlignment="Center"/>
+            <ComboBox Width="84"
+                      ItemsSource="{Binding AnimationPreviewOutcomeOptions}"
+                      SelectedItem="{Binding AnimationPreviewOutcome, Mode=TwoWay}"/>
+            <TextBlock Text="Speed %"
+                       VerticalAlignment="Center"/>
+            <ComboBox Width="78"
+                      ItemsSource="{Binding AnimationPreviewSpeedOptions}"
+                      SelectedItem="{Binding AnimationPreviewSpeedPercent, Mode=TwoWay}"/>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <CheckBox Content="Neutral start"
+                      ToolTip.Tip="Show the unit's default image for 150 ms before the authored animation."
+                      IsChecked="{Binding AnimationPreviewNeutralStart, Mode=TwoWay}"/>
+            <CheckBox Content="Neutral end"
+                      ToolTip.Tip="Return to the unit's default image for 150 ms after the authored animation."
+                      IsChecked="{Binding AnimationPreviewNeutralEnd, Mode=TwoWay}"/>
+          </StackPanel>
+
+          <ItemsControl ItemsSource="{Binding AnimationPreviewConditions}"
+                        IsVisible="{Binding HasAnimationPreviewConditions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,0,12,4"
+                            Spacing="6">
+                  <TextBlock Text="{Binding DisplayName}"
+                             VerticalAlignment="Center"/>
+                  <ComboBox MinWidth="120"
+                            ItemsSource="{Binding Options}"
+                            SelectedItem="{Binding SelectedValue, Mode=TwoWay}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Border Height="420"
+                  BorderThickness="1"
+                  Padding="1"
+                  ClipToBounds="True">
+            <Viewbox Stretch="Uniform">
+              <Grid Width="256" Height="256">
+                <Polygon Width="72"
+                         Height="72"
+                         Points="18,0 54,0 72,36 54,72 18,72 0,36"
+                         Stretch="Fill"
+                         StrokeThickness="1"
+                         Stroke="#557A8794"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         IsHitTestVisible="False">
+                  <Polygon.RenderTransform>
+                    <TranslateTransform X="{Binding AnimationPreviewAttackerTranslateX}"
+                                        Y="{Binding AnimationPreviewAttackerTranslateY}"/>
+                  </Polygon.RenderTransform>
+                </Polygon>
+                <Polygon Width="72"
+                         Height="72"
+                         Points="18,0 54,0 72,36 54,72 18,72 0,36"
+                         Stretch="Fill"
+                         StrokeThickness="1"
+                         Stroke="#99D08A45"
+                         Fill="#0FD08A45"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         IsHitTestVisible="False">
+                  <Polygon.RenderTransform>
+                    <TranslateTransform X="{Binding AnimationPreviewTargetTranslateX}"
+                                        Y="{Binding AnimationPreviewTargetTranslateY}"/>
+                  </Polygon.RenderTransform>
+                </Polygon>
+                <ItemsControl ItemsSource="{Binding AnimationPreviewLayers}"
+                              Width="256"
+                              Height="256">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <Grid/>
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Width="256" Height="256">
+                        <Image Source="{Binding Bitmap}"
+                               Stretch="None"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderTransformOrigin="50%,50%">
+                          <Image.RenderTransform>
+                            <TransformGroup>
+                              <ScaleTransform ScaleX="{Binding ScaleX}"
+                                              ScaleY="{Binding ScaleY}"/>
+                              <TranslateTransform X="{Binding TranslateX}"
+                                                  Y="{Binding TranslateY}"/>
+                            </TransformGroup>
+                          </Image.RenderTransform>
+                        </Image>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </Viewbox>
+          </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="|&lt;"
+                  ToolTip.Tip="Restart"
+                  IsEnabled="{Binding CanControlAnimationPreview}"
+                  Click="RestartAnimationPreviewClicked"/>
+          <Button Content="&lt;"
+                  icons:WccButtonIcon.Action="Previous"
+                  ToolTip.Tip="Previous source/image frame boundary"
+                  IsEnabled="{Binding CanControlAnimationPreview}"
+                  Click="PreviousAnimationPreviewFrameClicked"/>
+          <Button Content="{Binding AnimationPreviewPlayPauseLabel}"
+                  icons:WccButtonIcon.Action="Play"
+                  IsVisible="{Binding !IsAnimationPreviewPlaying}"
+                  ToolTip.Tip="Play the selected animation preview"
+                  IsEnabled="{Binding CanControlAnimationPreview}"
+                  Click="ToggleAnimationPreviewPlaybackClicked"/>
+          <Button Content="{Binding AnimationPreviewPlayPauseLabel}"
+                  icons:WccButtonIcon.Action="Pause"
+                  IsVisible="{Binding IsAnimationPreviewPlaying}"
+                  ToolTip.Tip="Pause the selected animation preview"
+                  IsEnabled="{Binding CanControlAnimationPreview}"
+                  Click="ToggleAnimationPreviewPlaybackClicked"/>
+          <Button Content="&gt;"
+                  icons:WccButtonIcon.Action="Next"
+                  ToolTip.Tip="Next source/image frame boundary"
+                  IsEnabled="{Binding CanControlAnimationPreview}"
+                  Click="NextAnimationPreviewFrameClicked"/>
+          <CheckBox Content="Loop preview"
+                    IsChecked="{Binding AnimationPreviewLoop, Mode=TwoWay}"
+                    IsEnabled="{Binding CanControlAnimationPreview}"/>
+        </StackPanel>
+
+        <Slider Minimum="{Binding AnimationPreviewMinimumMs}"
+                Maximum="{Binding AnimationPreviewMaximumMs}"
+                Value="{Binding AnimationPreviewPositionMs, Mode=TwoWay}"
+                IsEnabled="{Binding CanControlAnimationPreview}"/>
+        <TextBlock Text="{Binding AnimationPreviewPositionLabel}"/>
+        <TextBlock Text="{Binding AnimationPreviewFrameInfo}"
+                   TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding AnimationPreviewImageExpression}"
+                   FontSize="10"
+                   TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding AnimationPreviewStatus}"
+                   TextWrapping="Wrap"/>
+
+        <Expander Header="Preview fidelity details">
+          <ItemsControl ItemsSource="{Binding AnimationPreviewFidelityMessages}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}"
+                           Margin="0,2"
+                           TextWrapping="Wrap"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Expander>
+      </StackPanel>
+    </Grid>
+  </StackPanel>
+</Border>
+
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </DockPanel>
+</UserControl>

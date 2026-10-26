@@ -1,0 +1,10 @@
+bin/
+obj/
+/artifacts/
+/Library/
+/Cache/
+/settings.json
+.idea/
+.vs/
+*.user
+*.suo

@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels" x:Class="Wcc.App.Views.Controls.CampaignPresetScopeView"
+             x:DataType="vm:CampaignPresetCreationForm">
+  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+    <TextBlock Text="Available to" VerticalAlignment="Center"/>
+    <ComboBox Name="PresetScopeSelector" Grid.Column="1" ItemsSource="{Binding ScopeChoices}"
+              SelectedItem="{Binding SelectedScope, Mode=TwoWay}" IsEnabled="{Binding CanChooseScope}">
+      <ComboBox.ItemTemplate><DataTemplate DataType="vm:CampaignPresetScopeChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+    </ComboBox>
+  </Grid>
+</UserControl>

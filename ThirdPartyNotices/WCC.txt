@@ -1,0 +1,26 @@
+WCC - Wesnoth Campaign Creator
+
+WCC is a desktop editor for singleplayer Battle for Wesnoth campaigns.
+WCC source: LGPL-3.0-or-later. See LICENSE, COPYING.LESSER and COPYING in the source
+root, or WCC-LICENSE.txt, LGPL-3.0.txt and GPL-3.0.txt in application builds.
+Bundled components keep their own licenses.
+
+Components and license locations (relative to this folder)
+
+.NET runtime: DotNet/ (included in self-contained distributions).
+Avalonia: Avalonia.txt (MIT); AvaloniaEdit: AvaloniaEdit.txt (MIT).
+CommunityToolkit.Mvvm and restored dependencies, including SkiaSharp/Skia,
+HarfBuzzSharp/HarfBuzz and ANGLE: Packages/ (licenses, notices and version metadata
+collected for portable distributions).
+MicroCom.Runtime: MicroCom.Runtime.txt (MIT); Tmds.DBus.Protocol: Tmds.DBus.txt (MIT).
+Inter font: Inter-font.txt (SIL Open Font License 1.1).
+
+Battle for Wesnoth 1.19.28 artwork: Wesnoth.txt (GPL-2.0-or-later) and
+Wesnoth-copyright.txt. Wesnoth-images.txt lists the unmodified bundled images.
+Lato fonts: SIL Open Font License 1.1; WesScript fonts: GPL-2.0-or-later with font
+exception. Original font notices and terms: Wesnoth-fonts.txt.
+Source: https://github.com/wesnoth/wesnoth/tree/1.19.28
+
+WCC icons incorporate Pictogrammers artwork adapted for WCC: Apache-2.0.txt and
+Pictogrammers.txt (Apache License 2.0). WCC.ico wraps the WCC.png application image.
+Source: https://pictogrammers.com/docs/general/license/

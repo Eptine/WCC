@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.WmlEditorWorkspaceView">
+  <DockPanel x:Name="WorkspaceContent" x:DataType="vm:WmlEditorWorkspaceViewModel">
+    <StackPanel DockPanel.Dock="Top" Spacing="5" Margin="0,0,0,8">
+      <TabControl x:Name="TabsControl" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
+                  SelectionChanged="TabSelectionChanged">
+        <TabControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:WmlEditorTabViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <TextBlock Text="{Binding DisplayTitle}" VerticalAlignment="Center"/>
+              <TextBlock Text="●" Foreground="#E1C58B" IsVisible="{Binding Document.IsModified}"
+                         VerticalAlignment="Center" ToolTip.Tip="Edits in this document have not been applied."/>
+              <Button Content="×" icons:WccButtonIcon.Action="Close" Click="CloseTabClicked" IsVisible="{Binding CanClose}"
+                      Padding="0" MinHeight="28" MinWidth="28" ToolTip.Tip="Close this source tab using its save policy"/>
+            </StackPanel>
+          </DataTemplate>
+        </TabControl.ItemTemplate>
+        <TabControl.ContentTemplate>
+          <DataTemplate><Border Height="0"/></DataTemplate>
+        </TabControl.ContentTemplate>
+      </TabControl>
+      <TextBlock Text="{Binding SelectedTab.SourceDescription}" TextWrapping="Wrap" FontSize="12"
+                 Foreground="#B8B09C" IsVisible="{Binding !SelectedTab.IsRoot}"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Spacing="5" Margin="0,6,0,0">
+      <TextBlock x:Name="WorkspaceMessageText" Foreground="#E1C58B" TextWrapping="Wrap"/>
+      <StackPanel IsVisible="{Binding !SelectedTab.IsRoot}" Spacing="5">
+        <TextBlock Text="{Binding SelectedTab.Document.ValidationMessage}" Foreground="Tomato" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"
+                    IsVisible="{Binding !SelectedTab.IsReadOnly}">
+          <Button Content="Discard definition edits" Click="DiscardSourceClicked"/>
+          <Button Content="Apply definition" icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True" Click="ApplySourceClicked" IsEnabled="{Binding SelectedTab.Document.CanApply}"
+                  ToolTip.Tip="Apply this shared definition through its own source writer. The original draft has a separate Apply action."/>
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+    <ContentControl x:Name="PaneHost"/>
+  </DockPanel>
+</UserControl>

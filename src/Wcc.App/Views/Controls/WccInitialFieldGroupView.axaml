@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:local="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.WccInitialFieldGroupView"
+             x:DataType="vm:WccInitialFieldEditorGroup">
+  <Border BorderBrush="#665C503B" BorderThickness="0,1,0,0" Padding="0,5,0,8" IsVisible="{Binding HasVisibleFields}">
+    <Expander Header="{Binding Label}" Classes="fieldCategory" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+      <StackPanel>
+        <Grid x:Name="CoordinateRow" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6" Margin="0,0,12,0"
+              HorizontalAlignment="Left" IsVisible="{Binding HasCoordinatePair}">
+          <local:WccInitialFieldEditorView x:Name="CoordinateXInput" DataContext="{Binding CoordinateX}" IsCoordinateComponent="True"/>
+          <local:WccInitialFieldEditorView x:Name="CoordinateYInput" Grid.Column="1" DataContext="{Binding CoordinateY}" IsCoordinateComponent="True"/>
+          <Button x:Name="CoordinatePickerButton" Grid.Column="2" Content="Map…" Padding="8,5" VerticalAlignment="Top"
+                  local:WccButtonIcon.Action="Locate" Click="PickCoordinateClicked" IsVisible="{Binding CoordinateX.CanPickCoordinate}" ToolTip.Tip="Choose X and Y together on the map"/>
+        </Grid>
+        <ItemsControl DataContext="{Binding OrdinaryFieldsGroup}" ItemsSource="{Binding SeparateFields}" IsVisible="{Binding IsNotAppearance, FallbackValue=False}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="wccvm:WccInitialFieldEditorVm"><local:WccInitialFieldEditorView/></DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel DataContext="{Binding AppearanceFieldsGroup}" IsVisible="{Binding IsAppearance, FallbackValue=False}">
+          <ItemsControl ItemsSource="{Binding AppearanceMainFields}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="wccvm:WccInitialFieldEditorVm"><local:WccInitialFieldEditorView/></DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <local:WccSideFlagPresetView DataContext="{Binding Editor}"/>
+          <Expander Header="Details" Classes="fieldCategory" IsExpanded="{Binding IsDetailsExpanded, Mode=TwoWay}" IsVisible="{Binding HasAppearanceDetails}">
+            <ItemsControl ItemsSource="{Binding AppearanceDetailFields}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="wccvm:WccInitialFieldEditorVm"><local:WccInitialFieldEditorView/></DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Expander>
+        </StackPanel>
+      </StackPanel>
+    </Expander>
+  </Border>
+</UserControl>

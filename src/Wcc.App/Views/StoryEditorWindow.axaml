@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.StoryEditorWindow"
+        Width="1450" Height="1000" MinWidth="1050" MinHeight="750"
+        Title="WCC Story Editor" Classes="wccShell" x:CompileBindings="False">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Styles/WccControlThemes.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+  <DockPanel Margin="12">
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+      <TextBlock Text="Story editor" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" Content="Source…" controls:WccButtonIcon.Action="ViewCode" ToolTip.Tip="Inspect the captured story source" Click="SourceClicked"/>
+    </Grid>
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0" ColumnSpacing="8">
+      <StackPanel Spacing="3">
+        <TextBlock x:Name="StatusLabel" TextWrapping="Wrap" MaxHeight="42"/>
+        <TextBlock Text="Apply queues this story. Save the scenario to write it to disk." Opacity="0.7" FontSize="12"/>
+      </StackPanel>
+      <Button Grid.Column="1" Content="Cancel" controls:WccButtonIcon.Action="Close" controls:WccButtonIcon.ShowLabel="True"
+              Click="CancelClicked" VerticalAlignment="Bottom"/>
+      <Button Grid.Column="2" Content="Apply" controls:WccButtonIcon.Action="Accept" controls:WccButtonIcon.ShowLabel="True" Classes="primary" Click="ApplyClicked" VerticalAlignment="Bottom" IsEnabled="{Binding CanEdit}"/>
+    </Grid>
+    <Grid ColumnDefinitions="190,*,300" ColumnSpacing="10">
+      <Border Grid.Column="0" Classes="panel" BorderThickness="1" CornerRadius="5" Padding="7">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <ComboBox x:Name="ContextPicker" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="5" Margin="0,0,0,8">
+            <Button x:Name="AddSlideButton" Width="28" MinWidth="28" Padding="0" Content="+" controls:WccButtonIcon.Action="Add" Click="AddPartClicked" ToolTip.Tip="Add a slide after the selected slide"/>
+            <Button x:Name="RemoveSlideButton" Grid.Column="1" Width="28" MinWidth="28" Padding="0" Content="−" controls:WccButtonIcon.Action="Remove" Click="RemovePartClicked" ToolTip.Tip="Remove selected slide"/>
+            <Button x:Name="DuplicateSlideButton" Grid.Column="2" Width="28" MinWidth="28" Padding="0" Content="⧉" controls:WccButtonIcon.Action="Copy" Click="DuplicatePartClicked" ToolTip.Tip="Duplicate selected slide"/>
+            <Button x:Name="SlideUpButton" Grid.Column="4" Width="28" MinWidth="28" Padding="0" Content="↑" controls:WccButtonIcon.Action="Up" Click="MovePartUpClicked" ToolTip.Tip="Move slide up"/>
+            <Button x:Name="SlideDownButton" Grid.Column="5" Width="28" MinWidth="28" Padding="0" Content="↓" controls:WccButtonIcon.Action="Down" Click="MovePartDownClicked" ToolTip.Tip="Move slide down"/>
+          </Grid>
+          <Grid x:Name="SlideGroups" Grid.Row="2" RowDefinitions="*,Auto">
+            <ScrollViewer><StackPanel x:Name="Slides" Spacing="6"/></ScrollViewer>
+            <Border x:Name="DifficultySlidesHost" Grid.Row="1" BorderBrush="#856E40" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,8,0,0" IsVisible="False">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Difficulty slides" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <ScrollViewer MaxHeight="240"><StackPanel x:Name="DifficultySlides" Spacing="6"/></ScrollViewer>
+              </DockPanel>
+            </Border>
+          </Grid>
+        </Grid>
+      </Border>
+      <Grid Grid.Column="1" RowDefinitions="3*,Auto,2*" RowSpacing="8">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Text="Slide preview" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+          <Viewbox Grid.Row="1" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border x:Name="PreviewHost" Width="1920" Height="1080" Background="Black" BorderBrush="#82938F" BorderThickness="2" CornerRadius="5" ClipToBounds="True"/>
+          </Viewbox>
+        </Grid>
+        <Border Grid.Row="1" Classes="panel" CornerRadius="5" Padding="5">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="5">
+            <Button x:Name="PreviewPreviousButton" Content="◀" controls:WccButtonIcon.Action="Previous" IsEnabled="False" ToolTip.Tip="Previous slide · playback is planned"/>
+            <Button Grid.Column="1" x:Name="PreviewNextButton" Content="▶" controls:WccButtonIcon.Action="Next" IsEnabled="False" ToolTip.Tip="Next slide · playback is planned"/>
+            <Button Grid.Column="2" x:Name="PreviewFrameButton" Content="▸|" IsEnabled="False" ToolTip.Tip="Advance one frame · playback is planned"/>
+            <Button Grid.Column="3" x:Name="PreviewPlayButton" Content="▷" controls:WccButtonIcon.Action="Play" IsEnabled="False" ToolTip.Tip="Play / pause · playback is planned"/>
+            <Slider Grid.Column="4" x:Name="PreviewTimeline" IsEnabled="False" Minimum="0" Maximum="100" Value="0" VerticalAlignment="Center" ToolTip.Tip="Playback timeline · planned"/>
+          </Grid>
+        </Border>
+        <Border Grid.Row="2" Classes="panel" BorderThickness="1" CornerRadius="5" Padding="10">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Settings" Spacing="10"/></ScrollViewer>
+        </Border>
+      </Grid>
+      <Border Grid.Column="2" Classes="panel" Padding="8" CornerRadius="5">
+        <DockPanel>
+          <TextBlock x:Name="PreviewStatus" DockPanel.Dock="Bottom" Opacity="0.6" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Text="Static preview · playback is planned"/>
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Inspector" Spacing="8"/></ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

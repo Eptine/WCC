@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.StandaloneWmlEditorWindow"
+        x:DataType="vm:StandaloneWmlEditorViewModel"
+        Classes="wccShell"
+        Width="1200" Height="800" MinWidth="800" MinHeight="500"
+        Title="WCC - WML Editor">
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+        <Button Content="Open…" Click="OpenClicked" IsEnabled="{Binding !IsBusy}"
+                icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                ToolTip.Tip="Open WML files (Ctrl+O)"/>
+        <Button Grid.Column="1" Content="Save" Classes="primary" Click="SaveClicked"
+                icons:WccButtonIcon.Action="Save" icons:WccButtonIcon.ShowLabel="True" icons:WccButtonIcon.HasPendingChanges="{Binding SelectedTab.Document.IsModified}"
+                IsEnabled="{Binding CanSaveSelected}" ToolTip.Tip="Save the selected file (Ctrl+S)"/>
+        <Button Grid.Column="2" Content="Close file" Click="CloseFileClicked"
+                icons:WccButtonIcon.Action="Close" icons:WccButtonIcon.ShowLabel="True"
+                IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Close the selected file (Ctrl+W)"/>
+        <TextBlock Grid.Column="4" Text="WML Editor" VerticalAlignment="Center"
+                   Foreground="#D9BF85" FontWeight="SemiBold" FontSize="16"/>
+      </Grid>
+      <TabControl x:Name="FileTabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
+                  SelectionChanged="TabSelectionChanged">
+        <TabControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:StandaloneWmlFileTab">
+            <StackPanel Orientation="Horizontal" Spacing="7" ToolTip.Tip="{Binding Path}">
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+              <TextBlock Text="●" Foreground="#E1C58B" IsVisible="{Binding Document.IsModified}"
+                         VerticalAlignment="Center" ToolTip.Tip="Unsaved changes"/>
+              <Button Content="×" Click="CloseTabClicked" Padding="3,0" MinHeight="20" MinWidth="20"
+                      icons:WccButtonIcon.Action="Close"
+                      ToolTip.Tip="Close this file"/>
+            </StackPanel>
+          </DataTemplate>
+        </TabControl.ItemTemplate>
+        <TabControl.ContentTemplate>
+          <DataTemplate><Border Height="0"/></DataTemplate>
+        </TabControl.ContentTemplate>
+      </TabControl>
+      <TextBlock Text="{Binding SelectedTab.Path}" Foreground="#B8B09C" FontSize="12"
+                 TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedTab.Path}"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,8,0,0">
+      <TextBlock Text="{Binding Status}" Foreground="#B8B09C" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="Tomato" TextWrapping="Wrap"/>
+      <TextBlock x:Name="WindowErrorText" Foreground="Tomato" TextWrapping="Wrap"/>
+    </StackPanel>
+    <Grid>
+      <ContentControl x:Name="PaneHost"/>
+      <Border x:Name="EmptyState" BorderBrush="#76674B" BorderThickness="1" CornerRadius="3"
+              Background="#101923" Padding="24">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="520">
+          <TextBlock Text="Open a WML file" Foreground="#D9BF85" FontSize="22"
+                     FontWeight="SemiBold" HorizontalAlignment="Center"/>
+          <TextBlock Text="Open one or more .cfg files to edit them in separate tabs."
+                     TextWrapping="Wrap" Foreground="#B8B09C" TextAlignment="Center"/>
+          <Button Content="Open…" Click="OpenClicked" IsEnabled="{Binding !IsBusy}"
+                  icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                  HorizontalAlignment="Center" Classes="primary"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels" xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.CampaignChapterCreationWindow" x:DataType="vm:CampaignChapterCreationViewModel"
+        Title="Add campaign chapter" Classes="wccShell" Width="760" Height="680" MinWidth="560" MinHeight="460"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,14">
+      <TextBlock Text="{Binding StepTitle}" FontSize="22" FontWeight="SemiBold"/>
+      <TextBlock Text="A chapter is a separate campaign entry in the same add-on package." TextWrapping="Wrap" Opacity="0.7"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,14,0,0">
+      <TextBlock Text="{Binding ValidationText}" TextWrapping="Wrap" Foreground="IndianRed"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Back" Click="BackClicked" IsEnabled="{Binding CanGoBack}"/>
+        <Button Content="Next" Click="NextClicked" IsVisible="{Binding !IsReviewStep}" IsEnabled="{Binding CanGoNext}"/>
+        <Button Content="Use chapter" Click="AcceptClicked" IsVisible="{Binding IsReviewStep}" IsEnabled="{Binding CanCreate}"
+                icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True"/>
+        <Button Content="Cancel" Click="CancelClicked"/>
+      </StackPanel>
+    </StackPanel>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+        <icons:CampaignChapterEditorView IsVisible="{Binding !IsReviewStep}"/>
+        <StackPanel IsVisible="{Binding IsReviewStep}" Spacing="12">
+          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+          <TextBlock Text="Use chapter returns this draft to the package wizard or stages it for Global Save. Cancel leaves the project unchanged." TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

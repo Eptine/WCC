@@ -1,0 +1,24 @@
+<Project>
+  <!-- Publish-only native entry point. Keep the managed assembly identity and
+       resource URIs stable while binding the public WCC executable to bin/. -->
+  <Target Name="WccCreatePortableAppHost" AfterTargets="Publish"
+          DependsOnTargets="_GetAppHostPaths;_GetAppHostCreationConfiguration"
+          Condition="'$(WccPortablePublish)' == 'true' and '$(MSBuildProjectName)' == 'Wcc.App'">
+    <Error Condition="'$(SelfContained)' != 'true' or '$(PublishSingleFile)' == 'true'"
+           Text="The portable directory layout requires ordinary self-contained publishing." />
+    <Error Condition="'$(WccPortableHostPath)' == '' or !Exists('$(AppHostSourcePath)')"
+           Text="A portable host destination and the pristine SDK apphost are required." />
+    <Error Condition="Exists('$(WccPortableHostPath)')"
+           Text="Refusing to overwrite an existing portable native host." />
+    <!-- AppLocal is relative to the managed application's directory, bin/.
+         The host therefore loads the bundled hostfxr, without global .NET. -->
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(WccPortableHostPath)"
+                   AppBinaryName="bin/$(AssemblyName)$(TargetExt)"
+                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
+                   WindowsGraphicalUserInterface="$(_UseWindowsGraphicalUserInterface)"
+                   EnableMacOSCodeSign="false"
+                   DisableCetCompat="$(_DisableCetCompat)"
+                   DotNetSearchLocations="AppLocal" />
+  </Target>
+</Project>

@@ -1,0 +1,61 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ControlTheme x:Key="WccScrollThumb" TargetType="Thumb">
+    <Setter Property="Background" Value="#718A99"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Template">
+      <ControlTemplate><Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}"/></ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover"><Setter Property="Background" Value="#A1C0CB"/></Style>
+    <Style Selector="^:pressed"><Setter Property="Background" Value="#D9BF85"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Background" Value="#3C4C59"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="WccScrollPage" TargetType="RepeatButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><ControlTemplate><Border Background="{TemplateBinding Background}"/></ControlTemplate></Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="WccScrollBar" TargetType="ScrollBar">
+    <Setter Property="AllowAutoHide" Value="False"/>
+    <Setter Property="Background" Value="#192330"/>
+    <Setter Property="MinWidth" Value="14"/>
+    <Setter Property="MinHeight" Value="14"/>
+    <Style Selector="^:vertical">
+      <Setter Property="Width" Value="14"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" Padding="2">
+            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True"
+                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                   Value="{TemplateBinding Value, Mode=TwoWay}" ViewportSize="{TemplateBinding ViewportSize}"
+                   DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}">
+              <Track.DecreaseButton><RepeatButton x:Name="PART_PageUpButton" Theme="{StaticResource WccScrollPage}" AutomationProperties.Name="Page up"/></Track.DecreaseButton>
+              <Track.IncreaseButton><RepeatButton x:Name="PART_PageDownButton" Theme="{StaticResource WccScrollPage}" AutomationProperties.Name="Page down"/></Track.IncreaseButton>
+              <Track.Thumb><Thumb x:Name="WccScrollThumb" Theme="{StaticResource WccScrollThumb}" MinHeight="24" AutomationProperties.Name="Scroll position"/></Track.Thumb>
+            </Track>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="^:horizontal">
+      <Setter Property="Height" Value="14"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" Padding="2">
+            <Track x:Name="PART_Track" Orientation="Horizontal"
+                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                   Value="{TemplateBinding Value, Mode=TwoWay}" ViewportSize="{TemplateBinding ViewportSize}"
+                   DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}">
+              <Track.DecreaseButton><RepeatButton x:Name="PART_PageUpButton" Theme="{StaticResource WccScrollPage}" AutomationProperties.Name="Page left"/></Track.DecreaseButton>
+              <Track.IncreaseButton><RepeatButton x:Name="PART_PageDownButton" Theme="{StaticResource WccScrollPage}" AutomationProperties.Name="Page right"/></Track.IncreaseButton>
+              <Track.Thumb><Thumb x:Name="WccScrollThumb" Theme="{StaticResource WccScrollThumb}" MinWidth="24" AutomationProperties.Name="Scroll position"/></Track.Thumb>
+            </Track>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

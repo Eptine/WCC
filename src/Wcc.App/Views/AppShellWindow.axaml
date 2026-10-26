@@ -1,0 +1,491 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+        xmlns:controls="using:Wcc.App.Views.Controls"
+        xmlns:views="using:Wcc.App.Views"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.AppShellWindow"
+        x:DataType="vm:AppShellViewModel"
+        x:Name="ShellRoot"
+        Classes="wccShell"
+        Width="1460"
+        Height="920"
+        MinWidth="1100"
+        MinHeight="680"
+        Title="{Binding WindowTitle}" Icon="avares://Wcc.App/Assets/Wcc/Icons/WCC.png">
+
+  <DockPanel Classes="shellFrame">
+    <Border DockPanel.Dock="Top" Classes="toolbar" Padding="12,8" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="16">
+        <WrapPanel Orientation="Horizontal">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,6,4">
+            <Button Content="Settings" icons:WccButtonIcon.Action="Settings" icons:WccButtonIcon.ShowLabel="True" Click="OpenGeneralSettingsClicked" IsEnabled="{Binding CanInteractWithEditors}"/>
+            <Button Content="New campaign" icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True" Click="CreateCampaignClicked" IsEnabled="{Binding CanInteractWithEditors}"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+            <Button Content="Save" Classes="primary" Margin="16,0" Click="SaveCurrentContextClicked"
+                    icons:WccButtonIcon.Action="Save" icons:WccButtonIcon.IsCompact="False" icons:WccButtonIcon.HasPendingChanges="{Binding HasPendingEditorChanges}"
+                    IsEnabled="{Binding CanSaveCurrentContext}" ToolTip.Tip="Check and save the pending changes in the open editors."/>
+            <Button Content="Undo" icons:WccButtonIcon.Action="Undo" icons:WccButtonIcon.IsCompact="False" IsEnabled="False" ToolTip.Tip="Undo history will be added later."/>
+            <Button Content="Redo" icons:WccButtonIcon.Action="Redo" icons:WccButtonIcon.IsCompact="False" IsEnabled="False" ToolTip.Tip="Redo history will be added later."/>
+          </StackPanel>
+        </WrapPanel>
+        <WrapPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal">
+          <Button Content="Connected Macros"
+                  Margin="0,0,8,4"
+                  IsEnabled="{Binding CanInteractWithEditors}"
+                  Click="ViewCurrentMacroConnectionsClicked"
+                  ToolTip.Tip="Show macros used by the current source, their transitive dependencies, exact definitions, and source provenance."/>
+          <Button Content="RAW WML" icons:WccButtonIcon.Action="ViewCode" icons:WccButtonIcon.ShowLabel="True"
+                  Margin="0,0,8,4"
+                  IsEnabled="{Binding CanInteractWithEditors}"
+                  Click="ViewCurrentSourceWmlClicked"
+                  ToolTip.Tip="Open the complete WML source behind the current editor or selected Library entity in a read-only window."/>
+          <Button Content="Edit scenario WML" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True"
+                  Margin="0,0,8,4" IsEnabled="{Binding CanEditPackageScenarioRaw}" IsVisible="{Binding IsPackageScenarioRawToolbarVisible}"
+                  Click="EditPackageScenarioRawClicked"
+                  ToolTip.Tip="Stage this package scenario file as RAW text. Save reviews every campaign entry and difficulty before writing; typed editing remains read-only."/>
+          <Button Content="WML Editor" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="OpenStandaloneWmlEditorClicked" Margin="0,0,8,4"
+                  ToolTip.Tip="Open .cfg files in an independent editor."/>
+          <Button Content="WML Tester" Click="OpenWmlTesterClicked" Margin="0,0,0,4"
+                  ToolTip.Tip="Choose .cfg files and run selected checks in a separate window."/>
+        </WrapPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="4" IsEnabled="{Binding CanInteractWithEditors}">
+          <ToggleButton Content="Campaign"
+                        MinWidth="100"
+                        Height="37" MinHeight="37"
+                        HorizontalContentAlignment="Center"
+                        IsChecked="{Binding IsProjectWorkspace, Mode=OneWay}"
+                        IsEnabled="{Binding IsLibraryWorkspace}"
+                        Click="ShowProjectWorkspaceClicked"/>
+          <ToggleButton Content="Library"
+                        MinWidth="100"
+                        Height="37" MinHeight="37"
+                        HorizontalContentAlignment="Center"
+                        IsChecked="{Binding IsLibraryWorkspace, Mode=OneWay}"
+                        IsEnabled="{Binding IsProjectWorkspace}"
+                        Click="ShowLibraryWorkspaceClicked"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+
+    <Grid x:Name="ShellEditorHost" Margin="12">
+      <TabControl SelectedIndex="{Binding SelectedTabIndex}"
+                  IsVisible="{Binding IsProjectWorkspace}"
+                  IsEnabled="{Binding CanInteractWithEditors}"
+                  Opacity="{Binding EditorContentOpacity}">
+
+      <TabItem Header="Campaign">
+        <DockPanel>
+          <Border x:Name="CampaignMetadataPanel" DockPanel.Dock="Top" IsVisible="False" Classes="panel"
+                  Padding="8"
+                  Margin="0,0,0,8"
+                  BorderThickness="1">
+            <StackPanel Spacing="3">
+              <TextBlock Text="Campaign Metadata" FontWeight="Bold"/>
+              <TextBlock Text="{Binding ProjectSessionLabel}"
+                         TextWrapping="Wrap"
+                         Opacity="0.72"/>
+              <TextBlock Text="{Binding CurrentProjectCompatibilityStatus}"
+                         TextWrapping="Wrap"
+                         Opacity="0.72"/>
+              <TextBlock Text="{Binding CurrentProjectCorePinStatus}"
+                         TextWrapping="Wrap"
+                         Opacity="0.72"/>
+              <Button Content="Pin Project to Active Wesnoth"
+                      HorizontalAlignment="Left"
+                      Click="PinCurrentProjectToActiveWesnothClicked"
+                      IsEnabled="{Binding CanPinCurrentProjectToActiveWesnoth}"
+                      ToolTip.Tip="Stores the stable compatibility target and the exact indexed Core revision in .wcc/project.json. It does not validate or migrate WML."/>
+            </StackPanel>
+          </Border>
+
+          <DockPanel>
+            <Border x:Name="CampaignPendingRail" DockPanel.Dock="Left" Width="244" Classes="panel" Padding="9" Margin="0,0,12,0" BorderThickness="1" IsVisible="{Binding HasOpenCampaignProject}">
+              <DockPanel>
+                <StackPanel x:Name="CampaignChapterPanel" DockPanel.Dock="Top" Spacing="7" Margin="0,0,0,12">
+                  <TextBlock Text="Campaigns / chapters" Classes="sectionHeading"/>
+                  <ListBox x:Name="CampaignChapterSelector" ItemsSource="{Binding CampaignEditor.CampaignChapterCards}" SelectedItem="{Binding CampaignEditor.SelectedCampaignChapterCard, Mode=TwoWay}"
+                           IsEnabled="{Binding CampaignEditor.CanSelectCampaignEntry}" MaxHeight="300" HorizontalAlignment="Stretch">
+                    <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
+                    <ListBox.ItemTemplate><DataTemplate DataType="vm:CampaignChapterCard">
+                      <Border Classes="panel" Padding="7" Margin="0,2" ToolTip.Tip="{Binding Id}">
+                        <Grid ColumnDefinitions="52,*" ColumnSpacing="8">
+                          <Border Background="#101113" BorderBrush="#4B4434" BorderThickness="1" Width="52" Height="54"><Image Source="{Binding Icon.Bitmap}" Stretch="Uniform"/></Border>
+                          <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2"/><TextBlock Text="{Binding Id}" FontSize="10" FontStyle="Italic" Opacity="0.65" TextTrimming="CharacterEllipsis"/></StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate></ListBox.ItemTemplate>
+                  </ListBox>
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Button x:Name="AddCampaignChapterButton" Content="Add chapter" Click="AddCampaignChapterClicked" IsEnabled="{Binding CampaignEditor.CanAddCampaignChapter}" icons:WccButtonIcon.Action="Add" ToolTip.Tip="{Binding CampaignEditor.CampaignChapterGuidance}" ToolTip.ShowOnDisabled="True"/>
+                    <Button Grid.Column="2" x:Name="RemoveCampaignChapterButton" Content="Remove chapter" Click="RemoveCampaignChapterClicked" IsEnabled="{Binding CampaignEditor.CanRemoveCampaignChapter}" icons:WccButtonIcon.Action="Remove" ToolTip.Tip="{Binding CampaignEditor.CampaignChapterRemovalGuidance}" ToolTip.ShowOnDisabled="True"/>
+                  </Grid>
+                  <Border Height="1" Background="#856E40" Margin="0,4,0,0"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Pending changes" Classes="sectionHeading" Margin="0,0,0,8"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel>
+                    <TextBlock Text="No unsaved changes." IsVisible="{Binding !HasPendingEditorChanges}" Opacity="0.6"/>
+                    <ItemsControl ItemsSource="{Binding PendingChanges}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:PendingEditorChangeRemovalVm">
+                      <Border Classes="panel" BorderBrush="#856E40" BorderThickness="1" Padding="8" Margin="0,0,0,8" ToolTip.Tip="{Binding Summary}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                          <StackPanel Spacing="3"><TextBlock Text="{Binding Scope}" Opacity="0.6" FontSize="10"/><TextBlock Text="{Binding Label}" TextWrapping="Wrap" MaxLines="3" FontWeight="SemiBold"/><TextBlock Text="{Binding Detail}" TextTrimming="CharacterEllipsis" FontSize="10" Opacity="0.65"/></StackPanel>
+                          <Button Grid.Column="1" Content="Remove pending change" Tag="{Binding}" Click="RemovePendingChangeClicked" IsEnabled="{Binding CanRemove}" icons:WccButtonIcon.Action="Remove" VerticalAlignment="Center" ToolTip.Tip="{Binding RemovalProblem}" ToolTip.ShowOnDisabled="True"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                  </StackPanel>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+            <controls:CampaignEditorView x:Name="CampaignPage" DataContext="{Binding CampaignEditor}"
+                                         MetadataRequested="CampaignMetadataRequested" ShowLoadingIndicators="False"
+                                         ShowProjectLists="False" ShowSaveAsButton="False"/>
+          </DockPanel>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Scenario">
+        <Grid ColumnDefinitions="280,6,*" ColumnSpacing="8">
+          <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="10" MinWidth="230">
+            <Border Classes="panel" Padding="10" BorderThickness="1">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Difficulty / preview context" Classes="sectionHeading"/>
+                <ComboBox ItemsSource="{Binding ScenarioEditor.EvaluationContexts}"
+                          SelectedItem="{Binding ScenarioEditor.SelectedEvaluationContext, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" IsEnabled="{Binding HasCurrentScenarioDocument}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{ReflectionBinding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="{Binding ScenarioEditor.EvaluationContextStatus}" TextWrapping="Wrap" FontSize="11" Opacity="0.65"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Classes="panel" Padding="10" BorderThickness="1">
+            <Grid>
+              <DockPanel
+                          IsVisible="{Binding IsProjectScenarioWorkspace}">
+                <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+                  <TextBlock Text="Scenarios" Classes="sectionHeading"/>
+                  <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="6">
+                    <Button Content="Remove" icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected scenario from this campaign" Click="RemoveCampaignScenarioClicked" IsEnabled="{Binding CanModifyProjectScenarios}"/>
+                    <controls:ScenarioCreationLauncherView Grid.Column="1" CreationRequested="CreateScenarioClicked"/>
+                    <Button Grid.Column="2" Content="From file" HorizontalAlignment="Right" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="AddCampaignScenarioFromFileClicked" IsEnabled="{Binding CanModifyProjectScenarios}"/>
+                  </Grid>
+                </StackPanel>
+                <Button DockPanel.Dock="Bottom" Content="Open loose scenario file…" Margin="0,8,0,0"
+                        icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                        Click="OpenStandaloneScenarioClicked"/>
+                <ListBox ItemsSource="{Binding SortedProjectScenarios}"
+                         SelectedItem="{Binding SelectedCampaignScenarioFile}"
+                         SelectionChanged="ProjectScenarioTabSelectionChanged">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="wccvm:ProjectScenarioFileVm">
+                      <StackPanel Spacing="3">
+                        <Border IsVisible="{Binding ShowCampaignGroupHeading}" IsHitTestVisible="False"
+                                BorderBrush="#856E40" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,6,0,3">
+                          <TextBlock Text="{Binding CampaignGroupName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        </Border>
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayName}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+
+              </DockPanel>
+
+              <DockPanel
+                          IsVisible="{Binding IsLooseScenarioWorkspace}">
+                <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+                  <TextBlock Text="Loose scenario files" Classes="sectionHeading"/>
+                  <Button Content="Back to campaign" Click="ShowProjectScenarioWorkspaceClicked"
+                          IsVisible="{Binding CanReturnToProjectScenarios}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Open Scenario..." icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="OpenStandaloneScenarioClicked"/>
+                  <Button Content="Close Selected" icons:WccButtonIcon.Action="Close" ToolTip.Tip="Close the selected loose scenario file" Click="RemoveStandaloneScenarioClicked"/>
+                  </StackPanel>
+                </StackPanel>
+
+                <ListBox ItemsSource="{Binding SortedLooseScenarios}"
+                         SelectedItem="{Binding SelectedStandaloneScenarioFile}"
+                         SelectionChanged="StandaloneScenarioSelectionChanged">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="wccvm:ProjectScenarioFileVm">
+                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayName}"/>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </Grid>
+            </Border>
+            <Border Grid.Row="2" Classes="panel" Padding="10" BorderThickness="1" MaxHeight="260">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Pending changes" Classes="sectionHeading" Margin="0,0,0,8"/>
+                <TextBlock Text="No unsaved changes." IsVisible="{Binding !HasPendingEditorChanges}" Opacity="0.6"/>
+                <ItemsControl ItemsSource="{Binding PendingEditorChanges}" IsVisible="{Binding HasPendingEditorChanges}">
+                  <ItemsControl.Template>
+                    <ControlTemplate><ScrollViewer HorizontalScrollBarVisibility="Disabled"><ItemsPresenter/></ScrollViewer></ControlTemplate>
+                  </ItemsControl.Template>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:PendingEditorChange">
+                      <StackPanel Margin="0,3" Spacing="2" ToolTip.Tip="{Binding Detail}">
+                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontSize="11" Opacity="0.65"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </DockPanel>
+            </Border>
+          </Grid>
+          <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" ResizeDirection="Columns"/>
+
+          <Grid Grid.Column="2">
+            <TextBlock Text="Open a campaign or a loose scenario file to begin."
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding HasNoCurrentScenarioDocument}"/>
+
+            <DockPanel IsVisible="{Binding HasCurrentScenarioDocument}">
+              <controls:ScenarioEditorView DataContext="{Binding ScenarioEditor}"
+                                           ShowNavigationPane="False"
+                                           ShowFileButtons="False"
+                                           ShowOpenFileButton="False"
+                                           ShowEditorChrome="False" ShowLoadingIndicators="False"/>
+            </DockPanel>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Units">
+        <Grid ColumnDefinitions="390,*" ColumnSpacing="12">
+          <Border Grid.Column="0" Padding="10" BorderThickness="1">
+            <Grid>
+              <DockPanel IsVisible="{Binding IsProjectUnitWorkspace}">
+                <StackPanel DockPanel.Dock="Top" Spacing="8">
+                  <TextBlock Text="Project Unit Types" FontWeight="Bold"/>
+                  <TextBlock Text="{Binding ProjectSessionLabel}"
+                             TextWrapping="Wrap"
+                             Opacity="0.72"/>
+
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Create Unit Type…" Click="CreateProjectUnitTypeClicked"
+                            icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True"
+                            IsEnabled="{Binding CanCreateProjectUnitType}" ToolTip.Tip="{Binding UnitTypeCreationGuidance}"/>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Attach Unit File..."
+                            icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                            Click="AddCampaignUnitFromFileClicked"
+                            IsEnabled="{Binding CanModifyProjectUnits}"/>
+                    <Button Content="Remove from Project (later)"
+                            IsEnabled="False"
+                            ToolTip.Tip="Real removal must update the campaign include graph or explicitly remove/move a cfg file."/>
+                  </StackPanel>
+
+                  <Button Content="Manage Races..." icons:WccButtonIcon.Action="Manage" icons:WccButtonIcon.ShowLabel="True" ToolTip.Tip="Manage races in the Library" Click="OpenRaceManagerClicked"/>
+                  <TextBox Watermark="Search project and linked units"
+                           Text="{Binding ProjectUnitSearchText}"/>
+                  <TextBlock Text="Linked units are discovered from static WML references. Dynamic macro/Lua use is listed only when the index can detect it."
+                             TextWrapping="Wrap"
+                             Opacity="0.72"/>
+                  <TextBlock Text="P = project definition   L = linked/read-only   ? = unresolved"
+                             TextWrapping="Wrap"
+                             FontSize="11"/>
+                  <Button Content="Open Loose Unit File..."
+                          icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                          Click="OpenUnitCfgFromShellClicked"/>
+                </StackPanel>
+
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding ProjectUnitRaceGroups}"
+                                IsVisible="{Binding HasProjectUnitRaceGroups}"
+                                HorizontalAlignment="Stretch">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="wccvm:ProjectUnitRaceGroupVm">
+                        <Expander IsExpanded="{Binding IsExpanded}"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="0,0,0,6">
+                          <Expander.Header>
+                            <TextBlock Text="{Binding DisplayNameWithCount}"
+                                       FontWeight="SemiBold"/>
+                          </Expander.Header>
+
+                          <ItemsControl ItemsSource="{Binding Units}"
+                                        HorizontalAlignment="Stretch">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <UniformGrid Columns="3"/>
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate DataType="wccvm:ProjectUnitWorkspaceEntryVm">
+                                <Button Click="ProjectUnitTileClicked"
+                                        Tag="{Binding}"
+                                        Padding="0"
+                                        Margin="2,0,2,6"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip.Tip="{Binding DetailLabel}">
+                                  <Border Padding="4"
+                                          BorderThickness="2"
+                                          BorderBrush="{Binding TileBorderBrush}"
+                                          Background="{Binding TileBackground}">
+                                    <StackPanel Spacing="3">
+                                      <Grid Width="72" Height="72" HorizontalAlignment="Center">
+                                        <Border BorderThickness="1">
+                                          <Grid>
+                                            <Image Source="{Binding PreviewBitmap}" Stretch="Uniform"/>
+                                            <TextBlock Text="{Binding KindBadge}"
+                                                       IsVisible="{Binding HasNoPreviewBitmap}"
+                                                       FontSize="24"
+                                                       FontWeight="Bold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                          </Grid>
+                                        </Border>
+                                        <Border Background="DimGray"
+                                                CornerRadius="8"
+                                                Padding="4,1"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top"
+                                                ToolTip.Tip="{Binding KindTooltip}">
+                                          <TextBlock Text="{Binding KindBadge}"
+                                                     Foreground="White"
+                                                     FontWeight="Bold"
+                                                     FontSize="10"/>
+                                        </Border>
+                                      </Grid>
+
+                                      <TextBlock Text="{Binding UnitTypeId}"
+                                                 TextAlignment="Center"
+                                                 TextTrimming="CharacterEllipsis"
+                                                 MaxLines="1"/>
+                                    </StackPanel>
+                                  </Border>
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </Expander>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+
+              <DockPanel IsVisible="{Binding IsLooseUnitWorkspace}">
+                <StackPanel DockPanel.Dock="Top" Spacing="8">
+                  <TextBlock Text="Loose Unit Files" FontWeight="Bold"/>
+                  <TextBlock Text="Edit unit cfg files independently. Opening one closes the current campaign project."
+                             TextWrapping="Wrap"
+                             Opacity="0.72"/>
+                  <Button Content="Back to Project Units"
+                          Click="ShowProjectUnitWorkspaceClicked"
+                          IsVisible="{Binding CanReturnToProjectUnits}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Open Unit..." icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="OpenUnitCfgFromShellClicked"/>
+                    <Button Content="Close Selected" icons:WccButtonIcon.Action="Close" ToolTip.Tip="Close the selected loose unit file" Click="RemoveStandaloneUnitClicked"/>
+                  </StackPanel>
+                </StackPanel>
+
+                <ListBox ItemsSource="{Binding StandaloneUnitFiles}"
+                         SelectedItem="{Binding SelectedStandaloneUnitFile}"
+                         SelectionChanged="StandaloneUnitSelectionChanged">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="wccvm:ProjectUnitFileVm">
+                      <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </Grid>
+          </Border>
+
+          <Grid Grid.Column="1">
+            <TextBlock Text="Open a campaign or a loose unit file to begin."
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding IsUnitWorkspaceEmptyMessageVisible}"/>
+
+            <Border Padding="24"
+                    Margin="40"
+                    BorderThickness="1"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsUnresolvedProjectUnitSelected}">
+              <StackPanel Spacing="10" HorizontalAlignment="Center">
+                <TextBlock Text="Unit reference is unresolved"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding SelectedProjectUnitEntry.UnitTypeId}"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="This unit cannot be viewed or edited until its defining package is linked to the project or the unit is copied into the project."
+                           MaxWidth="620"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding SelectedProjectUnitEntry.DetailLabel}"
+                           MaxWidth="620"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Opacity="0.72"/>
+                <Button Content="Resolve Dependency (later)" IsEnabled="False"/>
+              </StackPanel>
+            </Border>
+
+            <DockPanel IsVisible="{Binding IsProjectUnitEditorVisible}">
+              <Border DockPanel.Dock="Top"
+                      Padding="8"
+                      Margin="10,0,10,6"
+                      BorderThickness="1">
+                <TextBlock Text="{Binding UnitSessionLabel}" TextWrapping="Wrap"/>
+              </Border>
+
+              <controls:UnitEditorView x:Name="StandaloneUnitEditorView"
+                                       DataContext="{Binding UnitEditor}"
+                                       ShowNavigationPane="False"
+                                       ShowFileButtons="False"/>
+            </DockPanel>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+
+      </TabControl>
+
+      <views:CatalogInspectorView IsVisible="{Binding IsLibraryWorkspace}" Margin="0,44,0,0"
+                                  IsEnabled="{Binding CanInteractWithEditors}" Opacity="{Binding EditorContentOpacity}"/>
+      <!-- The toolbar stays outside this host; the universal status remains above it. -->
+      <Border x:Name="ShellLoadingOverlay" ZIndex="10" IsVisible="{Binding IsShellBusy}"
+              Background="#C4181D25" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Border Classes="panel" BorderBrush="#856E40" BorderThickness="1" CornerRadius="4"
+                MaxWidth="460" Padding="28,24" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <StackPanel Spacing="15">
+            <TextBlock Text="Preparing the editor" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+            <ProgressBar x:Name="ShellLoadingAnimation" IsIndeterminate="True" Width="260" Height="6"/>
+            <TextBlock Text="{Binding ShellStatusText}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="390"/>
+          </StackPanel>
+        </Border>
+      </Border>
+      <Border x:Name="ShellStatusDisplay" ZIndex="20" Classes="panel" HorizontalAlignment="Right" VerticalAlignment="Top" Padding="10,6"
+              BorderThickness="1" MaxWidth="600" Margin="0,0,0,8" ToolTip.Tip="{Binding ShellStatusDetail}">
+        <Grid ColumnDefinitions="12,*" ColumnSpacing="9">
+          <Ellipse Width="10" Height="10" Fill="{Binding ShellStatusBrush}" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="{Binding ShellStatusText}" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

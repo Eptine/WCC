@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels" xmlns:local="using:Wcc.App.Views.Controls" x:Class="Wcc.App.Views.UnitPlacementWindow"
+        x:DataType="vm:UnitPlacementWindowViewModel" Width="690" Height="710" MinWidth="570" MinHeight="570"
+        Title="{Binding WindowTitle}" Classes="wccShell">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Top" Spacing="5" Margin="0,0,0,14">
+      <TextBlock Text="{Binding Heading}" FontSize="21" FontWeight="SemiBold"/>
+      <TextBlock Text="{Binding Introduction}" TextWrapping="Wrap" Opacity="0.7"/>
+    </StackPanel>
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,14,0,0">
+      <TextBlock x:Name="UnitPlacementStatus" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <Button x:Name="UnitPlacementDiscardButton" Grid.Column="1" Content="Discard" Click="DiscardClicked" VerticalAlignment="Bottom"/>
+      <Button x:Name="UnitPlacementApplyButton" Grid.Column="2" Content="Apply" local:WccButtonIcon.Action="Accept" local:WccButtonIcon.ShowLabel="True" Click="ApplyClicked" Classes="primary" IsEnabled="{Binding CanApply}" VerticalAlignment="Bottom"/>
+    </Grid>
+    <Border Classes="panel" BorderThickness="1" CornerRadius="5" Padding="12">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" IsVisible="{Binding ShowsUnitPresets}" Spacing="6" Margin="0,0,0,12">
+          <TextBlock Text="Unit preset" FontWeight="SemiBold"/>
+          <ComboBox x:Name="UnitPlacementPresetPicker" ItemsSource="{Binding UnitPresetChoices}" SelectedItem="{Binding SelectedUnitPreset, Mode=TwoWay}" IsEnabled="{Binding CanChooseUnitPreset}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate DataType="vm:UnitPlacementPresetChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock x:Name="UnitPlacementPresetGuidance" Text="{Binding UnitPresetGuidance}" TextWrapping="Wrap" Opacity="0.7" FontSize="11"/>
+        </StackPanel>
+        <ScrollViewer x:Name="UnitPlacementSettingsScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="125,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="9">
+              <TextBlock IsVisible="{Binding ShowsPlacement}" Text="Side" VerticalAlignment="Center"/>
+              <ComboBox IsVisible="{Binding ShowsSidePicker}" x:Name="UnitPlacementSidePicker" Grid.Column="1" ItemsSource="{Binding SideChoices}" SelectedItem="{Binding SelectedSide, Mode=TwoWay}" IsEnabled="{Binding CanChooseSide}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate><DataTemplate DataType="vm:UnitPlacementSideChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBox x:Name="UnitPlacementEventSideInput" Grid.Column="1" IsVisible="{Binding ShowsEventSideInput}" Text="{Binding EventSide, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Positive side number"/>
+              <ComboBox x:Name="UnitPlacementEventSidePicker" Grid.Column="1" IsVisible="{Binding UsesEventSideChoices}" ItemsSource="{Binding EventSideChoices}" SelectedItem="{Binding SelectedEventSide, Mode=TwoWay}" IsEnabled="{Binding CanChooseEventSide}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate><DataTemplate DataType="vm:UnitPlacementSideChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock IsVisible="{Binding ShowsDifficultyScope}" Grid.Row="1" Text="Difficulty" VerticalAlignment="Center"/>
+              <ComboBox IsVisible="{Binding ShowsDifficultyScope}" x:Name="UnitPlacementScopePicker" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ScopeChoices}" SelectedItem="{Binding SelectedScope, Mode=TwoWay}" IsEnabled="{Binding CanChooseScope}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate><DataTemplate DataType="vm:UnitPlacementScopeChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Grid.Row="2" Text="{Binding UnitIdLabel}" VerticalAlignment="Center"/>
+              <TextBox x:Name="UnitPlacementIdInput" Grid.Row="2" Grid.Column="1" Text="{Binding UnitId, Mode=TwoWay}" IsReadOnly="{Binding !CanEditUnitId}" Watermark="Optional, for scripted references"/>
+              <TextBlock Grid.Row="3" Text="Name" VerticalAlignment="Center"/>
+              <TextBox x:Name="UnitPlacementNameInput" Grid.Row="3" Grid.Column="1" Text="{Binding UnitName, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Generated by default"/>
+              <TextBlock Grid.Row="4" Text="Unit type" VerticalAlignment="Center"/>
+              <Grid Grid.Row="4" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <TextBox x:Name="UnitPlacementTypeInput" Text="{Binding TypeId, Mode=OneWay}" IsReadOnly="True" Watermark="Choose a unit type"/>
+                <Button x:Name="UnitPlacementTypeButton" Grid.Column="1" Content="…" local:WccButtonIcon.Action="Select" Click="PickTypeClicked" IsEnabled="{Binding CanPickType}" ToolTip.Tip="Choose from Core and unit types already in this campaign"/>
+              </Grid>
+              <TextBlock Grid.Row="5" Text="Gender (optional)" VerticalAlignment="Center"/>
+              <ComboBox x:Name="UnitPlacementGenderPicker" Grid.Row="5" Grid.Column="1" ItemsSource="{Binding GenderChoices}" SelectedItem="{Binding SelectedGender, Mode=TwoWay}" IsEnabled="{Binding CanChooseGender}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate><DataTemplate DataType="vm:UnitPlacementGenderChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding GenderStatus}" TextWrapping="Wrap" Opacity="0.65" FontSize="11"/>
+            </Grid>
+            <TextBlock Text="{Binding UnitIdGuidance}" TextWrapping="Wrap" Opacity="0.65" FontSize="11"/>
+            <Border Height="1" Background="#8E7955"/>
+            <TextBlock IsVisible="{Binding ShowsPlacement}" Text="Location" FontWeight="SemiBold"/>
+            <WrapPanel IsVisible="{Binding ShowsPlacement}">
+              <TextBlock Text="X" VerticalAlignment="Center" Margin="0,0,7,0"/>
+              <TextBox x:Name="UnitPlacementXInput" Text="{Binding X, Mode=TwoWay}" Width="85" IsReadOnly="{Binding !CanEdit}" Margin="0,0,18,0"/>
+              <TextBlock Text="Y" VerticalAlignment="Center" Margin="0,0,7,0"/>
+              <TextBox x:Name="UnitPlacementYInput" Text="{Binding Y, Mode=TwoWay}" Width="85" IsReadOnly="{Binding !CanEdit}"/>
+              <Button x:Name="UnitPlacementCoordinateButton" Content="Pick on map" IsVisible="{Binding IsEventSpawn}" IsEnabled="{Binding CanPickCoordinates}" local:WccButtonIcon.Action="Select" local:WccButtonIcon.ShowLabel="True" Click="PickCoordinatesClicked" Margin="12,0,0,0" ToolTip.Tip="Choose a playable hex on the current scenario map"/>
+            </WrapPanel>
+            <Border Height="1" Background="#8E7955"/>
+            <TextBlock Text="Starting state" FontWeight="SemiBold"/>
+            <TextBlock Text="Leave optional values empty to use the unit's normal starting values. New units receive normal random traits; trait selection comes later." TextWrapping="Wrap" Opacity="0.65" FontSize="11"/>
+            <Grid ColumnDefinitions="125,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="9">
+              <TextBlock Text="Starting HP" VerticalAlignment="Center"/>
+              <TextBox x:Name="UnitPlacementHpInput" Grid.Column="1" Text="{Binding Hitpoints, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Maximum HP"/>
+              <TextBlock Grid.Row="1" Text="Starting XP" VerticalAlignment="Center"/>
+              <TextBox x:Name="UnitPlacementXpInput" Grid.Row="1" Grid.Column="1" Text="{Binding Experience, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="0"/>
+              <TextBlock Grid.Row="2" Text="Movement left" VerticalAlignment="Center"/>
+              <TextBox x:Name="UnitPlacementMovesInput" Grid.Row="2" Grid.Column="1" Text="{Binding Moves, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Maximum movement"/>
+            </Grid>
+            <WrapPanel>
+              <CheckBox x:Name="UnitPlacementLoyalCheckbox" Content="Loyal (zero upkeep)" IsThreeState="True" IsChecked="{Binding Loyal, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" Margin="0,0,20,5"
+                        ToolTip.Tip="Add the loyal trait. Indeterminate preserves existing trait data."/>
+              <CheckBox x:Name="UnitPlacementUnrenamableCheckbox" Content="Prevent renaming" IsThreeState="True" IsChecked="{Binding Unrenamable, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" Margin="0,0,0,5"/>
+            </WrapPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+  </DockPanel>
+</Window>

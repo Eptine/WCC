@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:local="using:Wcc.App.Views.Controls"
+             x:Name="FieldEditor"
+             x:Class="Wcc.App.Views.Controls.WccInitialFieldEditorView"
+             x:DataType="vm:WccInitialFieldEditorVm">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Styles/WccControlThemes.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+  <Grid x:Name="FieldGrid" ColumnDefinitions="135,*,Auto,Auto" ColumnSpacing="5" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,4"
+        MaxWidth="{Binding #FieldEditor.PresentationMaximumWidth}" HorizontalAlignment="{Binding #FieldEditor.PresentationAlignment}">
+    <StackPanel x:Name="FieldLabel" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+      <TextBlock Text="{Binding Label}" TextWrapping="Wrap" MaxWidth="108" ToolTip.Tip="{Binding LabelTooltip}"/>
+      <Button x:Name="DifficultyDiamond" Content="{Binding DifficultyGlyph}" IsVisible="{Binding ShowsDifficultyCrystal}"
+              Theme="{StaticResource DifficultyDiamondTheme}" Background="Transparent"
+              BorderBrush="Transparent" BorderThickness="0" CornerRadius="0" Opacity="1" FocusAdorner="{x:Null}"
+              Foreground="{Binding DifficultyCrystalBrush}" IsEnabled="{Binding CanToggleDifficulty}"
+              Click="DifficultyClicked" ToolTip.Tip="{Binding DifficultyTooltip}" ToolTip.ShowOnDisabled="True"
+              AutomationProperties.Name="{Binding Label}" AutomationProperties.HelpText="{Binding DifficultyTooltip}"
+              Padding="2,0" MinWidth="18" MinHeight="20" FontSize="16"/>
+    </StackPanel>
+    <Border x:Name="FieldInput" Grid.Column="1" BorderBrush="{Binding PendingBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="1" VerticalAlignment="Center">
+      <StackPanel Spacing="3">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5" IsVisible="{Binding ShowsBoolean}">
+          <CheckBox IsChecked="{Binding BooleanValue, Mode=TwoWay}" IsThreeState="False"
+                    IsEnabled="{Binding CanEdit}" Opacity="{Binding BooleanValueOpacity}" VerticalAlignment="Center"
+                    ToolTip.Tip="{Binding ValueTooltip}"/>
+          <TextBox Grid.Column="1" Text="{Binding BooleanOverrideText, Mode=TwoWay}" IsReadOnly="{Binding IsReadOnly}"
+                   Watermark="Override" TextWrapping="NoWrap" ToolTip.Tip="{Binding ValueTooltip}"/>
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowsText}">
+          <TextBox x:Name="ValueInput" Text="{Binding Value, Mode=TwoWay}" IsReadOnly="{Binding IsReadOnly}"
+                   Opacity="{Binding ValueOpacity}" AcceptsReturn="{Binding IsMultiline}" MaxHeight="{Binding MaximumTextHeight}"
+                   TextWrapping="{Binding InputTextWrapping}" ToolTip.Tip="{Binding ValueTooltip}"/>
+          <Button x:Name="ChoicesButton" Grid.Column="1" Content="▾" Classes="fieldIcon"
+                  IsVisible="{Binding ShowsChoice}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Choose a suggested value or type your own">
+            <Button.Flyout>
+              <Flyout Placement="Bottom">
+                <ScrollViewer MaxHeight="320" MinWidth="170" MaxWidth="360" HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding Choices}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Content="{Binding}" Click="ChoiceClicked" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding}">
+                          <Button.ContentTemplate><DataTemplate><TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" MaxWidth="310"/></DataTemplate></Button.ContentTemplate>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
+      </StackPanel>
+    </Border>
+    <Grid x:Name="FieldOrigin" Grid.Column="2" VerticalAlignment="Center">
+      <Button x:Name="OriginButton" Content="{Binding OriginGlyph}" Classes="fieldIcon" Click="SourceClicked"
+              local:WccButtonIcon.FieldStatus="{Binding OriginGlyph, Converter={x:Static local:WccEditorIconConverters.FieldStatus}}"
+              local:WccButtonIcon.IsBlocked="{Binding IsReadOnly}"
+              ToolTip.Tip="{Binding StatusTooltip}" ToolTip.ShowOnDisabled="True"/>
+      <TextBlock Text="•" IsVisible="{Binding HasPendingChange}" Foreground="#D9BF85" FontSize="15"
+                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-2,0" IsHitTestVisible="False"/>
+    </Grid>
+    <StackPanel x:Name="FieldActions" Grid.Column="3" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+      <Button Content="…" Classes="fieldIcon" Click="PickUnitTypesClicked" IsVisible="{Binding CanPickUnitTypes}"
+              local:WccButtonIcon.Action="Select" ToolTip.Tip="Pick unit types"/>
+      <Border IsVisible="{Binding #FieldEditor.ShowsStandaloneCoordinatePicker}">
+        <Button x:Name="CoordinatePickButton" Content="⌖" Classes="fieldIcon" Click="PickCoordinateClicked" IsVisible="{Binding CanPickCoordinate}"
+                local:WccButtonIcon.Action="Locate" ToolTip.Tip="Pick a location on the map"/>
+      </Border>
+      <Button x:Name="FieldActionsButton" Content="⋮" Classes="fieldIcon" local:WccButtonIcon.Action="FieldSettings" ToolTip.Tip="Field actions">
+        <Button.Flyout>
+          <Flyout Placement="Bottom">
+            <StackPanel Spacing="5">
+              <Button Content="Revert pending change" local:WccButtonIcon.Action="Reset" local:WccButtonIcon.ShowLabel="True" Click="ResetClicked" IsEnabled="{Binding CanReset}"/>
+              <Button Content="Remove override" local:WccButtonIcon.Action="Remove" local:WccButtonIcon.ShowLabel="True"
+                      Click="RemoveOverrideClicked" IsEnabled="{Binding CanRemoveOverride}"/>
+              <Button Content="Set default" local:WccButtonIcon.Action="Reset" local:WccButtonIcon.ShowLabel="True" Click="SetDefaultClicked" IsEnabled="{Binding CanSetDefault}"/>
+              <TextBlock Text="{Binding PresenceDescription}" TextWrapping="Wrap" MaxWidth="320" Opacity="0.7"/>
+            </StackPanel>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+    </StackPanel>
+    <TextBlock x:Name="ResolvedValue" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding ResolvedExpressionValue}"
+               IsVisible="{Binding HasResolvedExpressionValue}" Opacity="0.7" TextWrapping="Wrap"/>
+    <StackPanel x:Name="FieldDetails" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Spacing="3">
+      <TextBlock Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}" Foreground="#E7A387" TextWrapping="Wrap"/>
+      <Border IsVisible="{Binding ShowsImagePreview}" HorizontalAlignment="Left">
+        <local:WccFieldImagePreviewView DataContext="{Binding ImagePreview}" Width="120" Height="88"/>
+      </Border>
+    </StackPanel>
+  </Grid>
+</UserControl>

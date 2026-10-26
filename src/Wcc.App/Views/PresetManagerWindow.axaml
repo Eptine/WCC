@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:views="using:Wcc.App.Views"
+        x:Class="Wcc.App.Views.PresetManagerWindow"
+        x:DataType="vm:PresetManagerWindowViewModel"
+        Width="980"
+        Height="680"
+        Title="{Binding TitleText}">
+
+  <views:PresetManagerView Margin="12"/>
+</Window>

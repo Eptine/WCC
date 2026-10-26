@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:views="using:Wcc.App.Views"
+        x:Class="Wcc.App.Views.ValidatedRawCodeEditorWindow"
+        x:DataType="vm:WmlEditorDocumentViewModel"
+        Classes="wccShell"
+        Width="1100" Height="760" MinWidth="800" MinHeight="500"
+        Title="Raw WML Editor">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+            <TextBlock Text="{Binding DescriptionText}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap" Foreground="Tomato"/>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="8" Margin="0,10,0,0">
+            <Button Content="Apply" icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True" Click="SaveClicked" IsEnabled="{Binding CanApply}"
+                    ToolTip.Tip="Apply the original draft. Shared definitions have their own Apply action."/>
+            <Button Content="Cancel" Click="CancelClicked"/>
+        </StackPanel>
+        <views:WmlEditorWorkspaceView x:Name="CodeView"/>
+    </DockPanel>
+</Window>

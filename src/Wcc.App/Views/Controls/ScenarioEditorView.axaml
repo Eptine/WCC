@@ -1,0 +1,375 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:scenarios="using:Wcc.Core.Scenarios"
+             xmlns:wml="using:Wcc.Core.Wml"
+             xmlns:local="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.ScenarioEditorView"
+             x:DataType="vm:ScenarioWindowViewModel"
+             x:Name="root">
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:WccInitialFieldEditorGroup"><local:WccInitialFieldGroupView/></DataTemplate>
+  </UserControl.DataTemplates>
+
+  <DockPanel Margin="6">
+
+    <StackPanel DockPanel.Dock="Top" Spacing="8"
+                IsVisible="{Binding ShowEditorChrome, ElementName=root}">
+      <StackPanel Orientation="Horizontal"
+                  Spacing="10"
+                  IsVisible="{Binding ShowFileButtons, ElementName=root}">
+        <Button Content="Open .cfg"
+                Click="OpenClicked"
+                IsVisible="{Binding ShowOpenFileButton, ElementName=root}"/>
+        <Button Content="Save As..."
+                Click="SaveAsClicked"
+                IsVisible="{Binding ShowSaveAsFileButton, ElementName=root}"/>
+        <TextBlock Text="{Binding LoadedPath}" VerticalAlignment="Center"/>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Text="Read-only inspection"
+                   FontWeight="Bold"
+                   IsVisible="{Binding IsReadOnly}"/>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="Auto,180,*"
+            ColumnSpacing="8"
+            IsVisible="{Binding HasDeclaredEvaluationContexts}">
+        <TextBlock Grid.Column="0"
+                   Text="Preview context"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"/>
+        <ComboBox Grid.Column="1"
+                  ItemsSource="{Binding EvaluationContexts}"
+                  IsEnabled="{Binding IsPreviewContextSelectionEnabled}"
+                  SelectedItem="{Binding SelectedEvaluationContext}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="wml:WmlEvaluationContext">
+              <TextBlock Text="{Binding DisplayName}"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Grid.Column="2"
+                   Text="{Binding EvaluationContextStatus}"
+                   VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Opacity="0.7"/>
+      </Grid>
+
+      <TextBlock Text="{Binding SourceEditingStatus}" TextWrapping="Wrap"/>
+      <Border IsVisible="{Binding ShowLoadingIndicators, ElementName=root}">
+      <Border Padding="8" BorderThickness="1" IsVisible="{Binding IsWccInlineSaveProgressVisible}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding WccInlineSaveProgressStatus}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+          <ProgressBar IsIndeterminate="True" Height="6"/>
+        </StackPanel>
+      </Border>
+      </Border>
+      <Border Padding="8" BorderThickness="1" IsVisible="{Binding HasWccInlineDrafts}">
+        <StackPanel Spacing="5">
+          <TextBlock Text="{Binding WccInlineDraftSummary}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding WccInlineDraftStatus}" TextWrapping="Wrap"/>
+          <ScrollViewer MaxHeight="120">
+            <ItemsControl ItemsSource="{Binding WccInlineDrafts}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="wccvm:WccScenarioInlineDraft">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,2">
+                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Revert" Click="RevertWccInlineDraftClicked"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Save changes" Click="SaveWccInlineDraftsClicked" IsEnabled="{Binding CanSaveWccInlineDrafts}"/>
+            <Button Content="Discard drafts" Click="DiscardWccInlineDraftsClicked" IsEnabled="{Binding CanDiscardWccInlineDrafts}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <Border Padding="8" BorderThickness="1" IsVisible="{Binding HasStaticInitialValuesDisplay}">
+        <StackPanel Spacing="3">
+          <TextBlock Text="Initial values resolved by WCC" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding StaticScenarioValuesSummary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding StaticSelectedSideValuesSummary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding StaticInitialValuesStatus}" TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+      </Border>
+      <Border Padding="8"
+              BorderThickness="1"
+              IsVisible="{Binding HasEffectiveContextValues}">
+        <StackPanel Spacing="3">
+          <TextBlock Text="Preprocessed initial values"
+                     FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding EffectiveContextValuesSummary}"
+                     TextWrapping="Wrap"
+                     Opacity="0.85"/>
+          <Expander Header="Source locations"
+                    IsExpanded="False"
+                    IsVisible="{Binding HasEffectiveContextSourceBreadcrumbs}">
+            <StackPanel Spacing="5">
+              <TextBlock Text="View each value's authored source. Edit supported fields in the scenario or side settings, then use Save."
+                         TextWrapping="Wrap"
+                         Opacity="0.7"/>
+              <ScrollViewer MaxHeight="220">
+                <ItemsControl ItemsSource="{Binding EffectiveContextSourceBreadcrumbs}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="wccvm:ScenarioScalarSourceBreadcrumbVm">
+                      <Grid ColumnDefinitions="*,Auto"
+                            ColumnSpacing="8"
+                            Margin="0,2"
+                            ToolTip.Tip="{Binding Explanation}">
+                        <StackPanel Grid.Column="0">
+                          <TextBlock Text="{Binding ValueLabel}"
+                                     FontWeight="SemiBold"/>
+                          <TextBlock Text="{Binding RouteLabel}"
+                                     Opacity="0.78"/>
+                          <TextBlock Text="{Binding ModeLabel}" Opacity="0.7"/>
+                          <TextBlock Text="{Binding LocationLabel}"
+                                     TextWrapping="Wrap"
+                                     Opacity="0.62"/>
+                          <TextBlock Text="{Binding Explanation}"
+                                     TextWrapping="Wrap"
+                                     Opacity="0.7"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                        <Button
+                                Content="View rendered block"
+                                local:WccButtonIcon.Action="ViewCode" local:WccButtonIcon.ShowLabel="True"
+                                Tag="{Binding}"
+                                IsEnabled="{Binding CanOpenSource}"
+                                Click="OpenScalarSourceBreadcrumbClicked"
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </StackPanel>
+          </Expander>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <TextBlock DockPanel.Dock="Bottom"
+               Text="{Binding Status}"
+               Margin="0,10,0,0"
+               IsVisible="{Binding ShowEditorChrome, ElementName=root}"/>
+
+    <DockPanel>
+      <Border DockPanel.Dock="Left"
+              Width="260"
+              Padding="8"
+              BorderThickness="1"
+              IsVisible="{Binding ShowNavigationPane, ElementName=root}">
+        <StackPanel>
+          <TextBlock Text="Scenarios" FontWeight="Bold" Margin="0,0,0,6"/>
+          <ListBox ItemsSource="{Binding Scenarios}"
+                   SelectedItem="{Binding SelectedScenario}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:ScenarioDocVm">
+                <TextBlock Text="{Binding DisplayName}"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,58" RowDefinitions="Auto,*" ColumnSpacing="6">
+        <Expander Grid.Column="0" Grid.Row="0" Header="Last collected check"
+                  IsVisible="{Binding HasWccInlineReview}" Margin="0,0,0,5">
+          <ScrollViewer MaxHeight="160">
+            <TextBlock Text="{Binding WccInlineReviewSummary}" TextWrapping="Wrap"/>
+          </ScrollViewer>
+        </Expander>
+        <Grid Grid.Column="0" Grid.Row="1" IsEnabled="{Binding !IsScenarioUiLoading}">
+        <Border IsVisible="{Binding IsShowingInitialSettings}">
+          <DockPanel Margin="0,0,8,0">
+            <Button DockPanel.Dock="Bottom" Content="Show / hide fields" Click="ScenarioFieldVisibilityClicked"
+                    local:WccButtonIcon.Action="FieldSettings" local:WccButtonIcon.ShowLabel="True"
+                    HorizontalAlignment="Right" Margin="0,8,0,0" ToolTip.Tip="Choose visible fields without reloading the scenario"/>
+            <ScrollViewer>
+              <StackPanel Spacing="8">
+                <Button x:Name="EditIntroductionButton" Content="{Binding WccStoryActionLabel}" Click="EditIntroClicked"
+                        Classes="primary" HorizontalAlignment="Left" IsEnabled="{Binding CanOpenWccStoryEditing}"/>
+                <TextBlock Text="{Binding WccScenarioFieldEditorsStatus}" IsVisible="{Binding HasWccScenarioFieldEditorsStatus}"
+                           TextWrapping="Wrap" Foreground="#D9BF85"/>
+                <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
+                  <StackPanel Spacing="8">
+                    <ItemsControl ItemsSource="{Binding WccScenarioFieldGroupsLeft}"/>
+                    <local:WccMusicScheduleView/>
+                  </StackPanel>
+                  <Border Grid.Column="1" Background="#665C503B"/>
+                  <StackPanel Grid.Column="2" Spacing="8">
+                    <ItemsControl ItemsSource="{Binding WccScenarioFieldGroupsRight}"/>
+                    <Expander Header="Additional code" Classes="fieldCategory" IsExpanded="False">
+                      <StackPanel Spacing="8">
+                        <local:WccScenarioContentView/>
+                      </StackPanel>
+                    </Expander>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <Border IsVisible="{Binding IsShowingInitialSides}">
+          <DockPanel Margin="0,0,8,0">
+            <Button DockPanel.Dock="Bottom" Content="Show / hide fields" Click="SideFieldVisibilityClicked"
+                    local:WccButtonIcon.Action="FieldSettings" local:WccButtonIcon.ShowLabel="True"
+                    HorizontalAlignment="Right" Margin="0,8,0,0" ToolTip.Tip="Choose visible side and leader fields"/>
+            <ScrollViewer>
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding WccInitialFieldEditorsStatus}" IsVisible="{Binding HasWccInitialFieldEditorsStatus}"
+                           TextWrapping="Wrap" Foreground="#D9BF85"/>
+                <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Side settings" Classes="sectionHeading" FontSize="17" VerticalAlignment="Center"/>
+                      <Button Grid.Column="1" Content="⋮" Classes="fieldIcon" ToolTip.Tip="Side actions">
+                        <Button.Flyout>
+                          <Flyout>
+                            <StackPanel Spacing="5">
+                              <Button Content="Edit sides…" local:WccButtonIcon.Action="Edit" local:WccButtonIcon.ShowLabel="True" Click="EditSidesClicked" IsEnabled="{Binding CanOpenWccSideManagement}"/>
+                              <Button Content="{Binding SelectedSideRawActionLabel}" Click="OpenSelectedSideRawClicked" IsEnabled="{Binding HasSelectedSide}"/>
+                              <Button Content="View side source…" local:WccButtonIcon.Action="ViewCode" local:WccButtonIcon.ShowLabel="True" Click="OpenSelectedSideSourceClicked" IsEnabled="{Binding HasSelectedSideSource}"/>
+                            </StackPanel>
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                    </Grid>
+                    <TextBlock Text="{Binding SideConditionalInfo}" TextWrapping="Wrap" Foreground="#D9BF85"/>
+                    <ItemsControl ItemsSource="{Binding WccSideFieldGroups}"/>
+                  </StackPanel>
+                  <Border Grid.Column="1" Background="#665C503B"/>
+                  <StackPanel Grid.Column="2" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Leaders" Classes="sectionHeading" FontSize="17" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                      <Button Name="AddLeaderFromPresetButton" Content="Preset…" local:WccButtonIcon.Action="Preset" Click="AddLeaderPresetClicked" IsEnabled="{Binding CanAddWccLeaderFromPreset}" ToolTip.Tip="{Binding WccPresetApplicationGuidance}"/>
+                      <Button Content="⋮" Classes="fieldIcon" ToolTip.Tip="Leader actions">
+                        <Button.Flyout>
+                          <Flyout>
+                            <StackPanel Spacing="5">
+                              <Button Content="Add nested leader" local:WccButtonIcon.Action="Add" local:WccButtonIcon.ShowLabel="True" Click="AddLeaderClicked" IsEnabled="{Binding CanAddLeader}"/>
+                              <Button Content="Remove leader" local:WccButtonIcon.Action="Remove" local:WccButtonIcon.ShowLabel="True" Click="RemoveLeaderClicked" IsEnabled="{Binding CanRemoveSelectedLeader}"/>
+                              <Button Content="Move up" local:WccButtonIcon.Action="Up" local:WccButtonIcon.ShowLabel="True" Click="MoveLeaderUpClicked" IsEnabled="{Binding CanMoveSelectedLeaderUp}"/>
+                              <Button Content="Move down" local:WccButtonIcon.Action="Down" local:WccButtonIcon.ShowLabel="True" Click="MoveLeaderDownClicked" IsEnabled="{Binding CanMoveSelectedLeaderDown}"/>
+                              <Button Content="{Binding SelectedLeaderRawActionLabel}" Click="OpenSelectedLeaderRawClicked" IsEnabled="{Binding HasSelectedLeader}"/>
+                            </StackPanel>
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                      </StackPanel>
+                    </Grid>
+                    <ListBox ItemsSource="{Binding WccInitialLeaders}" SelectedItem="{Binding SelectedWccInitialLeader, Mode=TwoWay}"
+                             MaxHeight="240" Classes="leaderCards">
+                      <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                      <ListBox.ItemTemplate>
+                        <DataTemplate DataType="wccvm:WccInitialLeaderVm">
+                          <Grid ColumnDefinitions="48,*,Auto" ColumnSpacing="6" MinHeight="52">
+                            <Border Width="44" Height="48">
+                              <Grid>
+                                <TextBlock Text="?" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           IsVisible="{Binding !Thumbnail.HasBitmap}"/>
+                                <Image Source="{Binding Thumbnail.Bitmap}" Stretch="Uniform"/>
+                              </Grid>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Border Grid.Column="2" Background="#344659" CornerRadius="8" Padding="4,1"
+                                    VerticalAlignment="Top" ToolTip.Tip="{Binding RepresentationNotice}">
+                              <TextBlock Text="{Binding FormatBadge}" FontSize="11"/>
+                            </Border>
+                          </Grid>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel>
+                        <TextBlock Text="Unit image" Classes="sectionHeading"/>
+                        <local:WccFieldImagePreviewView DataContext="{Binding WccSelectedLeaderImagePreview}" MinHeight="100"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="Portrait" Classes="sectionHeading"/>
+                        <local:WccFieldImagePreviewView DataContext="{Binding WccSelectedLeaderPortraitPreview}" MinHeight="100"/>
+                      </StackPanel>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding WccLeaderFieldGroups}"/>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <ScrollViewer IsVisible="{Binding IsShowingMapEvents}" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="8" Spacing="14">
+            <Expander Header="Map" Classes="fieldCategory" IsExpanded="True">
+              <local:WccScenarioMapWorkspaceView/>
+            </Expander>
+            <Expander Header="Events" Classes="fieldCategory" IsExpanded="True">
+              <local:WccScenarioEventWorkspaceView/>
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+        </Grid>
+        <Border Grid.Column="0" Grid.Row="1" IsVisible="{Binding ShowLoadingIndicators, ElementName=root}">
+        <Border Background="#99191D25" IsVisible="{Binding IsScenarioUiLoading}">
+          <Border Classes="panel" Padding="16" MaxWidth="420"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding ScenarioUiLoadingStatus}" TextWrapping="Wrap"
+                         HorizontalAlignment="Center"/>
+              <ProgressBar IsIndeterminate="True" Height="5"/>
+            </StackPanel>
+          </Border>
+        </Border>
+        </Border>
+        <Border Grid.Column="1" Grid.RowSpan="2" Classes="panel scenarioRail"
+                IsEnabled="{Binding !IsScenarioUiLoading}">
+          <DockPanel>
+            <Button DockPanel.Dock="Bottom" Classes="railTab"
+                    local:WccButtonIcon.Action="Edit"
+                    local:WccButtonIcon.IsCompact="False" local:WccButtonIcon.IconSize="30"
+                    Height="42" MinHeight="42" Padding="5,4"
+                    IsEnabled="{Binding CanOpenWccSideManagement}" FontSize="11" Margin="0,8,0,0"
+                    Click="EditSidesClicked" ToolTip.Tip="Add or remove sides as pending changes for the shared Save.">
+              <TextBlock Text="Edit sides" TextWrapping="Wrap" TextAlignment="Center"/>
+            </Button>
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding ScenarioUiTabs}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:ScenarioEditorNavigationTabVm">
+                    <Button Classes="railTab" Classes.active="{Binding IsSelected}"
+                            local:WccButtonIcon.Tab="{Binding SectionIndex, Converter={x:Static local:WccEditorIconConverters.ScenarioTab}}"
+                            local:WccButtonIcon.IsSelected="{Binding IsSelected}"
+                            local:WccButtonIcon.IsCompact="False" local:WccButtonIcon.IconSize="30"
+                            AutomationProperties.Name="{Binding ToolTip}"
+                            Click="ScenarioRailTabClicked" ToolTip.Tip="{Binding ToolTip}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Height="42" MinHeight="42" Margin="0,0,0,4" Padding="5,4">
+                      <Grid>
+                        <TextBlock Text="{Binding Header}" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border IsVisible="{Binding IsMacro}" CornerRadius="5" BorderThickness="1"
+                                Padding="2,0" Margin="13,-5,-3,0"
+                                HorizontalAlignment="Right" VerticalAlignment="Top">
+                          <TextBlock Text="M" FontSize="9"/>
+                        </Border>
+                      </Grid>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </DockPanel>
+  </DockPanel>
+</UserControl>

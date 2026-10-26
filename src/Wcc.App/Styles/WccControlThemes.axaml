@@ -1,0 +1,23 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Keep Button interaction and accessibility without the ordinary button frame
+       or disabled colors. Hosts include this locally so no Application is required. -->
+  <ControlTheme x:Key="DifficultyDiamondTheme" TargetType="Button">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border x:Name="DiamondFocusCue" Background="Transparent"
+                BorderBrush="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}">
+          <ContentPresenter x:Name="DiamondGlyph" Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <!-- Keyboard navigation keeps a cue; pointer hover never adds a box. -->
+    <Style Selector="^:focus-visible /template/ Border#DiamondFocusCue">
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

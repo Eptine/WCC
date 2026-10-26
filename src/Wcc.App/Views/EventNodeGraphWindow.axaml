@@ -1,0 +1,227 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:controls="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.EventNodeGraphWindow" x:DataType="vm:EventNodeGraphWindowViewModel" x:Name="root"
+        Width="1380" Height="900" MinWidth="1000" MinHeight="680" Title="WCC Event Editor" Classes="wccShell">
+  <DockPanel Margin="12">
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,10">
+      <ToggleButton x:Name="EventGraphPaletteButton" Content="Actions" IsChecked="{Binding ShowPalette, Mode=TwoWay}" ToolTip.Tip="Show the action palette" VerticalAlignment="Center"/>
+      <StackPanel Grid.Column="1" Spacing="2">
+        <TextBlock Text="Event editor" FontSize="21" FontWeight="SemiBold"/>
+        <TextBlock Text="Connect an ordered path from the trigger. Select a node to configure it below." Opacity="0.7" TextWrapping="Wrap" FontSize="12"/>
+      </StackPanel>
+      <Button x:Name="EventGraphSourceButton" Grid.Column="2" Content="Source" controls:WccButtonIcon.Action="ViewCode" Click="SourceClicked" IsEnabled="{Binding CanApply}" ToolTip.Tip="Inspect the generated event WML" VerticalAlignment="Center"/>
+    </Grid>
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,10,0,0">
+      <StackPanel Spacing="3">
+        <TextBlock x:Name="EventGraphStatus" Text="{Binding Status}" TextWrapping="Wrap" MaxHeight="44"/>
+        <TextBlock Text="Apply queues this event. Save the scenario to write it." Opacity="0.65" FontSize="12"/>
+      </StackPanel>
+      <Button x:Name="EventGraphCancelButton" Grid.Column="1" Content="Cancel" controls:WccButtonIcon.Action="Close" controls:WccButtonIcon.ShowLabel="True" Click="CancelClicked" VerticalAlignment="Bottom"/>
+      <Button x:Name="EventGraphApplyButton" Grid.Column="2" Content="Apply" controls:WccButtonIcon.Action="Accept" controls:WccButtonIcon.ShowLabel="True" Classes="primary" Click="ApplyClicked" IsEnabled="{Binding CanApply}" VerticalAlignment="Bottom"/>
+    </Grid>
+    <Grid ColumnDefinitions="Auto,*,205" ColumnSpacing="10">
+      <Border x:Name="EventGraphActionPalette" Width="174" Classes="panel" BorderThickness="1" CornerRadius="5" Padding="10" IsVisible="{Binding ShowPalette}">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="9">
+            <TextBlock Text="Dialogue" Classes="sectionHeading"/>
+            <Button x:Name="EventGraphAddMessageButton" Content="Message" Tag="Message" Click="AddMessageClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48" ToolTip.Tip="Click to add at the canvas centre, or drag onto the canvas"/>
+            <Separator Margin="0,5"/>
+            <TextBlock Text="Units" Classes="sectionHeading"/>
+            <Button x:Name="EventGraphAddSpawnUnitButton" Content="Spawn unit" Tag="SpawnUnit" Click="AddSpawnUnitClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48" ToolTip.Tip="Create a unit with the shared unit form or a saved Unit preset"/>
+            <Button x:Name="EventGraphAddMoveUnitButton" Content="Move unit" Tag="MoveUnit" Click="AddMoveUnitClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48" ToolTip.Tip="Move a unit with an exact ID to a map location"/>
+            <Separator Margin="0,5"/>
+            <TextBlock Text="Map" Classes="sectionHeading"/>
+            <Button x:Name="EventGraphAddScrollCameraButton" Content="Scroll camera" Tag="ScrollCamera" Click="AddScrollCameraClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48"/>
+            <Separator Margin="0,5"/>
+            <TextBlock Text="Scenario" Classes="sectionHeading"/>
+            <Button x:Name="EventGraphAddEndLevelButton" Content="End scenario" Tag="EndLevel" Click="AddEndLevelClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48" ToolTip.Tip="End the scenario in victory or defeat"/>
+            <Button x:Name="EventGraphAddWaitButton" Content="Wait" Tag="Wait" Click="AddWaitClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48"/>
+            <Button x:Name="EventGraphAddAdjustGoldButton" Content="Adjust gold" Tag="AdjustGold" Click="AddAdjustGoldClicked" PointerMoved="PalettePointerMoved" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" MinHeight="48"/>
+            <Separator Margin="0,5"/>
+            <TextBlock Text="Conditions" Classes="sectionHeading"/>
+            <Button x:Name="EventGraphAddDifficultyRegionButton" Content="If difficulty" Click="AddDifficultyRegionClicked" IsEnabled="{Binding CanAddDifficultyRegion}" HorizontalAlignment="Stretch" MinHeight="48" ToolTip.Tip="{Binding DifficultyRegionGuidance}"/>
+            <TextBlock Text="Click an action or drag it onto the canvas, then connect it to the path." TextWrapping="Wrap" FontSize="11" Opacity="0.65" Margin="0,9,0,0"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+      <Grid Grid.Column="1" RowDefinitions="*,285" RowSpacing="10">
+        <Border Classes="panel" BorderThickness="1" CornerRadius="5" Padding="8">
+          <DockPanel>
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="5" Margin="0,0,0,6">
+              <Button x:Name="EventGraphZoomOutButton" Content="−" Click="ZoomOutClicked" Classes="fieldIcon" ToolTip.Tip="Zoom out (Ctrl+wheel)"/>
+              <TextBlock x:Name="EventGraphZoomLabel" Grid.Column="1" Text="{Binding ZoomLabel}" Width="43" VerticalAlignment="Center" TextAlignment="Center"/>
+              <Button x:Name="EventGraphZoomInButton" Grid.Column="2" Content="+" Click="ZoomInClicked" Classes="fieldIcon" ToolTip.Tip="Zoom in (Ctrl+wheel)"/>
+              <TextBlock Grid.Column="3" Text="{Binding ConnectionHint}" TextWrapping="Wrap" FontSize="11" Opacity="0.7" VerticalAlignment="Center" Margin="5,0" MaxHeight="34"/>
+              <Button Grid.Column="4" Content="Cancel connection" Click="CancelConnectionClicked" IsVisible="{Binding HasPendingConnection}"/>
+            </Grid>
+            <ScrollViewer x:Name="EventGraphScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <LayoutTransformControl x:Name="EventGraphZoomSurface" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></LayoutTransformControl.LayoutTransform>
+                <Canvas x:Name="EventGraphCanvas" Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}" Background="#202523" DragDrop.AllowDrop="True"/>
+              </LayoutTransformControl>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+        <Border x:Name="EventGraphSettings" Grid.Row="1" Classes="panel" BorderThickness="1" CornerRadius="5" Padding="10">
+          <ScrollViewer x:Name="EventGraphSettingsScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="8" Margin="0,0,14,0">
+              <TextBlock Text="{Binding SelectionLabel}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectionLabel}"/>
+              <StackPanel Spacing="8" IsVisible="{Binding HasSelectedNode}">
+              <StackPanel Spacing="7" IsVisible="{Binding SelectedNode.IsTrigger}">
+                <Grid ColumnDefinitions="100,*" ColumnSpacing="8">
+                  <TextBlock Text="When" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="EventGraphTriggerPicker" Grid.Column="1" ItemsSource="{Binding TriggerChoices}" SelectedItem="{Binding SelectedTrigger, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate><DataTemplate DataType="vm:EventDialogueTriggerChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+                <Grid ColumnDefinitions="100,*" ColumnSpacing="8">
+                  <TextBlock Text="Event ID" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphEventIdInput" Grid.Column="1" Text="{Binding EventId, Mode=TwoWay}" IsReadOnly="{Binding !CanEditEventId}" Watermark="Optional" ToolTip.Tip="{Binding EventIdHint}"/>
+                </Grid>
+                <Grid ColumnDefinitions="100,*" ColumnSpacing="8" IsVisible="{Binding ShowsTurnNumber}">
+                  <TextBlock Text="Turn number" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphTurnInput" Grid.Column="1" Text="{Binding TurnNumber, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="1"/>
+                </Grid>
+                <Grid ColumnDefinitions="100,*,Auto" ColumnSpacing="8" IsVisible="{Binding ShowsFilterUnit}">
+                  <TextBlock Text="Unit ID" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphFilterUnitIdInput" Grid.Column="1" Text="{Binding FilterUnitId, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Exact unit ID"/>
+                  <Button x:Name="EventGraphFilterUnitChoices" Grid.Column="2" Content="Choose unit" controls:WccButtonIcon.Action="Select" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Known scenario unit IDs; manual IDs are also accepted">
+                    <Button.Flyout><Flyout Placement="Bottom"><ScrollViewer MaxHeight="240" MaxWidth="300"><ItemsControl ItemsSource="{Binding UnitChoices}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Click="FilterUnitChoiceClicked" HorizontalAlignment="Stretch"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer></Flyout></Button.Flyout>
+                  </Button>
+                </Grid>
+                <Grid ColumnDefinitions="100,*,25,*,Auto,Auto" ColumnSpacing="7" IsVisible="{Binding ShowsFilterCoordinates}">
+                  <TextBlock Text="X / Y" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphFilterXInput" Grid.Column="1" Text="{Binding FilterX, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="X"/>
+                  <TextBlock Grid.Column="2" Text="," VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphFilterYInput" Grid.Column="3" Text="{Binding FilterY, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Y"/>
+                  <Button x:Name="EventGraphFilterPickButton" Grid.Column="4" Content="Pick location" controls:WccButtonIcon.Action="Locate" Click="PickCoordinatesClicked" IsEnabled="{Binding CanPickSelectedCoordinates}" ToolTip.Tip="Replace the current locations with one map hex"/>
+                  <Button x:Name="EventGraphFilterAddButton" Grid.Column="5" Content="Add location" controls:WccButtonIcon.Action="Add" Click="AddFilterLocationClicked" IsEnabled="{Binding CanAddFilterLocation}" ToolTip.Tip="Add a map hex to the current coordinate lists"/>
+                </Grid>
+                <WrapPanel><CheckBox Content="Run only once" IsChecked="{Binding FirstTimeOnly, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"/></WrapPanel>
+                <TextBlock Text="{Binding TriggerHint}" TextWrapping="Wrap" Opacity="0.7" FontSize="11"/>
+              </StackPanel>
+              <StackPanel Spacing="7" IsVisible="{Binding SelectedNode.IsMessage}">
+                <Grid ColumnDefinitions="86,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="Speaker ID" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphSpeakerInput" Grid.Column="1" Text="{Binding SelectedNode.Speaker, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="narrator or a unit ID"/>
+                  <Button x:Name="EventGraphSpeakerChoices" Grid.Column="2" Content="Choose speaker" controls:WccButtonIcon.Action="Select" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Known unit IDs or narrator; manual IDs remain available">
+                    <Button.Flyout><Flyout Placement="Bottom"><ScrollViewer MaxHeight="240" MaxWidth="300"><ItemsControl ItemsSource="{Binding SpeakerChoices}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Click="SpeakerChoiceClicked" HorizontalAlignment="Stretch"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer></Flyout></Button.Flyout>
+                  </Button>
+                </Grid>
+                <TextBlock Text="The speaker must exist when the message runs; narrator is always available." FontSize="11" Opacity="0.65" TextWrapping="Wrap"/>
+                <Grid ColumnDefinitions="86,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="Caption" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphCaptionInput" Grid.Column="1" Text="{Binding SelectedNode.Caption, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Use speaker name"/>
+                  <Button Grid.Column="2" Content="Use speaker name" controls:WccButtonIcon.Action="Reset" Click="ClearCaptionClicked" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Use the speaker's name"/>
+                </Grid>
+                <Grid ColumnDefinitions="86,*" ColumnSpacing="7">
+                  <TextBlock Text="Message" VerticalAlignment="Top" Margin="0,5,0,0"/>
+                  <TextBox x:Name="EventGraphMessageInput" Grid.Column="1" Text="{Binding SelectedNode.Text, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="165" Watermark="Message text"/>
+                </Grid>
+                <WrapPanel>
+                  <CheckBox x:Name="EventGraphMessageTranslationCheckbox" Content="Translate message" IsChecked="{Binding SelectedNode.TranslateText, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"/>
+                  <CheckBox x:Name="EventGraphCaptionTranslationCheckbox" Content="Translate caption" IsChecked="{Binding SelectedNode.TranslateCaption, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" Margin="14,0,0,0"/>
+                </WrapPanel>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsMoveUnit}">
+                <Grid ColumnDefinitions="86,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="Unit ID" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphMoveUnitIdInput" Grid.Column="1" Text="{Binding SelectedNode.UnitId, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Exact unit ID"/>
+                  <Button x:Name="EventGraphMoveUnitChoices" Grid.Column="2" Content="Choose unit" controls:WccButtonIcon.Action="Select" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Known scenario unit IDs; manual IDs remain available">
+                    <Button.Flyout><Flyout Placement="Bottom"><ScrollViewer MaxHeight="240" MaxWidth="300"><ItemsControl ItemsSource="{Binding UnitChoices}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Click="MoveUnitChoiceClicked" HorizontalAlignment="Stretch"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer></Flyout></Button.Flyout>
+                  </Button>
+                </Grid>
+                <Grid ColumnDefinitions="86,*,25,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="To X / Y" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphMoveXInput" Grid.Column="1" Text="{Binding SelectedNode.ToX, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="X"/>
+                  <TextBlock Grid.Column="2" Text="," VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphMoveYInput" Grid.Column="3" Text="{Binding SelectedNode.ToY, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Y"/>
+                  <Button x:Name="EventGraphMovePickButton" Grid.Column="4" Content="Pick location" controls:WccButtonIcon.Action="Locate" Click="PickCoordinatesClicked" IsEnabled="{Binding CanPickSelectedCoordinates}" ToolTip.Tip="Choose the destination on the map"/>
+                </Grid>
+                <TextBlock Text="Moves the unit to one on-map hex. The unit must exist when this action runs." TextWrapping="Wrap" FontSize="11" Opacity="0.7"/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsSpawnUnit}">
+                <TextBlock x:Name="EventGraphSpawnUnitSummary" Text="{Binding SelectedNode.UnitSummary}" TextWrapping="Wrap"/>
+                <Button x:Name="EventGraphConfigureUnitButton" Content="Configure unit" Click="ConfigureUnitClicked" IsEnabled="{Binding CanEditSelectedUnit}" HorizontalAlignment="Left"/>
+                <TextBlock Text="Use the shared unit form to choose a saved Unit preset or Custom unit, then set its side and location. Difficulty comes from this event region." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsWait}">
+                <Grid ColumnDefinitions="110,*" ColumnSpacing="7">
+                  <TextBlock Text="Milliseconds" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphDelayInput" Grid.Column="1" Text="{Binding SelectedNode.DelayMilliseconds, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="1000"/>
+                </Grid>
+                <TextBlock Text="Pause before the next action. Enter a positive whole number of milliseconds; 1000 ms is one second." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsScrollCamera}">
+                <Grid ColumnDefinitions="86,*,25,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="To X / Y" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphScrollXInput" Grid.Column="1" Text="{Binding SelectedNode.ToX, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="X"/>
+                  <TextBlock Grid.Column="2" Text="," VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphScrollYInput" Grid.Column="3" Text="{Binding SelectedNode.ToY, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="Y"/>
+                  <Button x:Name="EventGraphScrollPickButton" Grid.Column="4" Content="Pick location" controls:WccButtonIcon.Action="Locate" Click="PickCoordinatesClicked" IsEnabled="{Binding CanPickSelectedCoordinates}"/>
+                </Grid>
+                <TextBlock Text="Scroll the camera to this map hex. Scrolling does not reveal terrain." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsAdjustGold}">
+                <Grid ColumnDefinitions="110,*" ColumnSpacing="7">
+                  <TextBlock Text="Side number" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphGoldSideInput" Grid.Column="1" Text="{Binding SelectedNode.Side, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="1"/>
+                </Grid>
+                <Grid ColumnDefinitions="110,*" ColumnSpacing="7">
+                  <TextBlock Text="Gold change" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EventGraphGoldAmountInput" Grid.Column="1" Text="{Binding SelectedNode.Amount, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Watermark="50 or -25"/>
+                </Grid>
+                <TextBlock Text="Add or subtract this amount from one explicit side. Use a positive whole side number and a signed whole amount." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding SelectedNode.IsEndLevel}">
+                <Grid ColumnDefinitions="86,*" ColumnSpacing="7">
+                  <TextBlock Text="Result" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="EventGraphEndResultPicker" Grid.Column="1" ItemsSource="{Binding SelectedNode.ResultChoices}" SelectedItem="{Binding SelectedNode.Result, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <TextBlock Text="Ends the scenario when this action runs. The scenario's automatic victory setting remains active; change it separately when a custom objective should decide victory." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              </StackPanel>
+              </StackPanel>
+              <StackPanel x:Name="EventGraphRegionSettings" Spacing="8" IsVisible="{Binding !HasSelectedNode}">
+                <Grid ColumnDefinitions="110,*" ColumnSpacing="7">
+                  <TextBlock Text="Difficulty" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="EventGraphRegionDifficultyPicker" Grid.Column="1" ItemsSource="{Binding SelectedRegion.DifficultyChoices}" SelectedItem="{Binding SelectedRegion.DifficultyDefine, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <TextBlock Text="{Binding SelectedRegion.MembershipSummary}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding DifficultyRegionGuidance}" TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+                <TextBlock Text="Removing this region keeps its action cards and their execution order." TextWrapping="Wrap" FontSize="11" Opacity="0.65"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+      <Border Grid.Column="2" Classes="panel" BorderThickness="1" CornerRadius="5" Padding="9">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+            <TextBlock Text="Nodes" FontWeight="SemiBold" FontSize="15"/>
+            <Button x:Name="EventGraphRemoveButton" Content="Remove" controls:WccButtonIcon.Action="Remove" Click="RemoveClicked" IsEnabled="{Binding CanRemoveSelected}" ToolTip.Tip="Remove the selected action or difficulty region" HorizontalAlignment="Right"/>
+            <Button x:Name="EventGraphArrangeButton" Content="Arrange nodes" Click="ArrangeClicked" HorizontalAlignment="Stretch" ToolTip.Tip="Arrange the canvas without changing execution order"/>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+            <TextBlock Text="Connect selected action after" TextWrapping="Wrap" Opacity="0.7" FontSize="11"/>
+            <ComboBox x:Name="EventGraphAfterPicker" ItemsSource="{Binding ConnectionTargets}" SelectedItem="{Binding SelectedAfter, Mode=TwoWay}" IsEnabled="{Binding CanConnectSelected}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate><DataTemplate DataType="vm:EventDialogueNodeVm"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button x:Name="EventGraphConnectButton" Content="Connect after" Click="ConnectClicked" IsEnabled="{Binding CanConnectSelected}" HorizontalAlignment="Stretch"/>
+            <Button Content="Disconnect" Click="DisconnectClicked" IsEnabled="{Binding CanDisconnectSelected}" HorizontalAlignment="Stretch"/>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Bottom" Spacing="5" Margin="0,8,0,0">
+            <TextBlock Text="Difficulty regions" FontWeight="SemiBold"/>
+            <ListBox x:Name="EventGraphRegions" ItemsSource="{Binding DifficultyRegions}" SelectedItem="{Binding SelectedRegion, Mode=TwoWay}" MaxHeight="160" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+              <ListBox.ItemTemplate><DataTemplate DataType="vm:EventDifficultyRegionVm"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/></DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+          <ListBox x:Name="EventGraphNodes" ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNodeListItem, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate><DataTemplate DataType="vm:EventDialogueNodeVm"><StackPanel Spacing="3" Margin="0,4"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/><TextBlock Text="{Binding ConnectionLabel}" FontSize="10" Opacity="0.65"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

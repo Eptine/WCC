@@ -1,0 +1,220 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:controls="using:Wcc.App.Views.Controls"
+             xmlns:views="using:Wcc.App.Views"
+             x:Class="Wcc.App.Views.CatalogInspectorView"
+             x:DataType="vm:AppShellViewModel">
+
+  <TabControl x:Name="CatalogTabs"
+              Margin="12"
+              SelectedIndex="{Binding SelectedLibraryTabIndex, Mode=TwoWay}"
+              SelectionChanged="CatalogTabsSelectionChanged">
+
+    <TabItem Header="Unit Types">
+      <Grid ColumnDefinitions="360,*" ColumnSpacing="12">
+        <Grid Grid.Column="0"
+              RowDefinitions="Auto,Auto,Auto,*"
+              RowSpacing="8">
+          <TextBlock Grid.Row="0" Text="Unit Catalog" FontWeight="Bold"/>
+          <TextBox Grid.Row="1"
+                   Watermark="Search units"
+                   Text="{Binding CatalogInspectorUnitSearchText}"/>
+          <StackPanel Grid.Row="2" Spacing="8">
+            <Button Content="New in WCC…" controls:WccButtonIcon.Action="Add" controls:WccButtonIcon.ShowLabel="True" Click="CreateLibraryUnitTypeClicked" IsEnabled="{Binding CanCreateLibraryUnitType}" HorizontalAlignment="Left"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Clone to WCC"
+                    controls:WccButtonIcon.Action="Copy" ToolTip.Tip="Clone the selected unit type into the WCC Library"
+                    Click="CloneLibraryUnitClicked"
+                    IsEnabled="{Binding CanCloneLibraryUnit}"/>
+            <Button Content="Delete WCC Unit"
+                    controls:WccButtonIcon.Action="Delete" ToolTip.Tip="Delete the selected WCC Library unit type"
+                    Click="DeleteLibraryUnitClicked"
+                    IsEnabled="{Binding CanDeleteLibraryUnit}"/>
+            </StackPanel>
+          </StackPanel>
+
+          <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding CatalogInspectorUnitRaceGroups}"
+                          IsVisible="{Binding HasCatalogInspectorUnitRaceGroups}"
+                          HorizontalAlignment="Stretch">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="wccvm:UnitSidebarRaceGroupVm">
+                  <Expander IsExpanded="{Binding IsExpanded}"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,6">
+                    <Expander.Header>
+                      <TextBlock Text="{Binding DisplayNameWithCount}"
+                                 FontWeight="SemiBold"/>
+                    </Expander.Header>
+                    <ItemsControl ItemsSource="{Binding Units}"
+                                  HorizontalAlignment="Stretch">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <UniformGrid Columns="3"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="wccvm:UnitTypeCatalogEntryVm">
+                          <Button Click="LibraryUnitTileClicked"
+                                  Tag="{Binding}"
+                                  Padding="0"
+                                  Margin="2,0,2,6"
+                                  HorizontalAlignment="Stretch"
+                                  ToolTip.Tip="{Binding SidebarTooltip}">
+                            <Border Padding="4"
+                                    BorderThickness="2"
+                                    BorderBrush="{Binding InspectorBorderBrush}"
+                                    Background="{Binding InspectorBackground}">
+                              <StackPanel Spacing="3">
+                                <Border Width="68"
+                                        Height="68"
+                                        BorderThickness="1"
+                                        HorizontalAlignment="Center">
+                                  <Grid>
+                                    <Image Source="{Binding PreviewBitmap}" Stretch="Uniform"/>
+                                    <TextBlock Text="?"
+                                               IsVisible="{Binding HasNoPreviewBitmap}"
+                                               FontSize="20"
+                                               Opacity="0.5"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                  </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding SidebarLabel}"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxLines="1"/>
+                                <TextBlock Text="{Binding OriginLabel}"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxLines="1"
+                                           FontSize="10"
+                                           Opacity="0.72"/>
+                              </StackPanel>
+                            </Border>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Expander>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Column="1">
+          <TextBlock Text="Select a Library unit to view or edit it."
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     IsVisible="{Binding HasNoLibraryUnitDocument}"/>
+          <DockPanel IsVisible="{Binding HasLibraryUnitDocument}">
+            <Border DockPanel.Dock="Top"
+                    Padding="8"
+                    Margin="10,0,10,6"
+                    BorderThickness="1">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding LibraryUnitSessionLabel}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding LibraryUnitEditor.LoadedPath}"
+                           TextWrapping="Wrap"
+                           Opacity="0.72"/>
+              </StackPanel>
+            </Border>
+            <controls:UnitEditorView DataContext="{Binding LibraryUnitEditor}"
+                                     ShowNavigationPane="False"
+                                     ShowFileButtons="False"/>
+          </DockPanel>
+        </Grid>
+      </Grid>
+    </TabItem>
+
+    <TabItem Header="Assets">
+      <Grid ColumnDefinitions="360,*" ColumnSpacing="12">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+          <TextBlock Grid.Row="0" Text="Tracked Assets" FontWeight="Bold"/>
+          <TextBox Grid.Row="1"
+                   Watermark="Search assets"
+                   Text="{Binding CatalogInspectorAssetSearchText}"/>
+          <ListBox Grid.Row="2"
+                   ItemsSource="{Binding CatalogInspectorAssetEntries}"
+                   SelectedItem="{Binding SelectedAssetRegistryEntry}"
+                   HorizontalAlignment="Stretch">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:AssetRegistryEntryVm">
+                <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+
+        <ScrollViewer Grid.Column="1">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Selected Asset" FontWeight="Bold"/>
+            <Border Width="220" Height="220" BorderThickness="1">
+              <Image Source="{Binding SelectedAssetPreviewBitmap}" Stretch="Uniform"/>
+            </Border>
+            <Grid ColumnDefinitions="Auto,*"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                  ColumnSpacing="8"
+                  RowSpacing="4">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Kind:" FontWeight="Bold"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAssetKindLabel}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Origins:" FontWeight="Bold"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAssetOriginsLabel}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Uses:" FontWeight="Bold"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAssetUsageCountText}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolve:" FontWeight="Bold"/>
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAssetResolutionStatus}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Path:" FontWeight="Bold"/>
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAssetResolvedPath}" TextWrapping="Wrap"/>
+            </Grid>
+            <TextBlock Text="{Binding SelectedAssetLookupPath}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding SelectedAssetPreviewStatus}" TextWrapping="Wrap"/>
+            <TextBlock Text="References" FontWeight="Bold"/>
+            <ListBox ItemsSource="{Binding SelectedAssetReferences}">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="wccvm:AssetReferenceVm">
+                  <StackPanel Margin="0,0,0,6">
+                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding RawValue}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <TabItem Header="Macros">
+      <views:PresetManagerView DataContext="{Binding LibraryMacroManager}"/>
+    </TabItem>
+    <TabItem Header="Movement Types">
+      <views:PresetManagerView DataContext="{Binding LibraryMovementTypeManager}"/>
+    </TabItem>
+    <TabItem Header="Traits">
+      <views:PresetManagerView DataContext="{Binding LibraryTraitManager}"/>
+    </TabItem>
+    <TabItem Header="Schedules">
+      <views:PresetManagerView DataContext="{Binding LibraryScheduleManager}"/>
+    </TabItem>
+    <TabItem Header="Abilities">
+      <views:PresetManagerView DataContext="{Binding LibraryAbilityManager}"/>
+    </TabItem>
+    <TabItem Header="Weapon Specials">
+      <views:PresetManagerView DataContext="{Binding LibraryWeaponSpecialManager}"/>
+    </TabItem>
+    <TabItem Header="Races">
+      <views:PresetManagerView DataContext="{Binding LibraryRaceManager}"/>
+    </TabItem>
+    <TabItem Header="Terrain Types">
+      <views:PresetManagerView DataContext="{Binding LibraryTerrainTypeManager}"/>
+    </TabItem>
+    <TabItem Header="Items">
+      <views:PresetManagerView DataContext="{Binding LibraryItemManager}"/>
+    </TabItem>
+
+  </TabControl>
+</UserControl>

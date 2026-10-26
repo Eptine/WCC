@@ -1,0 +1,319 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:campaign="clr-namespace:Wcc.Core.Campaigns;assembly=Wcc.Core"
+             xmlns:local="using:Wcc.App.Views.Controls"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.CampaignEditorView"
+             x:DataType="vm:CampaignWindowViewModel" x:Name="root">
+  <Grid>
+    <StackPanel x:Name="EmptyCampaignState" IsVisible="{Binding !HasCampaignMainSource}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+      <TextBlock Text="Open a campaign" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+      <Button x:Name="EmptyCampaignOpenButton" Content="Open _main.cfg…" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="OpenClicked" HorizontalAlignment="Center"/>
+    </StackPanel>
+    <DockPanel x:Name="LoadedCampaignState" IsVisible="{Binding HasCampaignMainSource}" Margin="6">
+      <StackPanel DockPanel.Dock="Top" Spacing="7" Margin="0,0,0,10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="18">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Open _main.cfg…" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="OpenClicked"/>
+            <Button x:Name="CampaignMetadataButton" Content="Metadata" icons:WccButtonIcon.Action="Info" icons:WccButtonIcon.ShowLabel="True" Click="MetadataClicked"/>
+            <Button Content="Presets" icons:WccButtonIcon.Action="Preset" icons:WccButtonIcon.ShowLabel="True" Click="CampaignPresetsClicked" IsEnabled="{Binding CanOpenCampaignPresets}"/>
+            <Button Content="Save Main As…" Click="SaveAsClicked" IsVisible="{Binding ShowSaveAsButton, ElementName=root}"/>
+          </StackPanel>
+          <TextBlock Grid.Column="1" Text="{Binding LoadedPath}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Opacity="0.6" FontSize="11" ToolTip.Tip="{Binding LoadedPath}"/>
+        </Grid>
+        <Border IsVisible="{Binding ShowLoadingIndicators, ElementName=root}">
+        <Border IsVisible="{Binding IsCampaignFieldSaveBusy}" Classes="panel" Padding="8"><StackPanel Spacing="5"><TextBlock Text="{Binding CampaignFieldSaveProgress}" TextWrapping="Wrap"/><ProgressBar IsIndeterminate="True" Height="4"/></StackPanel></Border>
+        </Border>
+      </StackPanel>
+      <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Margin="0,7,0,0" TextWrapping="Wrap" FontSize="11" MaxHeight="42" ToolTip.Tip="{Binding CampaignFieldGuidance}"/>
+      <ScrollViewer x:Name="CampaignSettingsScroll" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="16" Margin="0,0,10,10">
+          <Grid x:Name="CampaignGeneralAndDifficulties" ColumnDefinitions="1.05*,5,*" ColumnSpacing="14">
+            <StackPanel Spacing="7">
+              <TextBlock Text="General information" Classes="sectionHeading"/>
+              <ItemsControl ItemsSource="{Binding CampaignGeneralPageFields}"><ItemsControl.ItemTemplate><DataTemplate DataType="wccvm:WccCampaignFieldEditorVm">
+                <local:WccCampaignFieldEditorView IsCompact="True" LabelWidth="116" ShowPresence="False" ShowImagePreview="False"/>
+              </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            </StackPanel>
+            <Border Grid.Column="1" Background="#856E40" Opacity="0.65"/>
+            <StackPanel Grid.Column="2" Spacing="7">
+              <TextBlock Text="Difficulties" Classes="sectionHeading" ToolTip.Tip="{Binding CampaignStructureGuidance}"/>
+              <ItemsControl ItemsSource="{Binding CampaignDifficultyPresentationRows}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignDifficultyDisplayRow">
+                <Border Classes="panel" Padding="8" Margin="0,0,0,7">
+                  <Grid ColumnDefinitions="80,*" ColumnSpacing="9">
+                    <local:WccFieldImagePreviewView DataContext="{Binding ImagePreview}" Width="76" Height="84"/>
+                    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                        <TextBox Text="{Binding TextLabel, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" Watermark="Name" ToolTip.Tip="Difficulty name"/>
+                        <TextBox Grid.Column="1" Text="{Binding TextDescription, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" Watermark="Description" ToolTip.Tip="Difficulty description"/>
+                      </Grid>
+                      <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                        <TextBox Text="{Binding TextImage, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" Watermark="Icon" ToolTip.Tip="Core, campaign or visible dependency image reference"/>
+                        <Button Grid.Column="1" Content="Choose difficulty icon" icons:WccButtonIcon.Action="Select" Tag="{Binding}" Click="PickDifficultyImageClicked" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Select an existing Core or campaign image"/>
+                        <Button Grid.Column="2" Content="Difficulty icon options" icons:WccButtonIcon.Action="FieldSettings" ToolTip.Tip="Difficulty icon options">
+                          <Button.Flyout><Flyout><Button Content="Fit image into 72 × 72" Click="FitDifficultyImageClicked" Tag="{Binding}" IsEnabled="{Binding CanFitImage}" ToolTip.Tip="Keep the proportions and original file. Save applies the size modifier."/></Flyout></Button.Flyout>
+                        </Button>
+                      </Grid>
+                      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="5">
+                        <TextBlock Text="{Binding Define}" FontSize="10" Opacity="0.65" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Define}"/>
+                        <CheckBox Grid.Column="1" Content="Default" IsChecked="{Binding IsDefault, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"/>
+                        <Button Grid.Column="2" Content="View difficulty source" icons:WccButtonIcon.Action="ViewCode" Tag="{Binding}" Click="ViewDifficultySourceClicked" IsEnabled="{Binding HasSource}" ToolTip.Tip="{Binding SourceDescription}"/>
+                        <Button Grid.Column="3" Content="Edit difficulty source" icons:WccButtonIcon.Action="EditCode" Tag="{Binding}" Click="EditDifficultySourceClicked" IsEnabled="{Binding CanEditRaw}" ToolTip.Tip="{Binding SourceDescription}"/>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </Border>
+              </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            </StackPanel>
+          </Grid>
+          <StackPanel x:Name="CampaignMenuSection" Spacing="9">
+            <TextBlock Text="Menu" Classes="sectionHeading"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+              <StackPanel Spacing="6">
+                <local:WccCampaignFieldEditorView DataContext="{Binding CampaignMenuDescriptionField}" IsCompact="True" LabelWidth="116" ShowPresence="False" ShowImagePreview="False" MinHeight="145">
+                  <local:WccCampaignFieldEditorView.FooterContent>
+                    <local:WccCampaignFieldEditorView DataContext="{Binding DataContext.CampaignMenuAlignmentField, ElementName=root}" LabelText="Alignment" LabelWidth="116" Width="282" ShowPresence="False" ShowImagePreview="False" UseInlineChoice="True"/>
+                  </local:WccCampaignFieldEditorView.FooterContent>
+                </local:WccCampaignFieldEditorView>
+                <ItemsControl ItemsSource="{Binding CampaignMenuImageFields}"><ItemsControl.ItemTemplate><DataTemplate DataType="wccvm:WccCampaignFieldEditorVm">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <local:WccCampaignFieldEditorView IsCompact="True" LabelWidth="116" ShowPresence="False" ShowImagePreview="False"/>
+                    <Button Grid.Column="1" Content="Choose image" icons:WccButtonIcon.Action="Select" Tag="{Binding}" Click="PickCampaignImageClicked" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" ToolTip.Tip="Select an existing Core, campaign or visible dependency image"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+              </StackPanel>
+              <Grid Grid.Column="1" ColumnDefinitions="66,280" ColumnSpacing="8" VerticalAlignment="Bottom">
+                <StackPanel Spacing="5" VerticalAlignment="Bottom">
+                  <TextBlock Text="Icon" FontSize="11" Opacity="0.65"/>
+                  <local:WccFieldImagePreviewView x:Name="CampaignMenuIconBox" DataContext="{Binding CampaignMenuIconPreview}" Width="66" Height="66"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                  <TextBlock Text="Menu preview" FontSize="11" Opacity="0.65" ToolTip.Tip="Approximate two-column layout; Wesnoth determines the final menu sizing."/>
+                  <Border x:Name="CampaignMenuCombinedPreview" Background="#171A1E" BorderBrush="#856E40" BorderThickness="1" CornerRadius="4" Height="250" ClipToBounds="True" ToolTip.Tip="{Binding CampaignMenuBackgroundPreviewHint}">
+                    <Grid>
+                      <Image Source="{Binding CampaignMenuBackgroundPreview.Bitmap}" Stretch="UniformToFill" Opacity="0.25" IsVisible="{Binding CampaignMenuBackgroundPreview.HasBitmap}"/>
+                      <Grid ColumnDefinitions="0.75*,1.25*" ColumnSpacing="8" Margin="9">
+                        <Border BorderBrush="#77856E40" BorderThickness="0,0,1,0" Padding="0,0,8,0">
+                          <StackPanel Spacing="8" Opacity="0.7">
+                            <TextBlock Text="Campaign list" TextWrapping="Wrap" FontSize="11"/>
+                            <Border Height="22" Background="#665A5C5E" CornerRadius="2"/>
+                            <Border Height="22" Background="#3347494C" CornerRadius="2"/>
+                            <Border Height="22" Background="#3347494C" CornerRadius="2"/>
+                          </StackPanel>
+                        </Border>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="8">
+                          <ScrollViewer MaxHeight="112" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding CampaignMenuPreviewDescription}" TextAlignment="{Binding CampaignMenuPreviewAlignment}" TextWrapping="Wrap" FontSize="11"/></ScrollViewer>
+                          <Image Grid.Row="1" Source="{Binding CampaignMenuImagePreview.Bitmap}" Stretch="Uniform" IsVisible="{Binding CampaignMenuImagePreview.HasBitmap}"/>
+                        </Grid>
+                      </Grid>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </StackPanel>
+          <Border Height="2" Background="#856E40" Opacity="0.75"/>
+          <Grid x:Name="CampaignSettingsColumns" ColumnDefinitions="1.05*,5,*" ColumnSpacing="14">
+            <StackPanel x:Name="CampaignLeftColumn" Spacing="13">
+              <StackPanel Spacing="7">
+                <TextBlock Text="Dependencies" Classes="sectionHeading"/>
+                <ItemsControl ItemsSource="{Binding CampaignDependencyCards}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyCard">
+                  <Border Classes="panel" Padding="7" Margin="0,0,7,7" Width="144" ToolTip.Tip="{Binding Information}">
+                    <StackPanel Spacing="5">
+                      <Grid Height="70"><Border Background="#101113" BorderBrush="#444444" BorderThickness="1" HorizontalAlignment="Center" Width="70"><Image Source="{Binding Icon.Bitmap}" Stretch="Uniform"/></Border>
+                        <Border Background="#813B24" CornerRadius="8" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsUnresolved}" ToolTip.Tip="Not available in the current editor source scope. Open Info for details."><TextBlock Text="U" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                      </Grid>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" Height="34"/>
+                      <TextBlock Text="{Binding Id}" FontSize="10" Opacity="0.65" TextTrimming="CharacterEllipsis"/>
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="3">
+                        <Button Content="Dependency information" icons:WccButtonIcon.Action="Info" ToolTip.Tip="{Binding Information}"><Button.Flyout><Flyout><StackPanel Spacing="9" MaxWidth="420"><ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled"><TextBlock Text="{Binding Information}" TextWrapping="Wrap"/></ScrollViewer><Button Content="Forget source folder" Tag="{Binding}" Click="ForgetDependencyCardSourceClicked" IsVisible="{Binding HasManualSource}" IsEnabled="{Binding CanForget}" icons:WccButtonIcon.Action="Remove" icons:WccButtonIcon.ShowLabel="True"/></StackPanel></Flyout></Button.Flyout></Button>
+                        <Button Grid.Column="2" Content="Edit loading" icons:WccButtonIcon.Action="Edit" Tag="{Binding}" Click="EditDependencyCardClicked" IsVisible="{Binding HasManagedRecipe}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditTooltip}" ToolTip.ShowOnDisabled="True"/>
+                        <Button Grid.Column="2" Content="Edit loading RAW" icons:WccButtonIcon.Action="EditCode" Tag="{Binding}" Click="EditDependencyCardClicked" IsVisible="{Binding !HasManagedRecipe}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditTooltip}" ToolTip.ShowOnDisabled="True"/>
+                        <Button Grid.Column="3" Content="Remove dependency" icons:WccButtonIcon.Action="Remove" Tag="{Binding}" Click="RemoveDependencyCardClicked" IsVisible="{Binding HasManagedRecipe}" IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding RemoveTooltip}" ToolTip.ShowOnDisabled="True"/>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+                  <Button Content="Add dependency" icons:WccButtonIcon.Action="Add" Click="AddManagedDependencyClicked" IsEnabled="{Binding CanModifyCampaignDependencies}" ToolTip.Tip="{Binding ManagedCampaignDependencyGuidance}" ToolTip.ShowOnDisabled="True"/>
+                  <Button Grid.Column="1" Content="Dependency information" icons:WccButtonIcon.Action="Info" ToolTip.Tip="{Binding CampaignDependencyOverviewInformation}">
+                    <Button.Flyout><Flyout><ScrollViewer MaxHeight="400" MaxWidth="490" HorizontalScrollBarVisibility="Disabled"><StackPanel Spacing="9">
+                      <TextBlock Text="{Binding CampaignDependencyOverviewInformation}" TextWrapping="Wrap"/>
+                      <Button Content="View metadata source" icons:WccButtonIcon.Action="ViewCode" icons:WccButtonIcon.ShowLabel="True" Click="ViewDependencyMetadataClicked" IsEnabled="{Binding HasCampaignDependencyMetadataSource}" HorizontalAlignment="Left"/>
+                    </StackPanel></ScrollViewer></Flyout></Button.Flyout>
+                  </Button>
+                  <Button Grid.Column="3" x:Name="AttachCampaignDependencySourceButton" Content="Add source folder" icons:WccButtonIcon.Action="Browse" Click="AttachDependencySourceClicked" IsEnabled="{Binding CanAttachCampaignDependencySource}" ToolTip.Tip="Make a read-only source folder available for this campaign session; campaign WML still decides what it loads." ToolTip.ShowOnDisabled="True"/>
+                </Grid>
+                <TextBlock Text="{Binding CampaignDependencySourcesStatus}" TextWrapping="Wrap" Opacity="0.65" FontSize="11"/>
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding CampaignOtherLeftPageGroups}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignFieldGroupVm"><Expander Classes="fieldCategory" Header="{Binding Label}" IsExpanded="{Binding IsExpanded, Mode=OneWay}"><ItemsControl ItemsSource="{Binding Fields}"><ItemsControl.ItemTemplate><DataTemplate DataType="wccvm:WccCampaignFieldEditorVm"><local:WccCampaignFieldEditorView IsCompact="True" ShowPresence="False"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Expander></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        <Expander Classes="fieldCategory" Header="Ending and credits" IsExpanded="False">
+          <StackPanel Spacing="10">
+            <ItemsControl ItemsSource="{Binding CampaignEndingFields}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="wccvm:WccCampaignFieldEditorVm">
+                  <local:WccCampaignFieldEditorView/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Credits" FontWeight="Bold" Margin="0,8,0,0"/>
+            <TextBlock Text="{Binding CampaignCreditsGuidance}" TextWrapping="Wrap" Opacity="0.7"/>
+            <ItemsControl ItemsSource="{Binding CampaignCreditGroups}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:CampaignCreditGroupRow">
+                  <Border Classes="panel" Padding="10" Margin="0,0,0,8">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="100,*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="Section title" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Text="{Binding Title, Mode=TwoWay}" IsReadOnly="{Binding IsReadOnly}"
+                                 ToolTip.Tip="The translatable heading for this [about] section."/>
+                        <Button Grid.Column="2" Content="−" Tag="{Binding}" Click="RemoveCreditGroupClicked"
+                                icons:WccButtonIcon.Action="Remove"
+                                IsEnabled="{Binding CanEdit}" ToolTip.Tip="Remove this credit section and its contributor entries."/>
+                      </Grid>
+                      <ItemsControl ItemsSource="{Binding Entries}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="vm:CampaignCreditEntryRow">
+                            <Grid ColumnDefinitions="100,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4" Margin="0,0,0,6">
+                              <TextBlock Text="Contributor" VerticalAlignment="Center"/>
+                              <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay}" IsReadOnly="{Binding IsReadOnly}"
+                                       AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120"
+                                       ToolTip.Tip="The contributor name displayed by Wesnoth. Multiple lines are retained."/>
+                              <Button Grid.Column="2" Content="−" Tag="{Binding}" Click="RemoveCreditEntryClicked"
+                                      icons:WccButtonIcon.Action="Remove"
+                                      IsEnabled="{Binding CanEdit}" ToolTip.Tip="Remove this contributor entry."/>
+                              <TextBlock Grid.Row="1" Text="Comment" VerticalAlignment="Center" Opacity="0.65"/>
+                              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Comment, Mode=TwoWay}" IsReadOnly="{Binding IsReadOnly}"
+                                       ToolTip.Tip="Optional WML metadata; it is retained but is not normally displayed in the credits."/>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Button Content="Add contributor" Tag="{Binding}" Click="AddCreditEntryClicked"
+                              icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True"
+                              IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Add credit section" icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True" Click="AddCreditGroupClicked" IsEnabled="{Binding CanEditCampaignCredits}"/>
+              <Button Content="Reset credit edits" icons:WccButtonIcon.Action="Reset" icons:WccButtonIcon.ShowLabel="True" Click="ResetCreditsClicked" IsVisible="{Binding HasCampaignCreditsDrafts}"
+                      IsEnabled="{Binding CanResetCampaignCredits}"/>
+              <Button Content="Main file RAW" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="EditMainSourceClicked" IsEnabled="{Binding CanEditCampaignMainRaw}"/>
+            </StackPanel>
+          </StackPanel>
+        </Expander>
+
+            </StackPanel>
+            <Border Grid.Column="1" Background="#856E40" Opacity="0.65"/>
+            <StackPanel x:Name="CampaignRightColumn" Grid.Column="2" Spacing="13">
+              <StackPanel Spacing="7">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                  <TextBlock Text="Paths" Classes="sectionHeading"/>
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding CampaignPathAddonFilters}" SelectedItem="{Binding CampaignPathAddonFilter, Mode=TwoWay}" MaxWidth="160" ToolTip.Tip="Filter by the add-on producing this reference"/>
+                  <ComboBox Grid.Column="2" ItemsSource="{Binding CampaignPathPurposeFilters}" SelectedItem="{Binding CampaignPathPurposeFilter, Mode=TwoWay}" MaxWidth="150" ToolTip.Tip="Filter by the reference purpose"/>
+                </Grid>
+                <Border Classes="panel" Padding="6" ToolTip.Tip="{Binding CampaignPathPresentationGuidance}">
+                  <ScrollViewer x:Name="CampaignPathTable" Height="280" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding CampaignFilteredPathRows}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignPathDisplayRow">
+                      <Grid ColumnDefinitions="*,Auto,72,100,Auto,Auto,Auto" ColumnSpacing="4" Margin="0,0,0,6">
+                        <TextBox Text="{Binding TextPath, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" ToolTip.Tip="{Binding Path}"/>
+                        <Button Grid.Column="1" Content="Path information" icons:WccButtonIcon.Action="Info" ToolTip.Tip="{Binding Information}"><Button.Flyout><Flyout><ScrollViewer MaxHeight="320" MaxWidth="420" HorizontalScrollBarVisibility="Disabled"><TextBlock Text="{Binding Information}" TextWrapping="Wrap"/></ScrollViewer></Flyout></Button.Flyout></Button>
+                        <TextBlock Grid.Column="2" Text="{Binding Addon}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontSize="11" ToolTip.Tip="{Binding Addon}"/>
+                        <ComboBox Grid.Column="3" ItemsSource="{Binding KindChoices}" SelectedItem="{Binding SelectedKindChoice, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" MinWidth="0" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding Purpose}"><ComboBox.ItemTemplate><DataTemplate DataType="vm:CampaignPathKindChoice"><TextBlock Text="{Binding Label}" FontSize="11"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                        <Button Grid.Column="4" Content="View path source" icons:WccButtonIcon.Action="ViewCode" Tag="{Binding}" Click="ViewCampaignPathSourceClicked" IsEnabled="{Binding HasSource}" ToolTip.Tip="View this path's exact captured source"/>
+                        <Button Grid.Column="5" Content="Edit path RAW" icons:WccButtonIcon.Action="EditCode" Tag="{Binding}" Click="EditCampaignPathSourceClicked" IsEnabled="{Binding CanEditRaw}" ToolTip.Tip="{Binding RawEditGuidance}" ToolTip.ShowOnDisabled="True"/>
+                        <Button Grid.Column="6" Content="Remove path" icons:WccButtonIcon.Action="Remove" Tag="{Binding}" Click="RemoveCampaignPathClicked" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Remove this reference; retain its files"/>
+                      </Grid>
+                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                  </ScrollViewer>
+                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="6"><Button Content="Add path" icons:WccButtonIcon.Action="Add" Click="AddCampaignPathClicked" IsEnabled="{Binding CanEditCampaignStructure}" ToolTip.Tip="{Binding CampaignPathAddGuidance}" ToolTip.ShowOnDisabled="True"/><Button Content="Choose folder" icons:WccButtonIcon.Action="Browse" Click="PickCampaignPathClicked" IsEnabled="{Binding CanEditCampaignStructure}" ToolTip.Tip="{Binding CampaignPathAddGuidance}" ToolTip.ShowOnDisabled="True"/><Button Content="Reset difficulty and path edits" icons:WccButtonIcon.Action="Reset" Click="ResetCampaignStructureClicked" IsVisible="{Binding HasCampaignStructureDrafts}" IsEnabled="{Binding CanResetCampaignStructure}" ToolTip.Tip="Revert pending difficulty and path changes"/></StackPanel>
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding CampaignOtherRightPageGroups}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignFieldGroupVm"><Expander Classes="fieldCategory" Header="{Binding Label}" IsExpanded="{Binding IsExpanded, Mode=OneWay}"><ItemsControl ItemsSource="{Binding Fields}"><ItemsControl.ItemTemplate><DataTemplate DataType="wccvm:WccCampaignFieldEditorVm"><local:WccCampaignFieldEditorView IsCompact="True" ShowPresence="False"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Expander></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        <Expander Classes="fieldCategory" Header="Additional code" IsExpanded="False">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding CampaignSourceGuidance}" TextWrapping="Wrap"/>
+            <Button Content="Main file RAW" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="EditMainSourceClicked" IsEnabled="{Binding CanEditCampaignMainRaw}" HorizontalAlignment="Left"/>
+            <ListBox ItemsSource="{Binding CampaignAdditionalCodeEntries}" SelectedItem="{Binding SelectedCampaignAdditionalCode}" MaxHeight="280">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="campaign:CampaignSourceEntry">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <TextBlock Text="{Binding Kind}" Opacity="0.65"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Line}" Opacity="0.65" ToolTip.Tip="Source line"/>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="View selected source" icons:WccButtonIcon.Action="ViewCode" icons:WccButtonIcon.ShowLabel="True" Click="ViewCodeSourceClicked" IsEnabled="{Binding HasCampaignMainSource}"/>
+              <Button Content="Edit selected RAW" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="EditCodeSourceClicked" IsEnabled="{Binding CanEditCampaignMainRaw}"/>
+            </StackPanel>
+          </StackPanel>
+        </Expander>
+
+              <Expander Classes="fieldCategory" Header="Last checked changes" IsVisible="{Binding HasCampaignFieldReview}"><TextBlock Text="{Binding CampaignFieldReviewSummary}" TextWrapping="Wrap"/></Expander>
+<Expander Classes="fieldCategory" Header="Project files" IsExpanded="False" IsVisible="{Binding ShowProjectLists, ElementName=root}">
+        <StackPanel IsVisible="{Binding ShowProjectLists, ElementName=root}" Spacing="14">
+          <TextBlock Text="Project Scenarios" FontWeight="Bold"/>
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="180,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+            <ListBox Grid.Row="0"
+                     Grid.Column="0"
+                     Grid.ColumnSpan="2"
+                     ItemsSource="{Binding ScenarioFiles}"
+                     SelectedItem="{Binding SelectedScenarioFile}">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="wccvm:ProjectScenarioFileVm">
+                  <TextBlock Text="{Binding DisplayName}"/>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Button Grid.Row="1" Grid.Column="0" Content="Attach Scenario File..." icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="AttachScenarioClicked"/>
+            <Button Grid.Row="1" Grid.Column="1" Content="Remove Selected" icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected scenario from this project" Click="RemoveScenarioClicked"/>
+
+            <Button Grid.Row="2" Grid.Column="0" Content="Move Up" icons:WccButtonIcon.Action="Up" ToolTip.Tip="Move the selected scenario up" Click="MoveScenarioUpClicked"/>
+            <Button Grid.Row="2" Grid.Column="1" Content="Move Down" icons:WccButtonIcon.Action="Down" ToolTip.Tip="Move the selected scenario down" Click="MoveScenarioDownClicked"/>
+
+            <Button Grid.Row="3" Grid.Column="0" Content="Open Selected Scenario Editor" icons:WccButtonIcon.Action="Edit" icons:WccButtonIcon.ShowLabel="True" Click="OpenSelectedScenarioClicked"/>
+            <Button Grid.Row="3" Grid.Column="1" Content="Set Selected as first_scenario" Click="SetFirstScenarioClicked"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                       Text="Opening from here shares the same in-memory scenario documents used by campaign export."
+                       TextWrapping="Wrap"/>
+          </Grid>
+
+          <TextBlock Text="Project Units" FontWeight="Bold"/>
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="180,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+            <ListBox Grid.Row="0"
+                     Grid.Column="0"
+                     Grid.ColumnSpan="2"
+                     ItemsSource="{Binding UnitFiles}"
+                     SelectedItem="{Binding SelectedUnitFile}">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="wccvm:ProjectUnitFileVm">
+                  <TextBlock Text="{Binding DisplayName}"/>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Button Grid.Row="1" Grid.Column="0" Content="Attach Unit File..." icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="AttachUnitClicked"/>
+            <Button Grid.Row="1" Grid.Column="1" Content="Remove Selected" icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected unit file from this project" Click="RemoveUnitClicked"/>
+
+            <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Content="Open Selected Unit Editor" icons:WccButtonIcon.Action="Edit" icons:WccButtonIcon.ShowLabel="True" Click="OpenSelectedUnitClicked"/>
+          </Grid>
+          </StackPanel>
+        </Expander>
+
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Grid>
+</UserControl>

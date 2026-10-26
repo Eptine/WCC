@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels" xmlns:icons="using:Wcc.App.Views.Controls" x:Class="Wcc.App.Views.Controls.ScenarioCreationWizardNavigationView"
+             x:DataType="vm:ScenarioCreationViewModel">
+  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+    <Button x:Name="CancelWizardButton" Content="Cancel" Click="CancelClicked" HorizontalAlignment="Left"/>
+    <Button x:Name="BackWizardButton" Grid.Column="1" Content="Back" icons:WccButtonIcon.Action="Previous" icons:WccButtonIcon.ShowLabel="True" Click="BackClicked" IsEnabled="{Binding CanGoBack}"/>
+    <Button x:Name="NextWizardButton" Grid.Column="2" Content="Next" icons:WccButtonIcon.Action="Next" icons:WccButtonIcon.ShowLabel="True" Click="NextClicked" IsVisible="{Binding !IsFinalPage}" IsEnabled="{Binding CanGoNext}"/>
+    <Button x:Name="CreateWizardButton" Grid.Column="3" Content="Create" Classes="primary" Click="CreateClicked" IsVisible="{Binding IsFinalPage}" IsEnabled="{Binding CanCreate}"/>
+  </Grid>
+</UserControl>

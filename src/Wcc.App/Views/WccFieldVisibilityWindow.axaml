@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.WccFieldVisibilityWindow"
+        x:DataType="vm:WccFieldVisibilityDialogViewModel"
+        Title="Show or hide fields" Classes="wccShell" Width="660" Height="680" MinWidth="420" MinHeight="350"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="14">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Guidance}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+    <Button DockPanel.Dock="Bottom" Content="Close" icons:WccButtonIcon.Action="Close" icons:WccButtonIcon.ShowLabel="True" Click="CloseClicked" HorizontalAlignment="Right" Margin="0,12,0,0"/>
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Categories}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:WccFieldVisibilityCategoryVm">
+            <StackPanel Spacing="5" Margin="0,0,0,14">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+              <ItemsControl ItemsSource="{Binding Fields}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:WccFieldVisibilityOptionVm">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="8,2,0,2">
+                      <CheckBox Content="{Binding Label}" IsChecked="{Binding IsShown, Mode=TwoWay}"
+                                IsEnabled="{Binding CanChangeVisibility}" ToolTip.Tip="{Binding Reason}"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Key}" Opacity="0.6" VerticalAlignment="Center"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

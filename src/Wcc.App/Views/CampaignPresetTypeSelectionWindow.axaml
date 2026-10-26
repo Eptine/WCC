@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels" xmlns:controls="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.CampaignPresetTypeSelectionWindow" x:DataType="vm:CampaignPresetCreationWizardViewModel"
+        Title="Add preset" Classes="wccShell" Width="620" Height="560" MinWidth="440" MinHeight="400" WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="14">
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+      <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" Foreground="IndianRed" VerticalAlignment="Center"/>
+      <Button Name="ContinueButton" Grid.Column="1" Content="Next" controls:WccButtonIcon.Action="Accept" controls:WccButtonIcon.ShowLabel="True"
+              IsEnabled="{Binding CanContinue}" Click="ContinueClicked"/>
+      <Button Grid.Column="2" Content="Cancel" Click="CancelClicked"/>
+    </Grid>
+    <controls:CampaignPresetTypeSelectionView/>
+  </DockPanel>
+</Window>

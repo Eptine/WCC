@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.PresetManagerView"
+             x:DataType="vm:PresetManagerWindowViewModel">
+
+  <Grid ColumnDefinitions="380,*"
+        ColumnSpacing="12">
+
+    <Grid Grid.Column="0"
+          RowDefinitions="Auto,Auto,Auto,Auto,*"
+          RowSpacing="8">
+
+      <TextBlock Grid.Row="0"
+                 Text="{Binding LibraryTitle}"
+                 FontWeight="Bold"/>
+
+      <TextBox Grid.Row="1"
+               Watermark="{Binding SearchWatermark}"
+               Text="{Binding SearchText}"/>
+
+      <StackPanel Grid.Row="2"
+                  Spacing="4"
+                  IsVisible="{Binding HasCreationKindChoice}">
+        <TextBlock Text="New definition source" FontWeight="SemiBold"/>
+        <ComboBox ItemsSource="{Binding CreationKinds}"
+                  SelectedItem="{Binding SelectedCreationKind}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="vm:PresetManagerCreationKind">
+              <TextBlock Text="{Binding DisplayName}"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+
+      <Button Grid.Row="3"
+              Content="New in WCC..."
+              icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True"
+              Click="NewClicked"
+              HorizontalAlignment="Stretch"/>
+
+      <ListBox Grid.Row="4"
+               ItemsSource="{Binding Entries}"
+               SelectedItem="{Binding SelectedEntry}">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:PresetManagerItemVm">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+              <Border Grid.Column="0"
+                      BorderThickness="1"
+                      Padding="5,2"
+                      VerticalAlignment="Center"
+                      IsVisible="{Binding HasSourceKindLabel}">
+                <TextBlock Text="{Binding SourceKindLabel}" FontSize="11"/>
+              </Border>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding SecondaryText}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+
+    <ScrollViewer Grid.Column="1">
+      <StackPanel Spacing="10">
+        <TextBlock Text="Selected Entry" FontWeight="Bold"/>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="CloneToWccButton" Content="Clone to WCC..."
+                  icons:WccButtonIcon.Action="Copy" icons:WccButtonIcon.ShowLabel="True"
+                  Click="DuplicateClicked"
+                  IsEnabled="{Binding CanDuplicateSelected}"
+                  ToolTip.Tip="{Binding DuplicateGuidance}"/>
+          <Button Content="{Binding EditButtonLabel}"
+                  icons:WccButtonIcon.Action="{Binding SelectedEntry.CanEdit, Converter={x:Static icons:WccEditorIconConverters.CodeAction}}" icons:WccButtonIcon.ShowLabel="True"
+                  Click="ViewOrEditClicked"
+                  IsEnabled="{Binding CanViewOrEditSelected}"/>
+          <Button Content="Delete Selected"
+                  icons:WccButtonIcon.Action="Delete" icons:WccButtonIcon.ShowLabel="True"
+                  ToolTip.Tip="Delete the selected WCC-owned definition"
+                  Click="DeleteClicked"
+                  IsEnabled="{Binding CanDeleteSelected}"/>
+        </StackPanel>
+
+        <Grid ColumnDefinitions="Auto,*"
+              RowDefinitions="Auto,Auto,Auto,Auto"
+              ColumnSpacing="8"
+              RowSpacing="4">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" FontWeight="Bold"/>
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedValueId}" TextWrapping="Wrap"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Source Kind:" FontWeight="Bold"/>
+          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedSourceKindLabel}" TextWrapping="Wrap"/>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Package:" FontWeight="Bold"/>
+          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedOriginLabel}" TextWrapping="Wrap"/>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Source File:" FontWeight="Bold"/>
+          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedSourceFileName}" TextWrapping="Wrap"/>
+        </Grid>
+
+        <TextBlock Text="{Binding SelectedModeText}" TextWrapping="Wrap"/>
+        <TextBlock x:Name="CloneGuidanceText" Text="{Binding DuplicateGuidance}"
+                   IsVisible="{Binding HasDuplicateGuidance}" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding SelectedDescription}" TextWrapping="Wrap"/>
+
+        <TextBlock Text="Raw WML" FontWeight="Bold"/>
+        <TextBox Text="{Binding SelectedRawText}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 MinHeight="320"/>
+      </StackPanel>
+    </ScrollViewer>
+
+  </Grid>
+</UserControl>

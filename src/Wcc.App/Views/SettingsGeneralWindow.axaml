@@ -1,0 +1,127 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:settings="using:Wcc.Core.Settings"
+        x:Class="Wcc.App.Views.SettingsGeneralWindow"
+        x:DataType="vm:AppShellViewModel"
+        Width="760"
+        Height="650"
+        MinWidth="650"
+        MinHeight="450"
+        Classes="wccShell"
+        WindowStartupLocation="CenterOwner"
+        Title="Settings - General">
+
+  <ScrollViewer Margin="12">
+    <StackPanel Spacing="14">
+
+      <TextBlock Text="General Settings" Classes="sectionHeading" FontSize="20"/>
+
+      <Border Classes="panel" BorderThickness="1" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Wesnoth Runtime Profile" FontWeight="Bold"/>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding WesnothInstallationProfiles}"
+                      SelectedItem="{Binding ActiveWesnothInstallationProfile, Mode=TwoWay}"
+                      IsEnabled="{Binding CanSwitchWesnothInstallationProfile}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="settings:WccWesnothInstallationProfile">
+                  <TextBlock Text="{Binding Name}"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Column="1"
+                    Content="Add Profile"
+                    icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True"
+                    Click="AddWesnothProfileClicked"
+                    IsEnabled="{Binding CanSwitchWesnothInstallationProfile}"/>
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Grid.Column="0"
+                     Watermark="Profile name"
+                     Text="{Binding ActiveWesnothInstallationProfileName, Mode=TwoWay}"
+                     IsEnabled="{Binding HasWesnothInstallationProfiles}"/>
+            <Button Grid.Column="1"
+                    Content="Apply Name"
+                    icons:WccButtonIcon.Action="Accept" ToolTip.Tip="Apply the profile name"
+                    Click="ApplyWesnothProfileNameClicked"
+                    IsEnabled="{Binding HasWesnothInstallationProfiles}"/>
+          </Grid>
+          <TextBlock Text="A runtime profile owns one installed Wesnoth compatibility line and its optional add-on folder. Switching profiles changes the Core and add-ons shown in the Library; it does not change which Wesnoth version this WCC release creates for."
+                     TextWrapping="Wrap"
+                     Opacity="0.72"/>
+          <TextBlock Text="{Binding ActiveWesnothProfileRoleStatus}"
+                     TextWrapping="Wrap"
+                     Opacity="0.82"/>
+
+          <TextBlock Text="Wesnoth Install Directory" FontWeight="Bold"/>
+          <TextBlock Text="Choose the game distribution folder containing data/core, or the data folder containing core. Linux package installations may keep the executable separately under the same installation prefix."
+                     TextWrapping="Wrap" Opacity="0.72"/>
+          <TextBlock Text="{Binding WesnothInstallPath}" TextWrapping="Wrap"/>
+
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Last detected build:" Opacity="0.72"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DetectedWesnothVersion}"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Release line:" Opacity="0.72"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding WesnothReleaseLine}"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Compatibility target:" Opacity="0.72"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TargetWesnothVersion}"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Core WML fingerprint:" Opacity="0.72"/>
+            <TextBlock Grid.Row="3" Grid.Column="1"
+                       Text="{Binding DetectedCoreFingerprint}"
+                       TextWrapping="Wrap"/>
+          </Grid>
+          <TextBlock Text="{Binding WesnothInstallationIdentityStatus}"
+                     TextWrapping="Wrap"
+                     Opacity="0.72"/>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Set Active Profile Install..."
+                    icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                    Click="SetWesnothInstallClicked"
+                    IsEnabled="{Binding CanSwitchWesnothInstallationProfile}"/>
+            <Button Content="Refresh Package Index"
+                    Click="RefreshPackageIndexClicked"
+                    IsEnabled="{Binding HasDetectedWesnothInstallation}"/>
+          </StackPanel>
+          <TextBlock Text="{Binding LibraryIndexStatus}"
+                     TextWrapping="Wrap"
+                     Opacity="0.72"/>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="panel" BorderThickness="1" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Add-on Directory" FontWeight="Bold"/>
+          <TextBlock Text="{Binding AddonsPath}" TextWrapping="Wrap"/>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Set Add-on Folder..."
+                    icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                    Click="SetAddonsPathClicked"
+                    IsEnabled="{Binding CanSwitchWesnothInstallationProfile}"/>
+            <Button Content="Clear"
+                    Click="ClearAddonsPathClicked"
+                    IsEnabled="{Binding CanClearAddonsPath}"/>
+          </StackPanel>
+          <TextBlock Text="Optional. When configured, WCC reads each add-on's _info.cfg (or local _server.pbl), records its exact version/type/Core declaration, and resolves dependencies only inside this installation profile."
+                     TextWrapping="Wrap"
+                     Opacity="0.72"/>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="panel" BorderThickness="1" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Import Options" FontWeight="Bold"/>
+          <CheckBox Content="Import core scenarios later"
+                    IsChecked="{Binding ImportCoreScenarios}"/>
+          <TextBlock Text="This checkbox is stored now, but not acted on yet in v0.1."
+                     TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</Window>

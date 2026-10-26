@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+        xmlns:local="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.ScenarioMapCoordinatePickerWindow"
+        x:DataType="vm:ScenarioMapCoordinatePickerViewModel"
+        Classes="wccShell" Title="Choose map coordinates" Width="1020" Height="720" MinWidth="720" MinHeight="500"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <TextBlock Text="{Binding Purpose}" FontSize="17" TextWrapping="Wrap"/>
+    <Grid Grid.Row="1" ColumnDefinitions="*,230" ColumnSpacing="12">
+      <Border Background="#111923" BorderBrush="#8E7955" BorderThickness="1" ClipToBounds="True">
+        <local:ScenarioHexMapControl x:Name="MainMap" Preview="{Binding Preview}" Zoom="{Binding Zoom, Mode=TwoWay}"/>
+      </Border>
+      <StackPanel Grid.Column="1" Spacing="10">
+        <Border Height="180" Background="#111923" BorderBrush="#71634B" BorderThickness="1">
+          <local:ScenarioMapMinimapControl x:Name="Minimap" MapView="{Binding #MainMap}" ToolTip.Tip="Click the minimap to center the large map."/>
+        </Border>
+        <Border Background="#18232F" BorderBrush="#554E40" BorderThickness="1" Padding="10">
+          <StackPanel Spacing="7">
+            <TextBlock Text="{Binding SelectionLabel}" FontWeight="SemiBold"/>
+            <TextBlock x:Name="SelectedTileSummary" Text="{Binding TileSummary}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+        <TextBlock Text="Click a playable hex to fix the selection. Click another hex to change it. Drag to pan; Ctrl + mouse wheel zooms." TextWrapping="Wrap" Opacity="0.75"/>
+        <TextBlock Text="Zoom"/>
+        <Slider Minimum="0.25" Maximum="2" Value="{Binding Zoom, Mode=TwoWay}"/>
+      </StackPanel>
+    </Grid>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelCoordinateButton" Content="Cancel" Click="CancelClicked"/>
+      <Button x:Name="ConfirmCoordinateButton" Content="Confirm" local:WccButtonIcon.Action="Accept" local:WccButtonIcon.ShowLabel="True" Click="ConfirmClicked" IsEnabled="{Binding CanConfirm}"/>
+    </StackPanel>
+  </Grid>
+</Window>

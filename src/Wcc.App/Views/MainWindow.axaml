@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        x:Class="Wcc.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1280"
+        Height="860"
+        Title="WCC Unit Type Editor">
+    <controls:UnitEditorView/>
+</Window>

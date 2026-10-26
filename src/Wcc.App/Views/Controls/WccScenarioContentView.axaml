@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Wcc.App.ViewModels"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             xmlns:scenario="clr-namespace:Wcc.Core.Scenarios;assembly=Wcc.Core"
+             x:Class="Wcc.App.Views.Controls.WccScenarioContentView"
+             x:DataType="vm:ScenarioWindowViewModel">
+  <Expander Header="Source blocks (RAW)" IsExpanded="False">
+    <StackPanel Spacing="8">
+      <TextBlock Text="{Binding WccScenarioContentGuidance}" TextWrapping="Wrap" Opacity="0.75"/>
+      <WrapPanel>
+        <Button Content="Scenario RAW..." Click="ScenarioRawClicked" Margin="0,0,6,6"
+                icons:WccButtonIcon.Action="{Binding CanEditWccScenarioContent, Converter={x:Static icons:WccEditorIconConverters.CodeAction}}" icons:WccButtonIcon.ShowLabel="True"
+                IsEnabled="{Binding HasWccScenarioSource}"/>
+        <Button Content="File RAW..." Click="FileRawClicked" Margin="0,0,6,6"
+                icons:WccButtonIcon.Action="{Binding CanEditWccScenarioContent, Converter={x:Static icons:WccEditorIconConverters.CodeAction}}" icons:WccButtonIcon.ShowLabel="True"
+                IsEnabled="{Binding HasWccScenarioSource}"/>
+        <Button Content="Add RAW block / macro..." icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True" Click="AddRawClicked" Margin="0,0,6,6"
+                IsEnabled="{Binding CanEditWccScenarioContent}"/>
+      </WrapPanel>
+      <ListBox ItemsSource="{Binding WccScenarioContentEntries}"
+               SelectedItem="{Binding SelectedWccScenarioContent}" MaxHeight="230">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="scenario:ScenarioContentSourceEntry">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding Kind}" Opacity="0.6"/>
+              <TextBlock Text="line" Opacity="0.6"/>
+              <TextBlock Text="{Binding Line}" Opacity="0.6"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <Button Content="Selected source RAW..." Click="SelectedRawClicked" HorizontalAlignment="Left"
+              IsEnabled="{Binding HasWccScenarioSource}"/>
+      <TextBlock Text="All authored child tags and root macro calls are listed in order. Scenario RAW also includes directives, unknown fields and source that cannot be listed separately. File includes stay as includes."
+                 TextWrapping="Wrap" Opacity="0.65"/>
+    </StackPanel>
+  </Expander>
+</UserControl>

@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.CampaignPresetStorageActionsView"
+             x:DataType="vm:CampaignLocalPresetManagerViewModel">
+  <StackPanel Orientation="Horizontal" Spacing="8">
+    <Button x:Name="MoveMainPresetsButton" Content="Move main presets" IsEnabled="{Binding CanMoveMainPresets}"
+            ToolTip.Tip="{Binding MoveProblem}" Click="MoveClicked"/>
+    <Button x:Name="RevertPresetMoveButton" Content="Revert move" icons:WccButtonIcon.Action="Reset" ToolTip.Tip="Revert the pending preset move" IsEnabled="{Binding CanRevertMove}" Click="RevertClicked"/>
+  </StackPanel>
+</UserControl>

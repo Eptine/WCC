@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:controls="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.WccMusicScheduleView"
+             x:DataType="vm:ScenarioWindowViewModel">
+  <StackPanel Spacing="8">
+    <Border BorderBrush="#665C503B" BorderThickness="0,1,0,0" Padding="0,5">
+      <Expander Header="Music" Classes="fieldCategory" IsExpanded="True">
+        <StackPanel Spacing="8">
+          <ListBox x:Name="MusicList" ItemsSource="{Binding WccMusicRows}"
+                   SelectedItem="{Binding SelectedWccMusicRow, Mode=TwoWay}"
+                   DragDrop.AllowDrop="True" MinHeight="70" MaxHeight="320">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:WccMusicTrackRowVm">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="4" Margin="0,3">
+                  <Border Padding="4" Cursor="Hand" PointerPressed="MusicDragPressed" ToolTip.Tip="Drag to reorder">
+                    <TextBlock Text="{Binding PositionLabel}" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding RoleLabel}"/>
+                  <Button Grid.Column="2" Content="↑" controls:WccButtonIcon.Action="Up" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" Click="MusicUpClicked" ToolTip.Tip="Move track up"/>
+                  <Button Grid.Column="3" Content="↓" controls:WccButtonIcon.Action="Down" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" Click="MusicDownClicked" ToolTip.Tip="Move track down"/>
+                  <Button Grid.Column="4" Content="−" controls:WccButtonIcon.Action="Remove" Classes="fieldIcon" IsEnabled="{Binding CanEdit}" Click="RemoveMusicClicked" ToolTip.Tip="Remove track"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Content="Pick tracks" controls:WccButtonIcon.Action="Select" Classes="fieldIcon" IsEnabled="{Binding CanEditWccMusicPlaylist}" Click="PickMusicClicked" ToolTip.Tip="Pick tracks"/>
+            <Button Content="+" controls:WccButtonIcon.Action="Add" Classes="fieldIcon" IsEnabled="{Binding CanEditWccMusicPlaylist}" Click="AddMusicFileClicked" ToolTip.Tip="Add a music file"/>
+          </StackPanel>
+          <CheckBox Content="Use first track as the intro" IsChecked="{Binding WccMakeFirstTrackIntro, Mode=TwoWay}"
+                    IsEnabled="{Binding CanMakeWccFirstTrackIntro}"/>
+          <CheckBox Content="Let intro music finish" IsChecked="{Binding WccLetIntroFinish, Mode=TwoWay}"
+                    IsEnabled="{Binding CanLetWccIntroFinish}"/>
+          <TextBlock Text="{Binding WccMusicDefaultIntroHint}" IsVisible="{Binding HasWccMusicDefaultIntroHint}"
+                     TextWrapping="Wrap" Opacity="0.65"/>
+          <TextBlock Text="{Binding WccMusicGuidance}" TextWrapping="Wrap" Opacity="0.65"/>
+        </StackPanel>
+      </Expander>
+    </Border>
+    <Border BorderBrush="#665C503B" BorderThickness="0,1,0,0" Padding="0,5">
+      <Expander Header="Schedule" Classes="fieldCategory" IsExpanded="True">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="65,*,Auto,Auto" ColumnSpacing="5">
+            <TextBlock Text="Preset" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding WccSchedulePresetValue, Mode=OneWay}" IsReadOnly="True"/>
+            <Button Grid.Column="2" Content="Pick schedule" controls:WccButtonIcon.Action="Select" Classes="fieldIcon" IsEnabled="{Binding CanEditWccSchedule}" Click="PickScheduleClicked" ToolTip.Tip="Pick schedule"/>
+            <Button Grid.Column="3" Content="Custom" IsEnabled="{Binding CanMakeWccScheduleCustom}" Click="CustomScheduleClicked"/>
+          </Grid>
+          <TextBlock Text="{Binding WccScheduleStartDescription}" TextWrapping="Wrap" Opacity="0.7"/>
+          <Grid ColumnDefinitions="70,*" ColumnSpacing="8" IsVisible="{Binding HasWccSchedulePreview}">
+            <Border Width="70" Height="48" BorderBrush="#76674B" BorderThickness="1" Background="#202A36" Padding="2"
+                    ToolTip.Tip="{Binding WccSchedulePreviewImage.PreviewHint}">
+              <Image Source="{Binding WccSchedulePreviewImage.PreviewBitmap}" Stretch="Uniform"/>
+            </Border>
+            <TextBlock Grid.Column="1" Text="{Binding WccSchedulePreviewDescription}" VerticalAlignment="Center"
+                       TextWrapping="Wrap" Opacity="0.8"/>
+          </Grid>
+          <ListBox ItemsSource="{Binding WccScheduleTimes}" SelectedItem="{Binding SelectedWccScheduleTime, Mode=TwoWay}"
+                   MinHeight="70" MaxHeight="350">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="wccvm:WccScheduleTimeRowVm">
+                <Grid ColumnDefinitions="24,48,*,Auto" ColumnSpacing="5" Margin="0,4">
+                  <TextBlock Text="{Binding PositionLabel}" VerticalAlignment="Center"/>
+                  <Border Grid.Column="1" Width="48" Height="42" BorderBrush="#76674B" BorderThickness="1"
+                          Background="#202A36" Padding="2" ToolTip.Tip="{Binding Preview.PreviewHint}">
+                    <Image Source="{Binding Preview.PreviewBitmap}" Stretch="Uniform"/>
+                  </Border>
+                  <StackPanel Grid.Column="2" Spacing="2" ToolTip.Tip="{Binding Image}">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding BonusLabel}" Opacity="0.65" FontSize="12"/>
+                    <TextBlock Text="{Binding StartLabel}" IsVisible="{Binding HasStartLabel}" Foreground="#D9BF85" FontSize="12"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Button Content="↑" controls:WccButtonIcon.Action="Up" Classes="fieldIcon" IsEnabled="{Binding CanReorder}" Click="TimeUpClicked" ToolTip.Tip="Move time up"/>
+                    <Button Content="↓" controls:WccButtonIcon.Action="Down" Classes="fieldIcon" IsEnabled="{Binding CanReorder}" Click="TimeDownClicked" ToolTip.Tip="Move time down"/>
+                    <Button Content="−" controls:WccButtonIcon.Action="Remove" Classes="fieldIcon" IsEnabled="{Binding CanReorder}" Click="RemoveTimeClicked" ToolTip.Tip="Remove time"/>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="+" controls:WccButtonIcon.Action="Add" Classes="fieldIcon" Margin="0,0,6,0" IsEnabled="{Binding CanChangeWccCustomScheduleStructure}" Click="AddTimeClicked" ToolTip.Tip="Add time"/>
+            <Button Content="Edit time RAW…" controls:WccButtonIcon.Action="EditCode" controls:WccButtonIcon.ShowLabel="True"
+                    Margin="0,0,6,0" IsEnabled="{Binding CanEditWccScheduleTime}" Click="EditTimeClicked"/>
+            <Button Content="Move to start" IsEnabled="{Binding CanMoveWccScheduleTimeToStart}" Click="StartTimeClicked"/>
+          </WrapPanel>
+          <TextBlock Text="{Binding WccScheduleGuidance}" TextWrapping="Wrap" Opacity="0.65"/>
+        </StackPanel>
+      </Expander>
+    </Border>
+    <TextBlock Text="{Binding WccMusicScheduleDraftStatus}" TextWrapping="Wrap"/>
+    <Button Content="Discard music and schedule" IsVisible="{Binding HasWccMusicScheduleDrafts}"
+            IsEnabled="{Binding CanDiscardWccMusicScheduleDrafts}" Click="DiscardClicked" HorizontalAlignment="Left"/>
+  </StackPanel>
+</UserControl>

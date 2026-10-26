@@ -1,0 +1,167 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:presentation="using:Wcc.App.Views"
+        xmlns:check="clr-namespace:Wcc.Core.Wml.Checking;assembly=Wcc.Core"
+        x:Class="Wcc.App.Views.WmlTesterWindow"
+        x:DataType="vm:WmlTesterViewModel"
+        Classes="wccShell" Title="WCC - WML Tester"
+        Width="1180" Height="800" MinWidth="900" MinHeight="600">
+  <Window.Resources>
+    <presentation:WmlTesterDiagnosticIconConverter x:Key="DiagnosticIcon"/>
+  </Window.Resources>
+  <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel Spacing="5">
+        <TextBlock Text="WML Tester" FontSize="22" FontWeight="SemiBold" Foreground="#D9BF85"/>
+        <TextBlock Text="Check selected .cfg files without changing their code." Foreground="#B8B09C"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button x:Name="RunButton" Content="Run checks" Classes="primary" Click="RunClicked" IsEnabled="{Binding CanRun}"/>
+        <Button x:Name="CancelButton" Content="Cancel" Click="CancelClicked" IsEnabled="{Binding CanCancel}"/>
+        <Button x:Name="ExportButton" Content="Export report" Click="ExportClicked" IsEnabled="{Binding HasReport}"/>
+      </StackPanel>
+    </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="270,*" ColumnSpacing="14">
+      <Border Classes="panel" BorderThickness="1" Padding="12">
+        <Grid RowDefinitions="Auto,Auto,*,2*" RowSpacing="10">
+          <TextBlock Text="Files to check" FontWeight="SemiBold" Foreground="#D9BF85"/>
+          <WrapPanel Grid.Row="1">
+            <Button Content="Add files…" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="AddFilesClicked" IsEnabled="{Binding CanSelectFiles}" Margin="0,0,6,6"/>
+            <Button Content="Remove" icons:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove the selected file from this check" Click="RemoveFileClicked" IsEnabled="{Binding CanSelectFiles}" Margin="0,0,6,6"/>
+            <Button Content="Clear" Click="ClearFilesClicked" IsEnabled="{Binding CanSelectFiles}" Margin="0,0,0,6"/>
+          </WrapPanel>
+          <ListBox x:Name="FileList" Grid.Row="2" ItemsSource="{Binding DisplayFiles}" IsEnabled="{Binding !IsBusy}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:WmlTesterFile">
+                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="6" IsEnabled="{Binding !IsBusy}">
+            <TextBlock Text="Checks" FontWeight="SemiBold" Foreground="#D9BF85"/>
+            <CheckBox x:Name="StructureCheckBox" Content="Structure" IsChecked="{Binding CheckStructure}"
+                      ToolTip.Tip="Literal tags and preprocessor delimiters. Macro-generated or conditional structure may need context."/>
+            <CheckBox x:Name="ReferencesCheckBox" Content="References" IsChecked="{Binding CheckReferences}"
+                      ToolTip.Tip="Macro and include references. Campaign context also checks active unit/recruit/advancement/base types, race and movement-type names, and campaign first/next scenario links against captured active definitions."/>
+            <CheckBox x:Name="FormattingCheckBox" Content="Indentation and whitespace" IsChecked="{Binding CheckFormatting}"
+                      ToolTip.Tip="Advisories using the same safe formatter as the WML Editor. Source files are unchanged."/>
+            <CheckBox x:Name="ResourcesCheckBox" Content="Resources" IsChecked="{Binding CheckResources}"
+                      ToolTip.Tip="Check supported literal music, sound, image, animation, map and Lua filenames in captured Core and active campaign resource paths. Select campaign context below. Dynamic values, uncaptured paths, decoding and game behavior remain unvalidated."/>
+            <Expander x:Name="CampaignContextExpander" Header="Campaign context" IsExpanded="False">
+              <StackPanel Spacing="6" Margin="0,6,0,0">
+                <CheckBox x:Name="CheckWholeCampaignBox" Content="Check whole campaign" IsChecked="{Binding CheckWholeCampaign}"
+                          ToolTip.Tip="Check every campaign .cfg from the same capture, including helpers not reached by the selected contexts. Core and dependency files supply context. The checked files appear in the list after Run."/>
+                <TextBlock Text="Campaign main .cfg" Foreground="#B8B09C" FontSize="11"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                  <TextBox x:Name="CampaignEntryPathBox" Text="{Binding CampaignEntryPath}" Watermark="Optional _main.cfg"
+                           ToolTip.Tip="Explicit campaign entry. Empty uses independent file checks. No context is borrowed from an open campaign."/>
+                  <Button x:Name="PickCampaignContextButton" Grid.Column="1" Content="…" icons:WccButtonIcon.Action="Browse" Click="PickCampaignContextClicked" ToolTip.Tip="Pick campaign main file"/>
+                </Grid>
+                <TextBlock Text="Difficulty define" Foreground="#B8B09C" FontSize="11"/>
+                <TextBox x:Name="DifficultyDefineBox" Text="{Binding DifficultyDefine}" Watermark="Empty = all declared"
+                         ToolTip.Tip="Enter an exact declared difficulty define, such as EASY. Empty checks all declared difficulties and the menu."/>
+                <TextBlock Text="Dependency folders" Foreground="#B8B09C" FontSize="11"/>
+                <TextBox x:Name="DependencyRootsBox" Text="{Binding DependencyRoots}" Watermark="One full add-on folder per line"
+                         AcceptsReturn="True" MinHeight="58" MaxHeight="120" TextWrapping="NoWrap"
+                         ToolTip.Tip="Select each dependency's own add-on folder, such as War_of_Legends. The folder name is its add-on ID. The campaign's includes and binary paths decide which code and resources are used. These folders work without the optional installed-add-ons setting. An empty campaign main disables this context."/>
+                <TextBlock Text="Add each dependency's own add-on folder."
+                           Foreground="#B8B09C" FontSize="11" TextWrapping="Wrap"/>
+                <WrapPanel>
+                  <Button x:Name="AddDependencyFoldersButton" Content="Add folders…" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True" Click="AddDependencyFoldersClicked" Margin="0,0,6,6"/>
+                  <Button x:Name="ClearDependencyFoldersButton" Content="Clear folders" Click="ClearDependencyFoldersClicked" Margin="0,0,0,6"/>
+                </WrapPanel>
+                <Expander x:Name="AdvancedContextExpander" Header="Advanced" IsExpanded="False">
+                  <StackPanel Spacing="6" Margin="0,6,0,0">
+                    <TextBlock Text="Installed add-ons folder (optional)" Foreground="#B8B09C" FontSize="11" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                      <TextBox x:Name="AddonsNamespacePathBox" Text="{Binding AddonsNamespacePath}" Watermark="Parent folder of installed add-ons"
+                               ToolTip.Tip="Used only to establish whether an unselected add-on is installed for #ifhave. No sibling add-on code or resources are imported. Without this optional folder, unselected add-ons remain unknown. Clear context keeps this setting."/>
+                      <Button x:Name="PickAddonsNamespaceButton" Grid.Column="1" Content="…" icons:WccButtonIcon.Action="Browse" Click="PickAddonsNamespaceClicked" ToolTip.Tip="Pick installed add-ons folder"/>
+                    </Grid>
+                  </StackPanel>
+                </Expander>
+                <Button x:Name="ClearCampaignContextButton" Content="Clear context" Click="ClearCampaignContextClicked" HorizontalAlignment="Left"
+                        ToolTip.Tip="Clear the main file, difficulty and dependency folders. Keep the installed add-ons folder."/>
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,2*,*" RowSpacing="10">
+        <StackPanel Spacing="5">
+          <TextBlock x:Name="SummaryText" Text="{Binding ReportSummary}" FontWeight="SemiBold" Foreground="#D9BF85" TextWrapping="Wrap"/>
+          <TextBlock x:Name="ContextText" Text="{Binding ContextText}" Foreground="#B8B09C" FontSize="12" TextWrapping="Wrap" ToolTip.Tip="{Binding ContextDetails}"/>
+          <TextBlock Text="Select a finding to see its location, explanation and source." Foreground="#B8B09C" FontSize="12"/>
+        </StackPanel>
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="7">
+          <TextBox x:Name="SearchBox" Text="{Binding SearchText}" Watermark="Search findings, codes, paths or explanations"/>
+          <WrapPanel Grid.Row="1" VerticalAlignment="Center">
+            <StackPanel Spacing="3" Margin="0,0,6,6">
+              <TextBlock Text="Severity" Foreground="#B8B09C" FontSize="11"/>
+              <ComboBox x:Name="SeverityFilter" ItemsSource="{Binding SeverityFilters}" SelectedItem="{Binding SeverityFilter}" MinWidth="120" ToolTip.Tip="Severity"/>
+            </StackPanel>
+            <StackPanel Spacing="3" Margin="0,0,6,6">
+              <TextBlock Text="Check" Foreground="#B8B09C" FontSize="11"/>
+              <ComboBox x:Name="ModuleFilter" ItemsSource="{Binding ModuleFilters}" SelectedItem="{Binding ModuleFilter}" MinWidth="120" ToolTip.Tip="Check type"/>
+            </StackPanel>
+            <StackPanel Spacing="3" Margin="0,0,6,6">
+              <TextBlock Text="Confidence" Foreground="#B8B09C" FontSize="11"/>
+              <ComboBox x:Name="ConfidenceFilter" ItemsSource="{Binding ConfidenceFilters}" SelectedItem="{Binding ConfidenceFilter}" MinWidth="135" ToolTip.Tip="Confidence: proven source finding or needs more context"/>
+            </StackPanel>
+            <Button Content="Reset filters" icons:WccButtonIcon.Action="Reset" ToolTip.Tip="Reset all finding filters" Click="ResetFiltersClicked" Margin="0,17,8,6"/>
+            <TextBlock x:Name="FilterSummary" Text="{Binding FilterSummary}" Foreground="#B8B09C" VerticalAlignment="Center" Margin="0,17,0,6"/>
+          </WrapPanel>
+        </Grid>
+        <ListBox x:Name="DiagnosticList" Grid.Row="2" ItemsSource="{Binding VisibleDiagnostics}" SelectedItem="{Binding SelectedDiagnostic}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="check:WmlCheckDiagnostic">
+              <Grid ColumnDefinitions="26,90,*" ColumnSpacing="8" Margin="2,5">
+                <TextBlock x:Name="DiagnosticIconGlyph" FontSize="20" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Text="{Binding Converter={StaticResource DiagnosticIcon}, ConverterParameter=Glyph}"
+                           Foreground="{Binding Converter={StaticResource DiagnosticIcon}, ConverterParameter=Foreground}"
+                           ToolTip.Tip="{Binding Converter={StaticResource DiagnosticIcon}, ConverterParameter=ToolTip}"/>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Text="{Binding Severity}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Confidence}" FontSize="11" Foreground="#B8B09C"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                  <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+                  <WrapPanel>
+                    <TextBlock Text="{Binding Code}" FontSize="11" Foreground="#B8B09C" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding Location.Path}" FontSize="11" Foreground="#B8B09C" TextTrimming="CharacterEllipsis" MaxWidth="450" ToolTip.Tip="{Binding Location.Path}"/>
+                    <TextBlock Text=" : " FontSize="11" Foreground="#B8B09C"/>
+                    <TextBlock Text="{Binding Location.Line}" FontSize="11" Foreground="#B8B09C"/>
+                  </WrapPanel>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="3" Classes="panel" BorderThickness="1" Padding="12" MinHeight="90">
+          <Grid RowDefinitions="*,Auto" RowSpacing="8">
+            <ScrollViewer MaxHeight="180">
+              <SelectableTextBlock x:Name="DetailsText" Text="{Binding DetailsText}" TextWrapping="Wrap"
+                                   ToolTip.Tip="Select text to copy with Ctrl+C. Ctrl+A selects the full finding details."/>
+            </ScrollViewer>
+            <Button x:Name="ViewSourceButton" Grid.Row="1" Content="{Binding SourceActionText}" Click="ViewSourceClicked"
+                    icons:WccButtonIcon.Action="{Binding CanEditSelectedSource, Converter={x:Static icons:WccEditorIconConverters.CodeAction}}" icons:WccButtonIcon.ShowLabel="True"
+                    HorizontalAlignment="Right" IsEnabled="{Binding CanOpenSelectedSource}"
+                    ToolTip.Tip="Selected input files can be edited and saved. Captured context sources open read-only. Apply reruns checks."/>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+    <StackPanel Grid.Row="2" Spacing="5">
+      <ProgressBar x:Name="BusyProgress" IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="4"/>
+      <TextBlock x:Name="StatusText" Text="{Binding Status}" Foreground="#B8B09C" TextWrapping="Wrap"/>
+      <TextBlock x:Name="CoverageText" Text="{Binding CoverageText}" Foreground="#B8B09C" FontSize="12" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="Tomato" TextWrapping="Wrap"/>
+      <TextBlock x:Name="WindowErrorText" Foreground="Tomato" TextWrapping="Wrap"/>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,180 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:wccvm="using:Wcc.App.ViewModels.Wcc" xmlns:wml="using:Wcc.Core.Wml"
+        xmlns:local="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.ScenarioCreationWindow"
+        x:DataType="vm:ScenarioCreationViewModel"
+        Classes="wccShell" Title="Create scenario" Width="1180" Height="830" MinWidth="850" MinHeight="610"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="16">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding StepTitle}" Classes="sectionHeading" FontSize="20"/>
+      <TextBlock Text="{Binding StepSummary}" Opacity="0.65"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" IsEnabled="{Binding CanInteract}" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="14">
+        <StackPanel IsVisible="{Binding IsModePage}" Spacing="14">
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="ScenarioMode" Content="Empty scenario" IsChecked="{Binding IsEmptyMode, Mode=TwoWay}"/>
+              <TextBlock Text="Create only the scenario tag and ID. This scaffold needs a map and sides before it can be played." TextWrapping="Wrap" Margin="26,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="ScenarioMode" Content="Guided starter" IsChecked="{Binding IsGuidedMode, Mode=TwoWay}"/>
+              <TextBlock Text="Choose a map, music and schedule, then configure each side and its leaders. Saved campaign presets remain shared macro invocations. All choices stay in this wizard until Create." TextWrapping="Wrap" Margin="26,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <TextBlock Text="Create uses the campaign's global checked Save. Existing edits first use the same Save, Discard or Cancel prompt." TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsDetailsPage}" Spacing="14">
+          <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14" ColumnSpacing="12">
+            <TextBlock Text="Scenario ID" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding Id, Mode=TwoWay}" Watermark="02_The_Journey"
+                     ToolTip.Tip="Use a unique ID containing only letters, numbers and underscores. Scenario links use this ID."/>
+            <CheckBox Grid.Row="1" Content="Different filename" IsChecked="{Binding RenameScenarioFile, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FileNameStem, Mode=TwoWay}" Watermark="Same as scenario ID" IsEnabled="{Binding RenameScenarioFile}"
+                     ToolTip.Tip="Optional filename without .cfg. Use letters, numbers and underscores. The generated map uses this filename; an uploaded map follows the map rename choice below."/>
+            <TextBlock Grid.Row="2" Text="Scenario name" VerticalAlignment="Center" IsVisible="{Binding IsGuidedMode}"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Name, Mode=TwoWay}" Watermark="Name shown in Wesnoth" IsVisible="{Binding IsGuidedMode}"/>
+            <Grid Grid.Row="3" Grid.ColumnSpan="2" ColumnDefinitions="150,*" ColumnSpacing="12" IsVisible="{Binding IsGuidedMode}">
+              <TextBlock Text="Turns" VerticalAlignment="Center" IsVisible="{Binding !HasGuidedPages}"/>
+              <TextBox Grid.Column="1" Text="{Binding Turns, Mode=TwoWay}" Width="110" HorizontalAlignment="Left" IsVisible="{Binding !HasGuidedPages}"
+                       ToolTip.Tip="Use -1 for unlimited turns."/>
+              <Grid Grid.ColumnSpan="2" ColumnDefinitions="350,Auto" ColumnSpacing="12" HorizontalAlignment="Left" IsVisible="{Binding HasGuidedPages}">
+                <local:WccInitialFieldEditorView x:Name="TurnsFieldEditor" DataContext="{Binding TurnsField}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" IsVisible="{Binding TurnsField.UsesExistingDifficultyValues}">
+                  <TextBlock Text="Difficulty" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="TurnsDifficultySelector" ItemsSource="{Binding TurnsFields.Contexts}" SelectedItem="{Binding TurnsFields.SelectedContext, Mode=TwoWay}" MinWidth="140">
+                    <ComboBox.ItemTemplate><DataTemplate DataType="wml:WmlEvaluationContext"><TextBlock Text="{Binding DifficultyDefine}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Grid>
+          <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12" IsVisible="{Binding HasGuidedPages}">
+            <TextBlock Text="Sides" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding SideCount, Mode=TwoWay}" Width="90" HorizontalAlignment="Left" ToolTip.Tip="Each side has its own setup page. Between 1 and 32 sides; values survive Back and changing the count."/>
+            <TextBlock Grid.Row="1" Text="Map" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8">
+              <TextBlock Text="{Binding MapSummary}" TextWrapping="Wrap"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Choose map…" local:WccButtonIcon.Action="Browse" local:WccButtonIcon.ShowLabel="True" Click="PickMapClicked" IsEnabled="{Binding CanInteract}"/>
+                <Button Content="Remove selection" local:WccButtonIcon.Action="Remove" local:WccButtonIcon.ShowLabel="True" Click="RemoveMapClicked" IsEnabled="{Binding HasMap}"/>
+              </StackPanel>
+            </StackPanel>
+            <CheckBox Grid.Row="2" Grid.Column="1" Content="Rename copied map to the scenario name" IsChecked="{Binding RenameMapToScenario, Mode=TwoWay}" IsVisible="{Binding HasMap}"/>
+          </Grid>
+          <CheckBox Content="Make this the campaign's first scenario" IsChecked="{Binding SetFirstScenario, Mode=TwoWay}" IsVisible="{Binding CanSetFirstScenario}"/>
+          <TextBlock Text="{Binding FirstScenarioGuidance}" TextWrapping="Wrap" Opacity="0.7"/>
+          <Border Classes="panel" BorderThickness="1" Padding="14">
+            <StackPanel Spacing="8">
+              <TextBlock Text="New files" Classes="sectionHeading"/>
+              <SelectableTextBlock Text="{Binding FilesSummary}" FontFamily="Cascadia Mono,Consolas,monospace" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsMusicSchedulePage}" Spacing="14">
+          <TextBlock Text="{Binding ResourceGuidance}" TextWrapping="Wrap" Opacity="0.75"/>
+          <Grid x:Name="MusicScheduleColumns" ColumnDefinitions="*,*" ColumnSpacing="20">
+            <StackPanel x:Name="MusicPanel" Grid.Column="0" Spacing="10">
+              <TextBlock Text="Music" Classes="sectionHeading"/>
+              <ItemsControl ItemsSource="{Binding MusicTracks}">
+                <ItemsControl.ItemTemplate><DataTemplate DataType="vm:ScenarioCreationMusicRow">
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4" Margin="0,3">
+                    <TextBox Text="{Binding Name, Mode=TwoWay}"/>
+                    <Button Grid.Column="1" Content="↑" local:WccButtonIcon.Action="Up" ToolTip.Tip="Move music up" Click="MusicUpClicked"/>
+                    <Button Grid.Column="2" Content="↓" local:WccButtonIcon.Action="Down" ToolTip.Tip="Move music down" Click="MusicDownClicked"/>
+                    <Button Grid.Column="3" Content="−" local:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove music" Click="MusicRemoveClicked"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Pick music…" local:WccButtonIcon.Action="Select" ToolTip.Tip="Choose music from the resource catalog" Click="PickMusicClicked" IsEnabled="{Binding CanInteract}"/>
+                <Button Content="Add filename" local:WccButtonIcon.Action="Add" local:WccButtonIcon.ShowLabel="True" Click="MusicAddClicked" IsEnabled="{Binding CanInteract}"/>
+              </StackPanel>
+              <CheckBox Content="Make the first track intro music" IsChecked="{Binding MakeFirstTrackIntro, Mode=TwoWay}"/>
+              <CheckBox Content="Let intro music finish" IsChecked="{Binding LetIntroMusicFinish, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel x:Name="SchedulePanel" Grid.Column="1" Spacing="10">
+              <TextBlock Text="Schedule" Classes="sectionHeading"/>
+              <TextBlock Text="{Binding ScheduleLabel}" TextWrapping="Wrap"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Pick preset…" local:WccButtonIcon.Action="Preset" ToolTip.Tip="Choose a schedule preset" Click="PickScheduleClicked" IsEnabled="{Binding CanInteract}"/>
+                <Button Content="Custom" Click="CustomScheduleClicked" IsEnabled="{Binding CanInteract}"/>
+                <Button Content="None" Click="NoScheduleClicked" IsEnabled="{Binding CanInteract}"/>
+              </StackPanel>
+              <TextBlock Text="Custom cycles start with their first entry. Reorder the list to change the start." IsVisible="{Binding IsCustomSchedule}" TextWrapping="Wrap" Opacity="0.7"/>
+              <ListBox ItemsSource="{Binding ScheduleTimes}" SelectedItem="{Binding SelectedTime, Mode=TwoWay}" MaxHeight="370">
+                <ListBox.ItemTemplate><DataTemplate DataType="vm:ScenarioCreationTimeRow">
+                  <StackPanel Spacing="3"><TextBlock Text="{Binding Name}"/><TextBlock Text="{Binding BonusLabel}" Opacity="0.7" FontSize="11"/></StackPanel>
+                </DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsCustomSchedule}" IsEnabled="{Binding CanEditCustomSchedule}">
+                <Button Content="Add time…" local:WccButtonIcon.Action="Add" local:WccButtonIcon.ShowLabel="True" Click="TimeAddClicked"/><Button Content="Edit…" local:WccButtonIcon.Action="EditCode" ToolTip.Tip="Edit the selected time's WML" Click="TimeEditClicked"/>
+                <Button Content="↑" local:WccButtonIcon.Action="Up" ToolTip.Tip="Move time slot up" Click="TimeUpClicked"/><Button Content="↓" local:WccButtonIcon.Action="Down" ToolTip.Tip="Move time slot down" Click="TimeDownClicked"/><Button Content="−" local:WccButtonIcon.Action="Remove" ToolTip.Tip="Remove time slot" Click="TimeRemoveClicked"/>
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsSidePage}" Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Text="Each side and leader can use literal fields or a saved campaign preset." TextWrapping="Wrap" Opacity="0.7"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Difficulty" VerticalAlignment="Center"/>
+              <ComboBox ItemsSource="{Binding ActiveSide.DisplayFields.Contexts}" SelectedItem="{Binding ActiveSide.SelectedContext, Mode=TwoWay}" MinWidth="140">
+                <ComboBox.ItemTemplate><DataTemplate DataType="wml:WmlEvaluationContext"><TextBlock Text="{Binding DifficultyDefine}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Content="Show / hide fields" local:WccButtonIcon.Action="FieldSettings" ToolTip.Tip="Show or hide side and leader fields" Click="VisibilityClicked"/>
+            </StackPanel>
+          </Grid>
+          <Grid x:Name="SideLeaderColumns" ColumnDefinitions="*,*" ColumnSpacing="20">
+            <StackPanel x:Name="SideSettingsPanel" Grid.Column="0" Spacing="10">
+              <TextBlock Text="Side settings" Classes="sectionHeading"/>
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock Text="{Binding ActiveSide.SidePresetLabel}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Column="1" Content="Pick side preset…" local:WccButtonIcon.Action="Preset" ToolTip.Tip="Choose a side preset" Click="SidePresetClicked" IsEnabled="{Binding CanPickSidePreset}"/>
+                <Button Grid.Column="2" Content="Custom" Click="CustomSideClicked" IsVisible="{Binding ActiveSide.UsesSidePreset}"/>
+              </Grid>
+              <TextBox Text="{Binding ActiveSide.SaveIdOverride, Mode=TwoWay}" Watermark="Optional local carryover ID" IsVisible="{Binding ActiveSide.UsesSidePreset}"/>
+              <ItemsControl ItemsSource="{Binding ActiveSide.SideDisplayGroups}">
+                <ItemsControl.ItemTemplate><DataTemplate DataType="vm:WccInitialFieldEditorGroup"><local:WccInitialFieldGroupView/></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="This side invokes the saved preset. Shared fields remain in that definition; any local leaders are configured on the right." IsVisible="{Binding ActiveSide.UsesSidePreset}" TextWrapping="Wrap" Opacity="0.7"/>
+            </StackPanel>
+            <StackPanel x:Name="LeaderSettingsPanel" Grid.Column="1" Spacing="10">
+              <TextBlock Text="Leaders" Classes="sectionHeading"/>
+              <TextBlock Text="{Binding ActiveSide.LeaderGuidance}" TextWrapping="Wrap" Opacity="0.7"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Add nested leader" local:WccButtonIcon.Action="Add" local:WccButtonIcon.ShowLabel="True" Click="AddLeaderClicked" IsEnabled="{Binding ActiveSide.CanAddLeader}"/>
+                <Button Content="Remove selected" local:WccButtonIcon.Action="Remove" local:WccButtonIcon.ShowLabel="True" Click="RemoveLeaderClicked" IsEnabled="{Binding ActiveSide.CanRemoveLeader}"/>
+              </StackPanel>
+              <ListBox ItemsSource="{Binding ActiveSide.DisplayFields.Leaders}" SelectedItem="{Binding ActiveSide.SelectedLeader, Mode=TwoWay}" MaxHeight="100">
+                <ListBox.ItemTemplate><DataTemplate DataType="wccvm:WccInitialLeaderVm"><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock Text="{Binding ActiveSide.LeaderPresetLabel}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Column="1" Content="Pick leader preset…" local:WccButtonIcon.Action="Preset" ToolTip.Tip="Choose a leader preset" Click="LeaderPresetClicked" IsEnabled="{Binding CanPickLeaderPreset}"/>
+                <Button Grid.Column="2" Content="Custom" Click="CustomLeaderClicked" IsVisible="{Binding ActiveSide.UsesLeaderPreset}"/>
+              </Grid>
+              <TextBox Text="{Binding ActiveSide.LeaderIdOverride, Mode=TwoWay}" Watermark="Optional local unit ID" IsVisible="{Binding ActiveSide.UsesLeaderPreset}"/>
+              <Grid ColumnDefinitions="*,*" IsVisible="{Binding ActiveSide.DisplayFields.HasLeader}">
+                <local:WccFieldImagePreviewView DataContext="{Binding ActiveSide.LeaderImagePreview}"/>
+                <local:WccFieldImagePreviewView Grid.Column="1" DataContext="{Binding ActiveSide.LeaderPortraitPreview}"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding ActiveSide.LeaderDisplayGroups}">
+                <ItemsControl.ItemTemplate><DataTemplate DataType="vm:WccInitialFieldEditorGroup"><local:WccInitialFieldGroupView/></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" IsVisible="{Binding HasValidation}" BorderBrush="#9D674A" BorderThickness="1" Padding="10">
+      <SelectableTextBlock Text="{Binding Validation}" TextWrapping="Wrap" Foreground="#EABF99"/>
+    </Border>
+    <local:ScenarioCreationWizardNavigationView Grid.Row="3" CancelRequested="CancelClicked" CreateRequested="CreateRequested"/>
+  </Grid>
+</Window>

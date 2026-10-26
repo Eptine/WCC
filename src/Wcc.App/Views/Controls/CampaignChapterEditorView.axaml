@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels" xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.CampaignChapterEditorView" x:DataType="vm:CampaignChapterCreationViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel IsVisible="{Binding ShowIdentityFields}" Spacing="10">
+      <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="7">
+        <TextBlock Text="Chapter ID" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding Id, Mode=TwoWay}" IsReadOnly="{Binding !CanEditId}"/>
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding IdentityGuidance}" TextWrapping="Wrap" Opacity="0.65" FontSize="12"/>
+        <TextBlock Grid.Row="2" Text="Chapter name" VerticalAlignment="Center"/>
+        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Name, Mode=TwoWay}" Watermark="Name shown in Wesnoth"/>
+      </Grid>
+      <TextBlock Text="Description" Classes="sectionHeading"/>
+      <TextBox Text="{Binding Description, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="180"/>
+      <TextBlock Text="Images may reference Core files. Browse selects a file to copy when the package is created or saved; Preview renders image modifiers with Wesnoth." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+      <ItemsControl ItemsSource="{Binding PresentationImages}">
+        <ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignCreationImageViewModel">
+          <Grid ColumnDefinitions="95,*,Auto,72" ColumnSpacing="8" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+              <TextBox Text="{Binding Reference, Mode=TwoWay}" Watermark="Optional image reference"/>
+              <TextBlock Text="{Binding FitGuidance}" TextWrapping="Wrap" FontSize="11" Opacity="0.7"/>
+              <TextBlock Text="{Binding PreviewStatus}" TextWrapping="Wrap" FontSize="11" Opacity="0.6"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
+              <Button Content="Browse" icons:WccButtonIcon.Action="Browse" Click="BrowseImageClicked" ToolTip.Tip="Choose a file to copy on Create or Save"
+                      IsEnabled="{ReflectionBinding $parent[UserControl].DataContext.AllowImageFiles}"/>
+              <Button Content="Preview" icons:WccButtonIcon.Action="Preview" Click="PreviewImageClicked" IsEnabled="{Binding CanRenderPreview}" ToolTip.Tip="Render image modifiers with Wesnoth"/>
+            </StackPanel>
+            <Border Grid.Column="3" Classes="panel" Width="72" Height="72" Padding="3" BorderThickness="1"><Image Source="{Binding PreviewBitmap}" Stretch="Uniform"/></Border>
+          </Grid>
+        </DataTemplate></ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    <StackPanel IsVisible="{Binding ShowDifficultyFields}" Spacing="10">
+      <Border Height="1" Background="#785B3B" Opacity="0.65"/>
+      <Grid ColumnDefinitions="*,100" ColumnSpacing="10"><TextBlock Text="Difficulties" Classes="sectionHeading" VerticalAlignment="Center"/>
+        <ComboBox Grid.Column="1" ItemsSource="{Binding DifficultyCounts}" SelectedItem="{Binding DifficultyCount, Mode=TwoWay}"/></Grid>
+      <TextBlock Text="Choose one default. Names, descriptions and icons belong to this chapter; WCC generates its stable difficulty symbols." TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+      <ItemsControl ItemsSource="{Binding Difficulties}">
+        <ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignCreationDifficultyViewModel">
+          <Border Classes="panel" Padding="10" BorderThickness="1" Margin="0,0,0,8">
+            <StackPanel Spacing="7">
+              <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="10">
+                <CheckBox IsChecked="{Binding IsDefault, Mode=TwoWay}" ToolTip.Tip="Default difficulty" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1" Text="{Binding Label, Mode=TwoWay}" Watermark="Difficulty name"/>
+                <TextBox Grid.Column="2" Text="{Binding Description, Mode=TwoWay}" Watermark="Description"/>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto,Auto,48" ColumnSpacing="6">
+                <TextBox Text="{Binding Image.Reference, Mode=TwoWay}" Watermark="Difficulty icon reference" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Browse" icons:WccButtonIcon.Action="Browse" Click="BrowseImageClicked" VerticalAlignment="Center"
+                        IsEnabled="{ReflectionBinding $parent[UserControl].DataContext.AllowImageFiles}" ToolTip.Tip="Choose a file to copy on Create or Save"/>
+                <Button Grid.Column="2" Content="Preview" icons:WccButtonIcon.Action="Preview" Click="PreviewImageClicked" IsEnabled="{Binding Image.CanRenderPreview}" VerticalAlignment="Center" ToolTip.Tip="Render the difficulty icon"/>
+                <Image Grid.Column="3" Source="{Binding Image.PreviewBitmap}" Width="48" Height="48" Stretch="Uniform"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </DataTemplate></ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <CheckBox Content="Create a starter scenario and map for this chapter" IsChecked="{Binding CreateStarterScenario, Mode=TwoWay}"/>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

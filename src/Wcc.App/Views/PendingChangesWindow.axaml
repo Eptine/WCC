@@ -1,0 +1,30 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        x:Class="Wcc.App.Views.PendingChangesWindow"
+        Classes="wccShell"
+        x:DataType="vm:PendingNavigationRequest"
+        Width="560" Height="380" MinWidth="420" MinHeight="260"
+        WindowStartupLocation="CenterOwner" Title="Pending changes">
+  <Grid Margin="20" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding Changes}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:PendingEditorChange">
+            <StackPanel Margin="0,0,0,10">
+              <TextBlock Text="{Binding Scope}" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button Content="Save" icons:WccButtonIcon.Action="Save" icons:WccButtonIcon.ShowLabel="True" Classes="primary" Click="SaveClicked"/>
+      <Button Content="Discard" Click="DiscardClicked"/>
+      <Button Content="Cancel" Click="CancelClicked"/>
+    </StackPanel>
+  </Grid>
+</Window>

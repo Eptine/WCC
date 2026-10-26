@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wcc.App/Wcc.App.csproj" />
+    <Project Path="src/Wcc.Core/Wcc.Core.csproj" />
+  </Folder>
+</Solution>

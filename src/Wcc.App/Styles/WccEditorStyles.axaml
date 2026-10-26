@@ -1,0 +1,127 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Compact shared editor frame. These are WCC colors, not copied Wesnoth assets. -->
+  <Style Selector="Window.wccShell">
+    <Setter Property="Icon" Value="avares://Wcc.App/Assets/Wcc/Icons/WCC.png"/>
+    <Setter Property="Background" Value="#151D28"/>
+    <Setter Property="Foreground" Value="#E6DDC5"/>
+    <Setter Property="FontSize" Value="14"/>
+  </Style>
+  <Style Selector="Window.wccShell Border.toolbar">
+    <Setter Property="Background" Value="#202A36"/>
+    <Setter Property="BorderBrush" Value="#76674B"/>
+  </Style>
+  <Style Selector="Window.wccShell DockPanel.shellFrame">
+    <Setter Property="Background" Value="#151D28"/>
+  </Style>
+  <Style Selector="Window.wccShell Border.panel">
+    <Setter Property="Background" Value="#1B2531"/>
+    <Setter Property="BorderBrush" Value="#76674B"/>
+    <Setter Property="CornerRadius" Value="3"/>
+  </Style>
+  <Style Selector="Window.wccShell Button">
+    <Setter Property="Background" Value="#263B50"/>
+    <Setter Property="BorderBrush" Value="#74694F"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="10,5"/>
+    <Setter Property="MinHeight" Value="30"/>
+  </Style>
+  <Style Selector="Window.wccShell Button.primary">
+    <Setter Property="Background" Value="#3B5148"/>
+    <Setter Property="BorderBrush" Value="#B19A66"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button.fieldIcon">
+    <Setter Property="Padding" Value="5,3"/>
+    <Setter Property="MinWidth" Value="28"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Expander.fieldCategory">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <StackPanel x:CompileBindings="False">
+          <ToggleButton Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                        IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="30" Padding="0,3">
+            <ToggleButton.Template>
+              <ControlTemplate>
+                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                  <Grid ColumnDefinitions="20,*">
+                    <TextBlock Text="▾" Foreground="#D9BF85" VerticalAlignment="Center"
+                               IsVisible="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}"/>
+                    <TextBlock Text="▸" Foreground="#D9BF85" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsChecked, RelativeSource={RelativeSource TemplatedParent}}"/>
+                    <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="#D9BF85" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </Grid>
+                </Border>
+              </ControlTemplate>
+            </ToggleButton.Template>
+          </ToggleButton>
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            IsVisible="{TemplateBinding IsExpanded}" Margin="0,4,0,0"/>
+        </StackPanel>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ListBox.leaderCards ListBoxItem">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="Window.wccShell ToggleButton">
+    <Setter Property="Background" Value="#263B50"/>
+    <Setter Property="BorderBrush" Value="#74694F"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="14,5"/>
+  </Style>
+  <Style Selector="Window.wccShell ToggleButton:checked">
+    <Setter Property="Background" Value="#44576A"/>
+    <Setter Property="BorderBrush" Value="#BDAC7D"/>
+  </Style>
+  <Style Selector="Window.wccShell TabItem">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="Padding" Value="16,8"/>
+    <Setter Property="Foreground" Value="#D9CCAB"/>
+  </Style>
+  <Style Selector="Window.wccShell TabItem:selected">
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="#F2E6C9"/>
+  </Style>
+  <Style Selector="Window.wccShell ListBox">
+    <Setter Property="Background" Value="#141E29"/>
+    <Setter Property="BorderBrush" Value="#514D40"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="Window.wccShell TextBlock.sectionHeading">
+    <Setter Property="Foreground" Value="#D9BF85"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Window.wccShell Border.scenarioRail">
+    <Setter Property="Background" Value="#192330"/>
+    <Setter Property="BorderBrush" Value="#76674B"/>
+  </Style>
+  <Style Selector="Window.wccShell Button.railTab">
+    <Setter Property="CornerRadius" Value="0,3,3,0"/>
+    <Setter Property="Padding" Value="7,8"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="BorderThickness" Value="0,1,1,1"/>
+    <Setter Property="MinHeight" Value="42"/>
+  </Style>
+  <Style Selector="Window.wccShell Button.railTab.active">
+    <Setter Property="Background" Value="#344659"/>
+    <Setter Property="BorderBrush" Value="#BDAC7D"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+  </Style>
+  <!-- Reserve scrollbar space; pointer states change color, never geometry. -->
+  <Style Selector="ScrollViewer"><Setter Property="AllowAutoHide" Value="False"/></Style>
+  <Style Selector="ScrollBar"><Setter Property="Theme" Value="{StaticResource WccScrollBar}"/></Style>
+</Styles>

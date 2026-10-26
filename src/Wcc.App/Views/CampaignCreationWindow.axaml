@@ -1,0 +1,65 @@
+﻿<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels" xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.CampaignCreationWindow" x:DataType="vm:CampaignCreationViewModel"
+        Title="Create a new campaign" Classes="wccShell" Width="940" Height="750" MinWidth="720" MinHeight="520" WindowStartupLocation="CenterOwner">
+  <Grid Margin="18" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="14">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <TextBlock Text="{Binding StepTitle}" Classes="sectionHeading" FontSize="20"/>
+      <TextBlock Grid.Column="1" Text="{Binding StepSummary}" Opacity="0.65" VerticalAlignment="Center"/>
+    </Grid>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="14">
+        <StackPanel IsVisible="{Binding IsModePage}" Spacing="14">
+          <TextBlock Text="Choose the initial settings. Both options let you configure chapters and dependencies before creating any files." TextWrapping="Wrap"/>
+          <RadioButton Content="Guided setup" IsChecked="{Binding IsGuidedMode, Mode=TwoWay}" GroupName="CreationMode"/>
+          <TextBlock Text="Three named difficulties and an optional playable starter scenario." Margin="28,0,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+          <RadioButton Content="Empty campaign" IsChecked="{Binding IsEmptyMode, Mode=TwoWay}" GroupName="CreationMode"/>
+          <TextBlock Text="One Normal difficulty and no starter scenario. You can still configure each chapter." Margin="28,0,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsEssentialsPage}" Spacing="12">
+          <Grid ColumnDefinitions="145,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="12">
+            <TextBlock Text="Package ID" VerticalAlignment="Center"/><TextBox Grid.Column="1" Text="{Binding Id, Mode=TwoWay}" Watermark="My_Campaign"/>
+            <TextBlock Grid.Row="1" Text="Parent folder" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ParentDirectory, Mode=TwoWay}"/>
+            <Button Grid.Row="1" Grid.Column="2" Content="Browse" icons:WccButtonIcon.Action="Browse" Click="BrowseParentClicked"/>
+            <TextBlock Grid.Row="2" Text="Text domain" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding TextDomain, Mode=TwoWay}"/>
+            <Button Grid.Row="2" Grid.Column="2" Content="Automatic" icons:WccButtonIcon.Action="Reset" Click="AutomaticDomainClicked"/>
+            <TextBlock Grid.Row="3" Text="Destination" VerticalAlignment="Top"/><SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DestinationPath}" TextWrapping="Wrap" Opacity="0.8"/>
+          </Grid>
+          <TextBlock Text="The ID identifies the add-on folder and its first campaign. Configure the first chapter's name, description, images and difficulties on the next page." TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+        <Grid IsVisible="{Binding IsPresentationPage}" ColumnDefinitions="185,*" ColumnSpacing="16">
+          <StackPanel Spacing="9">
+            <TextBlock Text="Chapters" Classes="sectionHeading"/>
+            <ListBox ItemsSource="{Binding ChapterEntries}" SelectedItem="{Binding SelectedChapter, Mode=TwoWay}" MinHeight="210" MaxHeight="420">
+              <ListBox.ItemTemplate><DataTemplate DataType="vm:CampaignChapterCreationViewModel">
+                <StackPanel Spacing="4" Margin="3"><TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/><TextBlock Text="{Binding Id}" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/></StackPanel>
+              </DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Add chapter" icons:WccButtonIcon.Action="Add" Click="AddChapterClicked" ToolTip.Tip="Add another selectable chapter"/>
+              <Button Content="Remove chapter" icons:WccButtonIcon.Action="Remove" Click="RemoveChapterClicked" IsEnabled="{Binding CanRemoveSelectedCreationChapter}" ToolTip.Tip="Remove the selected additional chapter"/>
+            </StackPanel>
+            <TextBlock Text="The first chapter is required. Chapters share units, helpers and resources, and have their own menu settings and difficulties." TextWrapping="Wrap" Opacity="0.65" FontSize="12"/>
+          </StackPanel>
+          <icons:CampaignChapterEditorView Grid.Column="1" DataContext="{Binding SelectedChapter}"/>
+        </Grid>
+        <StackPanel IsVisible="{Binding IsDependenciesPage}" Spacing="14">
+          <TextBlock Text="Add resource packs, music or other dependencies. No dependency is required to create a campaign." TextWrapping="Wrap" Opacity="0.75"/>
+          <icons:CampaignCreationPackageOptionsView/>
+          <Border Classes="panel" BorderThickness="1" Padding="12"><StackPanel Spacing="8"><TextBlock Text="Files and folders" Classes="sectionHeading"/>
+            <TextBlock Text="{Binding ScaffoldSummary}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace"/></StackPanel></Border>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" IsVisible="{Binding HasValidationIssues}" BorderBrush="#9D674A" BorderThickness="1" Padding="10">
+      <SelectableTextBlock Text="{Binding ValidationText}" TextWrapping="Wrap" Foreground="#EABF99"/>
+    </Border>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+      <Button Content="Cancel" Click="CancelClicked" HorizontalAlignment="Left"/>
+      <Button Grid.Column="1" Content="Back" icons:WccButtonIcon.Action="Previous" icons:WccButtonIcon.ShowLabel="True" Click="BackClicked" IsEnabled="{Binding CanGoBack}"/>
+      <Button Grid.Column="2" Content="Next" icons:WccButtonIcon.Action="Next" icons:WccButtonIcon.ShowLabel="True" Click="NextClicked" IsVisible="{Binding !IsCreationPage}" IsEnabled="{Binding CanGoNext}"/>
+      <Button Grid.Column="3" Content="Create" Classes="primary" Click="CreateClicked" IsVisible="{Binding IsCreationPage}" IsEnabled="{Binding CanCreate}"/>
+    </Grid>
+  </Grid>
+</Window>

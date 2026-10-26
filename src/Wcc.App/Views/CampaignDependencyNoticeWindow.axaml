@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        x:Class="Wcc.App.Views.CampaignDependencyNoticeWindow"
+        x:DataType="vm:CampaignDependencyNotice"
+        Classes="wccShell"
+        Width="680" Height="480" MinWidth="500" MinHeight="300"
+        WindowStartupLocation="CenterOwner" Title="Campaign dependencies">
+  <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
+    <StackPanel Spacing="5">
+      <TextBlock Text="Some campaign dependencies could not be resolved" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding CampaignName}" FontWeight="SemiBold" TextWrapping="Wrap" Opacity="0.75"/>
+    </StackPanel>
+    <TextBlock Grid.Row="1" Text="Add the required add-on folders, or continue with the information WCC can read. Unresolved source remains available in RAW WML; some structured fields and previews may be unavailable."
+               TextWrapping="Wrap"/>
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Dependencies}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:CampaignDeclaredDependencyRow">
+            <Border Classes="panel" Padding="10" Margin="0,0,0,8">
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Id}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding RequiredBy}" TextWrapping="Wrap" Opacity="0.7" FontSize="11"/>
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Opacity="0.75" FontSize="12"/>
+                <TextBlock Text="{Binding SourcePath}" TextWrapping="Wrap" Opacity="0.65" FontSize="11"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+    <StackPanel Grid.Row="3" Spacing="5">
+      <TextBlock Text="Manually added folders apply only while this campaign is open. You can review sources later under Campaign → Dependencies."
+                 TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+      <TextBlock x:Name="SelectionStatus" TextWrapping="Wrap" FontSize="12"/>
+    </StackPanel>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button x:Name="AddSourceFoldersButton" Content="Add source folders…" icons:WccButtonIcon.Action="Browse"
+              icons:WccButtonIcon.ShowLabel="True" Classes="primary" Click="AddSourceFoldersClicked"/>
+      <Button Content="Continue unresolved" Click="ContinueClicked"/>
+    </StackPanel>
+  </Grid>
+</Window>

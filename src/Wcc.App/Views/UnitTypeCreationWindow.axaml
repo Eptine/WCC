@@ -1,0 +1,136 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.UnitTypeCreationWindow"
+        x:DataType="vm:UnitTypeCreationViewModel"
+        Classes="wccShell" Title="Create unit type" Width="850" Height="760" MinWidth="740" MinHeight="600"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="16">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding StepTitle}" Classes="sectionHeading" FontSize="20"/>
+      <TextBlock Text="{Binding StepSummary}" Opacity="0.65"/>
+      <TextBlock Text="{Binding DestinationLabel}" Opacity="0.75"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" IsEnabled="{Binding CanInteract}">
+      <StackPanel Spacing="16">
+        <StackPanel IsVisible="{Binding IsStartingPointPage}" Spacing="14">
+          <TextBlock Text="A unit type is a reusable definition. Place individual units in a scenario after creating their type." TextWrapping="Wrap" Opacity="0.75"/>
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="UnitCreationMode" Content="Start from scratch" IsChecked="{Binding IsScratchMode, Mode=TwoWay}"/>
+              <TextBlock Text="Choose the essential stats, a Core race and a Core movement type. Add artwork, attacks and other details in the unit editor after Create." TextWrapping="Wrap" Margin="26,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="UnitCreationMode" Content="Inherit from a Core unit" IsChecked="{Binding IsCoreBaseMode, Mode=TwoWay}"/>
+              <TextBlock Text="Create a new definition with [base_unit]. Stats, attacks, abilities and artwork remain inherited; later edits add direct overrides to your new type." TextWrapping="Wrap" Margin="26,0,0,0"/>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="26,8,0,0" IsVisible="{Binding IsCoreBaseMode}">
+                <StackPanel Spacing="4">
+                  <TextBlock x:Name="CoreBaseLabel" Text="{Binding BaseLabel}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  <SelectableTextBlock Text="{Binding BaseSource}" TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Choose Core unit..." icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the Core unit type to inherit" Click="PickBaseClicked" IsEnabled="{Binding CanPickBase}" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="UnitCreationMode" Content="Editable copy of a Core unit" IsChecked="{Binding IsCopyCoreMode, Mode=TwoWay}"/>
+              <TextBlock Text="Copy the selected authored definition with a new ID and name. Its macros and any [base_unit] inheritance are preserved." TextWrapping="Wrap" Margin="26,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="8">
+              <RadioButton GroupName="UnitCreationMode" Content="Copy a WCC Library unit" IsChecked="{Binding IsCopyLibraryMode, Mode=TwoWay}"/>
+              <TextBlock Text="{Binding LibraryCopyGuidance}" TextWrapping="Wrap" Margin="26,0,0,0"/>
+              <CheckBox Content="Use its original ID and name in this campaign" IsChecked="{Binding UseLibraryIdentity, Mode=TwoWay}"
+                        IsVisible="{Binding CanUseLibraryIdentity}" Margin="26,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsCopyMode}">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding CopyLabel}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <SelectableTextBlock Text="{Binding CopySource}" TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Choose source..." icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the unit type to copy" Click="PickCopyClicked" IsEnabled="{Binding CanPickCopy}" VerticalAlignment="Center"/>
+          </Grid>
+          <TextBlock Text="{Binding StartingPointGuidance}" TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsEssentialsPage}" Spacing="16">
+          <Grid ColumnDefinitions="135,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+            <TextBlock Text="Unit type ID" VerticalAlignment="Center"/>
+            <TextBox x:Name="UnitTypeIdInput" Grid.Column="1" Text="{Binding Id, Mode=TwoWay}" Watermark="My_Custom_Unit" IsReadOnly="{Binding !CanEditIdentity}"
+                     ToolTip.Tip="Unique registry ID for this definition. Scenario units refer to this type ID."/>
+            <TextBlock Grid.Row="1" Text="Display name" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Name, Mode=TwoWay}" Watermark="Name shown in Wesnoth" IsReadOnly="{Binding !CanEditIdentity}"/>
+            <CheckBox Grid.Row="2" Content="Different filename" IsChecked="{Binding RenameFile, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding FileNameStem, Mode=TwoWay}" IsEnabled="{Binding RenameFile}" Watermark="Filename without .cfg"/>
+          </Grid>
+          <Border Classes="panel" BorderThickness="1" Padding="14" IsVisible="{Binding IsCoreBaseMode}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding BaseLabel}" Classes="sectionHeading"/>
+              <SelectableTextBlock Text="{Binding BaseSource}" TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              <TextBlock Text="Only the new ID and display name are written as local overrides. Other values, including advancement targets, remain inherited from this Core base." TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" BorderThickness="1" Padding="14" IsVisible="{Binding IsCopyMode}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding CopyLabel}" Classes="sectionHeading"/>
+              <SelectableTextBlock Text="{Binding CopySource}" TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+              <TextBlock Text="This copies authored WML. Inherited defaults are displayed in the editor and remain inherited until you override them." TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="16" IsVisible="{Binding IsScratchMode}">
+            <Grid ColumnDefinitions="135,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+              <TextBlock Text="Race" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="1" Text="{Binding Race, Mode=TwoWay}"/>
+              <Button Grid.Column="2" Content="Pick..." icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the unit race" Click="PickRaceClicked" IsEnabled="{Binding CanPickRace}"/>
+              <TextBlock Grid.Row="1" Text="Movement type" VerticalAlignment="Center"/>
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MovementType, Mode=TwoWay}"/>
+              <Button Grid.Row="1" Grid.Column="2" Content="Pick..." icons:WccButtonIcon.Action="Select" ToolTip.Tip="Choose the movement type" Click="PickMovementTypeClicked" IsEnabled="{Binding CanPickMovementType}"/>
+            </Grid>
+            <TextBlock Text="The movement type supplies terrain movement, defense and resistance values." TextWrapping="Wrap" Opacity="0.7"/>
+            <Grid x:Name="UnitTypeBaseValues" ColumnDefinitions="135,*,120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+              <TextBlock Text="Hitpoints" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="1" Text="{Binding Hitpoints, Mode=TwoWay}"/>
+              <TextBlock Grid.Column="2" Text="Movement" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="3" Text="{Binding Movement, Mode=TwoWay}"/>
+              <TextBlock Grid.Row="1" Text="Level" VerticalAlignment="Center"/>
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Level, Mode=TwoWay}"/>
+              <TextBlock Grid.Row="1" Grid.Column="2" Text="Cost" VerticalAlignment="Center"/>
+              <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Cost, Mode=TwoWay}"/>
+              <TextBlock Grid.Row="2" Text="Experience" VerticalAlignment="Center"/>
+              <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Experience, Mode=TwoWay}"/>
+              <TextBlock Grid.Row="2" Grid.Column="2" Text="Alignment" VerticalAlignment="Center"/>
+              <ComboBox Grid.Row="2" Grid.Column="3" ItemsSource="{Binding Alignments}" SelectedItem="{Binding Alignment, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+            </Grid>
+          </StackPanel>
+          <SelectableTextBlock Text="{Binding OutputPath}" TextWrapping="Wrap" FontSize="12" Opacity="0.75"/>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsReviewPage}" Spacing="14">
+          <Border Classes="panel" BorderThickness="1" Padding="16">
+            <StackPanel Spacing="12">
+              <TextBlock Text="New definition" Classes="sectionHeading"/>
+              <SelectableTextBlock x:Name="UnitTypeReviewSummary" Text="{Binding ReviewSummary}" TextWrapping="Wrap"/>
+              <TextBlock Text="Destination" FontWeight="SemiBold"/>
+              <SelectableTextBlock Text="{Binding OutputPath}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace"/>
+            </StackPanel>
+          </Border>
+          <TextBlock Text="{Binding CompletionGuidance}" TextWrapping="Wrap"/>
+          <TextBlock Text="Create uses this destination's checked Save. Existing unsaved edits use the usual Save, Discard or Cancel prompt first." TextWrapping="Wrap" Opacity="0.7"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" IsVisible="{Binding HasValidation}" Classes="panel" BorderThickness="1" Padding="12">
+      <TextBlock x:Name="UnitTypeValidation" Text="{Binding Validation}" TextWrapping="Wrap"/>
+    </Border>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+      <Button Content="Cancel" Click="CancelClicked" HorizontalAlignment="Left"/>
+      <Button Grid.Column="1" Content="Back" icons:WccButtonIcon.Action="Previous" icons:WccButtonIcon.ShowLabel="True" Click="BackClicked" IsEnabled="{Binding CanGoBack}"/>
+      <Button Grid.Column="2" Content="Next" icons:WccButtonIcon.Action="Next" icons:WccButtonIcon.ShowLabel="True" Click="NextClicked" IsVisible="{Binding !IsReviewPage}" IsEnabled="{Binding CanGoNext}"/>
+      <Button x:Name="CreateUnitTypeButton" Grid.Column="3" Content="Create" Click="CreateClicked" IsVisible="{Binding IsReviewPage}" IsEnabled="{Binding CanCreate}"/>
+    </Grid>
+  </Grid>
+</Window>

@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:views="using:Wcc.App.Views"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.RawCodeEditorWindow"
+        x:DataType="vm:WmlEditorDocumentViewModel"
+        Classes="wccShell"
+        Width="1100" Height="760" MinWidth="800" MinHeight="500"
+        Title="Raw WML Editor">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+            <TextBlock Text="{Binding DescriptionText}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding ValidationMessage}" Foreground="Tomato" TextWrapping="Wrap"/>
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsApplying}" Height="4"/>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="8" Margin="0,10,0,0">
+            <Button x:Name="AsyncApplyButton" Content="Apply" icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True" Classes="primary" IsVisible="False"
+                    IsEnabled="{Binding !IsApplying}" Click="AsyncApplyClicked"/>
+            <Button Content="Discard" Click="DiscardClicked" IsVisible="{Binding !IsReadOnly}" IsEnabled="{Binding !IsApplying}"/>
+            <Button Content="Close" icons:WccButtonIcon.Action="Close" icons:WccButtonIcon.ShowLabel="True" Click="CloseClicked" IsEnabled="{Binding !IsApplying}"
+                    ToolTip.Tip="Close this editor using each document's save policy. Discard cancels unapplied edits."/>
+        </StackPanel>
+        <views:WmlEditorWorkspaceView x:Name="CodeView" IsEnabled="{Binding !IsApplying}"/>
+    </DockPanel>
+</Window>

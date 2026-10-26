@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.ScenarioCreationLauncherView"
+             x:DataType="vm:AppShellViewModel">
+  <Button x:Name="CreateScenarioButton" Content="Add" icons:WccButtonIcon.Action="Add" HorizontalAlignment="Stretch"
+          IsEnabled="{Binding CanCreateScenario}" ToolTip.Tip="{Binding ScenarioCreationGuidance}" Click="CreateClicked"/>
+</UserControl>

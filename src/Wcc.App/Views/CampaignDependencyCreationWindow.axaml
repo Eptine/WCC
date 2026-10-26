@@ -1,0 +1,148 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:campaign="clr-namespace:Wcc.Core.Campaigns;assembly=Wcc.Core"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.CampaignDependencyCreationWindow"
+        x:DataType="vm:CampaignDependencyCreationViewModel"
+        Classes="wccShell" Title="Add campaign dependency"
+        Width="980" Height="790" MinWidth="760" MinHeight="560" WindowStartupLocation="CenterOwner">
+  <Grid Margin="22" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="14">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <TextBlock Text="{Binding StepTitle}" Classes="sectionHeading" FontSize="20" TextWrapping="Wrap"/>
+      <TextBlock Grid.Column="1" Text="{Binding StepSummary}" Opacity="0.65" VerticalAlignment="Center"/>
+    </Grid>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="14">
+        <StackPanel IsVisible="{Binding IsSourcePage}" Spacing="14">
+          <TextBlock Text="Choose the resource add-on to use. Suggestions come from the selected folder; review its instructions before accepting a loading plan." TextWrapping="Wrap"/>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding SourceFolder}" IsReadOnly="True" Watermark="Dependency source folder"/>
+            <Button Grid.Column="1" Content="Choose folder…" icons:WccButtonIcon.Action="Browse" icons:WccButtonIcon.ShowLabel="True"
+                    Click="ChooseSourceClicked" IsEnabled="{Binding CanChooseSource}"/>
+          </Grid>
+          <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsSourceBusy}" Height="4"/>
+          <TextBlock Text="The source folder is used for this editor session. Generated WML uses the add-on ID and relative paths so it can run on another computer." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+          <Grid ColumnDefinitions="150,*" ColumnSpacing="12" IsEnabled="{Binding CanInteract}">
+            <TextBlock Text="Dependency add-on ID" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding AddonId, Mode=TwoWay}" Watermark="Resource_Addon"
+                     ToolTip.Tip="The installed add-on folder ID used by ~add-ons references."/>
+          </Grid>
+          <Border Classes="panel" BorderThickness="1" Padding="12" IsVisible="{Binding HasSourceNotes}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Source notes" FontWeight="SemiBold"/>
+              <SelectableTextBlock Text="{Binding SourceNotes}" TextWrapping="Wrap" Opacity="0.8"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsAttachmentPage}" IsEnabled="{Binding CanInteract}" Spacing="14">
+          <Border Classes="panel" BorderThickness="1" Padding="12" IsVisible="{Binding HasRecommendations}">
+            <StackPanel Spacing="7">
+              <TextBlock Text="Suggested loading plans" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <ComboBox ItemsSource="{Binding Recommendations}" SelectedItem="{Binding SelectedRecommendation, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate><DataTemplate DataType="campaign:WccCampaignDependencyRecommendation"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="1" Content="Use suggestion" icons:WccButtonIcon.Action="Select" icons:WccButtonIcon.ShowLabel="True"
+                        Click="UseRecommendationClicked" IsEnabled="{Binding CanUseRecommendation}"/>
+              </Grid>
+              <TextBlock Text="{Binding SelectedRecommendation.Description}" TextWrapping="Wrap" Opacity="0.75"/>
+              <TextBlock Text="Suggestions are editable. A dependency may need several steps at different phases." TextWrapping="Wrap" Opacity="0.65" FontSize="12"/>
+            </StackPanel>
+          </Border>
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="10">
+            <RadioButton GroupName="DependencyAttachment" Content="Use a supplied WML loader" IsChecked="{Binding IsSuppliedLoader, Mode=TwoWay}"/>
+            <RadioButton Grid.Column="1" GroupName="DependencyAttachment" Content="Images, music and sounds only" IsChecked="{Binding IsAssets, Mode=TwoWay}"/>
+            <RadioButton Grid.Row="1" GroupName="DependencyAttachment" Content="Configure ordered loading steps" IsChecked="{Binding IsOrderedSteps, Mode=TwoWay}"/>
+            <RadioButton Grid.Row="1" Grid.Column="1" GroupName="DependencyAttachment" Content="Custom WML" IsChecked="{Binding IsCustomWml, Mode=TwoWay}"/>
+          </Grid>
+          <StackPanel IsVisible="{Binding IsSuppliedLoader}" Spacing="7">
+            <TextBlock Text="Supplied loader, relative to the dependency folder"/>
+            <TextBox Text="{Binding LoaderPath, Mode=TwoWay}" Watermark="campaign.cfg"/>
+            <TextBlock Text="Use the entry file documented by the add-on author. Its _main.cfg may only register menu or multiplayer content." TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+          </StackPanel>
+          <StackPanel IsVisible="{Binding IsAssets}" Spacing="7">
+            <TextBlock Text="Resource root, relative to the dependency folder"/>
+            <TextBox Text="{Binding AssetPath, Mode=TwoWay}" Watermark=". (the dependency root)"/>
+            <TextBlock Text="Usually leave this as a dot (.). Wesnoth searches the music, sounds and images subfolders of this root automatically, including subfolders inside them. Do not enter music here. If the add-on has several different resource roots, add one resource-folder step for each under Ordered steps." TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+          </StackPanel>
+          <StackPanel IsVisible="{Binding IsCustomWml}" Spacing="7">
+            <TextBlock Text="Custom WML loading fragment"/>
+            <TextBox Text="{Binding CustomWml, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" MaxHeight="300"
+                     FontFamily="Cascadia Mono,Consolas,monospace" Watermark="Enter the add-on's loading instructions"/>
+          </StackPanel>
+          <Expander IsVisible="{Binding UsesSingleHook}" Header="Advanced: when to load" IsExpanded="{Binding ShowAdvancedPhase, Mode=TwoWay}">
+          <StackPanel Spacing="7">
+            <TextBlock Text="When to load"/>
+            <ComboBox ItemsSource="{Binding HookChoices}" SelectedItem="{Binding SelectedHook, Mode=TwoWay}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyHookChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding SelectedHook.Description}" TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+          </StackPanel>
+          </Expander>
+          <StackPanel IsVisible="{Binding IsOrderedSteps}" Spacing="10">
+            <TextBlock Text="Follow the add-on's instructions from top to bottom. Each step says what to load and when; steps at the same stage keep their listed order." TextWrapping="Wrap" Opacity="0.75"/>
+            <ListBox ItemsSource="{Binding Steps}" SelectedItem="{Binding SelectedStep, Mode=TwoWay}" MinHeight="100" MaxHeight="190">
+              <ListBox.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyStepViewModel">
+                <StackPanel Spacing="3"><TextBlock Text="{Binding Label}" FontWeight="SemiBold"/><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="11" Opacity="0.7"/></StackPanel>
+              </DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Content="Add step" icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True" Click="AddStepClicked"/>
+              <Button Content="Move up" icons:WccButtonIcon.Action="Up" Click="MoveStepUpClicked" IsEnabled="{Binding CanMoveStepUp}" ToolTip.Tip="Move the selected step up"/>
+              <Button Content="Move down" icons:WccButtonIcon.Action="Down" Click="MoveStepDownClicked" IsEnabled="{Binding CanMoveStepDown}" ToolTip.Tip="Move the selected step down"/>
+              <Button Content="Remove" icons:WccButtonIcon.Action="Remove" Click="RemoveStepClicked" IsEnabled="{Binding CanRemoveStep}" ToolTip.Tip="Remove the selected step"/>
+            </StackPanel>
+            <Border Classes="panel" BorderThickness="1" Padding="12" IsVisible="{Binding HasSelectedStep}">
+              <StackPanel DataContext="{Binding SelectedStep}" x:DataType="vm:CampaignDependencyStepViewModel" Spacing="9">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                  <StackPanel Spacing="5"><TextBlock Text="Step"/><ComboBox ItemsSource="{Binding KindChoices}" SelectedItem="{Binding SelectedKind, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyStepKindChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox></StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="5"><TextBlock Text="When to load"/><ComboBox ItemsSource="{Binding HookChoices}" SelectedItem="{Binding SelectedHook, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyHookChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox></StackPanel>
+                </Grid>
+                <TextBlock Text="{Binding SelectedHook.Description}" TextWrapping="Wrap" Opacity="0.65" FontSize="12"/>
+                <TextBlock Text="{Binding ValueLabel}"/>
+                <TextBox Text="{Binding Value, Mode=TwoWay}" AcceptsReturn="{Binding IsCustomWml}" TextWrapping="Wrap" MinHeight="34" MaxHeight="180"/>
+                <StackPanel IsVisible="{Binding HasArguments}" Spacing="5"><TextBlock Text="{Binding ArgumentsLabel}"/><TextBox Text="{Binding Arguments, Mode=TwoWay}"/></StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsTargetsPage}" IsEnabled="{Binding CanInteract}" Spacing="12">
+          <TextBlock Text="Choose the campaigns in this package that use the dependency. Source files remain owned by the dependency add-on." TextWrapping="Wrap"/>
+          <CheckBox Content="Declare this as a required add-on" IsChecked="{Binding DeclareDependency, Mode=TwoWay}"/>
+          <TextBlock Text="This also updates the package metadata used to identify required add-ons. Clear it for optional loading plans." TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+          <CheckBox Content="All campaigns in this package, including future chapters" IsChecked="{Binding AllCampaigns, Mode=TwoWay}"/>
+          <ItemsControl ItemsSource="{Binding Targets}" IsEnabled="{Binding CanChooseTargets}">
+            <ItemsControl.ItemTemplate><DataTemplate DataType="vm:CampaignDependencyTargetViewModel">
+              <Border Classes="panel" BorderThickness="1" Padding="10" Margin="0,0,0,7">
+                <StackPanel Spacing="3"><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}"/><TextBlock Text="{Binding CampaignDefine}" FontSize="11" Opacity="0.65" Margin="26,0,0,0"/></StackPanel>
+              </Border>
+            </DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsReviewPage}" Spacing="10">
+          <TextBlock Text="Confirm the generated loading instructions. Staging adds a pending change; the campaign's Save checks and writes it." TextWrapping="Wrap"/>
+          <TextBox Text="{Binding PreviewWml}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="330"
+                   FontFamily="Cascadia Mono,Consolas,monospace"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" Classes="panel" Padding="10" BorderThickness="1" IsVisible="{Binding HasValidation}">
+      <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" Foreground="#EABF99"/>
+    </Border>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="9">
+      <Button Content="Cancel" HorizontalAlignment="Left" Click="CancelClicked"/>
+      <Button Grid.Column="1" Content="Back" icons:WccButtonIcon.Action="Previous" icons:WccButtonIcon.ShowLabel="True" Click="BackClicked" IsEnabled="{Binding CanGoBack}"/>
+      <Button Grid.Column="2" Content="Next" icons:WccButtonIcon.Action="Next" icons:WccButtonIcon.ShowLabel="True" Click="NextClicked" IsVisible="{Binding !IsReviewPage}" IsEnabled="{Binding CanGoNext}"/>
+      <Button Grid.Column="3" Content="Stage dependency" icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True" Classes="primary"
+              Click="CreateClicked" IsVisible="{Binding IsReviewPage}" IsEnabled="{Binding CanCreate}"/>
+    </Grid>
+  </Grid>
+</Window>

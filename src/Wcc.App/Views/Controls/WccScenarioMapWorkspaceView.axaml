@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels"
+             xmlns:local="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.WccScenarioMapWorkspaceView"
+             x:Name="Workspace" x:DataType="vm:ScenarioWindowViewModel">
+  <StackPanel Spacing="10">
+    <Border BorderBrush="#55A7DCEE" BorderThickness="1" Padding="8"
+            IsVisible="{Binding MapPreview.IsCoordinateSelectionActive}">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Spacing="3">
+          <TextBlock Text="{Binding MapPreview.CoordinateSelectionPrompt}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding MapPreview.CoordinateSelectionStatus}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Button Grid.Column="1" Content="Use coordinate" local:WccButtonIcon.Action="Accept" local:WccButtonIcon.ShowLabel="True" Click="ConfirmCoordinateClicked"
+                IsEnabled="{Binding MapPreview.CanConfirmCoordinateSelection}"/>
+        <Button Grid.Column="2" Content="Cancel" Click="CancelCoordinateClicked"/>
+      </Grid>
+    </Border>
+    <Grid ColumnDefinitions="*,330" ColumnSpacing="12">
+      <Border BorderThickness="1" BorderBrush="#8E7955" Background="#111923" ClipToBounds="True"
+              MinHeight="340" Height="{Binding #Workspace.MapViewportHeight}" VerticalAlignment="Top">
+        <ToolTip.Tip>
+          <StackPanel Spacing="4" MaxWidth="410">
+            <TextBlock Text="Drag to pan; arrow keys pan; Ctrl + mouse wheel zooms." TextWrapping="Wrap"/>
+            <TextBlock Text="Right-click a playable hex to add an initial unit." TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding MapPreview.SpatialProjectionSummary}" TextWrapping="Wrap"/>
+            <TextBlock Text="Terrain uses editor tiles; engine transitions and random visual variants are omitted." TextWrapping="Wrap" Opacity="0.7"/>
+            <TextBlock Text="{Binding MapPreview.SourcePath}" TextWrapping="Wrap" Opacity="0.7"/>
+          </StackPanel>
+        </ToolTip.Tip>
+        <Grid>
+          <local:ScenarioHexMapControl x:Name="MainMap" Preview="{Binding MapPreview}"
+                                      Zoom="{Binding MapPreviewZoom, Mode=TwoWay}" IsVisible="{Binding HasMapPreview}"/>
+          <TextBlock Text="{Binding MapPreviewStatus}" IsVisible="{Binding !HasMapPreview}"
+                     TextWrapping="Wrap" TextAlignment="Center" Margin="18" MaxWidth="440"
+                     VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        </Grid>
+      </Border>
+      <StackPanel Grid.Column="1" Spacing="9">
+        <Grid ColumnDefinitions="*,130" ColumnSpacing="9" IsVisible="{Binding HasMapPreview}">
+          <StackPanel Spacing="5">
+            <Border Height="166" BorderThickness="1" BorderBrush="#71634B" Background="#111923">
+              <local:ScenarioMapMinimapControl MapView="{Binding #MainMap}"
+                    ToolTip.Tip="Terrain overview. Click to center the map; the white outline is the visible area."/>
+            </Border>
+            <Border BorderThickness="1" BorderBrush="#554E40" Background="#18232F" Padding="7">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Selected tile" FontWeight="SemiBold" Foreground="#E2C58D"/>
+                <TextBlock Text="{Binding MapPreview.SelectedCellSummary}" TextWrapping="Wrap"/>
+                <ScrollViewer MaxHeight="150">
+                  <TextBlock Text="{Binding MapPreview.SelectedOverlaySummary}" TextWrapping="Wrap" Opacity="0.85"/>
+                </ScrollViewer>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="6">
+            <TextBlock Text="Legend" FontWeight="SemiBold" Foreground="#E2C58D"/>
+            <ItemsControl ItemsSource="{x:Static local:ScenarioMapMarkerStyle.Legend}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:ScenarioMapLegendItem">
+                  <Grid ColumnDefinitions="22,*" ColumnSpacing="5" Margin="0,0,0,5">
+                    <Border Width="20" Height="20" CornerRadius="10" BorderThickness="1" BorderBrush="White" Background="{Binding Fill}">
+                      <TextBlock Text="{Binding Glyph}" Foreground="White" FontSize="11"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Description}" TextWrapping="Wrap" FontSize="11" VerticalAlignment="Center"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Gold outline: conditional" FontSize="11" TextWrapping="Wrap" Foreground="#D9BF85"/>
+            <TextBlock Text="Cyan: selected event or coordinate" FontSize="11" TextWrapping="Wrap" Foreground="#A7DCEE"/>
+          </StackPanel>
+        </Grid>
+        <Border BorderThickness="1" BorderBrush="#554E40" Padding="7">
+          <ScrollViewer MaxHeight="140">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding MapPreviewStatus}" TextWrapping="Wrap" Opacity="0.8"/>
+              <TextBlock Text="{Binding MapPreviewDiagnostics}" TextWrapping="Wrap" Foreground="#D9BF85"/>
+              <TextBlock Text="{Binding MapPreview.UnplacedSpatialSummary}" TextWrapping="Wrap" Opacity="0.75"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+        <Border Background="#18232F" Padding="7">
+          <StackPanel Spacing="7">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="Zoom" VerticalAlignment="Center"/>
+                <ComboBox Width="82" ItemsSource="{Binding MapPreviewZoomOptions}" SelectedItem="{Binding MapPreviewZoomPercent}"/>
+                <TextBlock Text="%" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button Grid.Column="1" Classes="fieldIcon" Content="↻" Click="ReloadMapClicked" ToolTip.Tip="Reload map"/>
+            </Grid>
+            <WrapPanel Orientation="Horizontal" IsVisible="{Binding HasMapPreview}">
+              <CheckBox Content="Leaders" IsChecked="{Binding MapPreview.ShowSideLeaders}" Margin="0,0,9,3"/>
+              <CheckBox Content="Units" IsChecked="{Binding MapPreview.ShowUnits}" Margin="0,0,9,3"/>
+              <CheckBox Content="Items" IsChecked="{Binding MapPreview.ShowItems}" Margin="0,0,9,3"/>
+              <CheckBox Content="Labels" IsChecked="{Binding MapPreview.ShowLabels}" Margin="0,0,9,3"/>
+              <CheckBox Content="Events" IsChecked="{Binding MapPreview.ShowEvents}" Margin="0,0,9,3"/>
+              <CheckBox Content="Map changes" IsChecked="{Binding MapPreview.ShowMapChanges}" Margin="0,0,9,3"/>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Grid>
+    <Border Classes="panel" BorderThickness="1" BorderBrush="#554E40" CornerRadius="5" Padding="9">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Initial units" FontSize="15" FontWeight="SemiBold"/>
+        <TextBlock Text="{Binding WccInitialUnitStatus}" TextWrapping="Wrap" Opacity="0.7"/>
+        <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <ItemsControl x:Name="InitialUnitRows" ItemsSource="{Binding WccInitialUnitRows}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:WccInitialUnitRowVm">
+                <Border Classes="initialUnitCard" Width="174" Margin="0,0,8,8" Padding="8"
+                        Background="#202A36" BorderBrush="#665C49" BorderThickness="1" CornerRadius="5"
+                        ToolTip.Tip="{Binding Details}">
+                  <StackPanel Spacing="3">
+                    <Border Width="64" Height="64" Background="#17212C" CornerRadius="4">
+                      <Image Source="{Binding UnitTypeOption.PreviewBitmap}" Stretch="Uniform"/>
+                    </Border>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextAlignment="Center"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" Height="34"/>
+                    <TextBlock Text="{Binding Coordinates}" FontSize="12" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding ScopeLabel}" FontSize="11" Opacity="0.7" TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding PendingLabel}" FontSize="11" Foreground="#D9BF85"
+                               TextAlignment="Center" Height="15"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                      <Button x:Name="FocusInitialUnitButton" Content="Locate" local:WccButtonIcon.Action="Locate" Click="FocusInitialUnitClicked"
+                              Height="30" MinHeight="30" MinWidth="0" FontSize="11" Padding="0"
+                              IsEnabled="{Binding CanFocus}" ToolTip.Tip="Locate unit on the map"/>
+                      <Button x:Name="EditInitialUnitButton" Content="Edit" local:WccButtonIcon.Action="Edit" Click="EditInitialUnitClicked"
+                              Height="30" MinHeight="30" MinWidth="0" FontSize="11" Padding="0"
+                              IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Problem}"/>
+                      <Button x:Name="RemoveInitialUnitButton" Content="Remove" Click="RemoveInitialUnitClicked"
+                              local:WccButtonIcon.Action="Remove" AutomationProperties.Name="Remove initial unit"
+                              Width="30" Height="30" MinHeight="30" MinWidth="0" FontSize="11" Padding="0"
+                              IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding Problem}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

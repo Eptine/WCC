@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        xmlns:wccvm="using:Wcc.App.ViewModels.Wcc"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:Class="Wcc.App.Views.CatalogPickerWindow"
+        x:DataType="vm:CatalogPickerWindowViewModel"
+        Width="760"
+        Height="720"
+        MinWidth="580" MinHeight="440"
+        Title="Pick from Catalog" Classes="wccShell">
+  <Window.Styles>
+    <Style Selector="ListBox.catalogOptions ListBoxItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Foreground" Value="#E6DDC5"/>
+    </Style>
+    <Style Selector="ListBox.catalogOptions ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#263746"/>
+    </Style>
+    <Style Selector="ListBox.catalogOptions ListBoxItem:selected">
+      <Setter Property="Background" Value="#344659"/>
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="10">
+    <StackPanel DockPanel.Dock="Top" Spacing="8">
+      <TextBlock Text="{Binding TitleText}" FontSize="21" FontWeight="SemiBold"/>
+      <TextBlock Text="{Binding DescriptionText}"
+                 TextWrapping="Wrap" Opacity="0.7"/>
+      <TextBox Watermark="Search by id or display name"
+               Text="{Binding SearchText}"/>
+    </StackPanel>
+
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,10,0,0">
+      <Button Content="Clear" icons:WccButtonIcon.Action="Remove" icons:WccButtonIcon.ShowLabel="True" ToolTip.Tip="Clear the current picker selection" Click="ClearClicked"/>
+      <Button Content="Cancel" icons:WccButtonIcon.Action="Close" icons:WccButtonIcon.ShowLabel="True" Click="CancelClicked"/>
+      <Button x:Name="CatalogUseSelectionButton" Content="Use Selection" icons:WccButtonIcon.Action="Accept" icons:WccButtonIcon.ShowLabel="True" Classes="primary" Click="UseSelectionClicked"/>
+    </StackPanel>
+
+    <ListBox x:Name="CatalogOptions" Classes="catalogOptions" ItemsSource="{Binding FilteredOptions}"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
+      <ListBox.ItemTemplate>
+        <DataTemplate DataType="wccvm:CatalogPickerOptionVm">
+          <StackPanel>
+            <TextBlock Text="{Binding RaceHeading}" IsVisible="{Binding ShowsRaceHeading}" Foreground="#D9BF85" FontWeight="SemiBold" Margin="0,8,0,5"/>
+          <Grid ColumnDefinitions="56,Auto,*,Auto,Auto"
+                ColumnSpacing="10"
+                Margin="0,2,0,2">
+            <Border Grid.Column="0"
+                    Width="48"
+                    Height="48"
+                    BorderThickness="1"
+                    BorderBrush="#76674B" Background="#202A36"
+                    ToolTip.Tip="{Binding PreviewHint}"
+                    Padding="2">
+              <Image Source="{Binding PreviewBitmap}"
+                     Stretch="Uniform"/>
+            </Border>
+
+            <Border Grid.Column="1"
+                    BorderThickness="1"
+                    Padding="5,2"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding HasSourceKindLabel}">
+              <TextBlock Text="{Binding SourceKindLabel}" FontSize="11"/>
+            </Border>
+
+            <TextBlock Grid.Column="2"
+                       VerticalAlignment="Center"
+                       Text="{Binding DisplayName}"
+                       ToolTip.Tip="{Binding DisplayName}"
+                       TextWrapping="Wrap"/>
+
+            <Border Grid.Column="3"
+                    BorderThickness="1"
+                    Padding="7,3"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding HasResourceSourceLabel}"
+                    ToolTip.Tip="{Binding ResourceSourceHint}">
+              <TextBlock Text="{Binding ResourceSourceLabel}" FontSize="11" MaxWidth="110" TextWrapping="Wrap"/>
+            </Border>
+
+            <CheckBox Grid.Column="4"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding IsChecked}"/>
+          </Grid>
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Window>

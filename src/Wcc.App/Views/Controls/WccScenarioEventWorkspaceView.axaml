@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:controls="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.WccScenarioEventWorkspaceView">
+  <Grid x:Name="WorkspaceContent" x:DataType="vm:WccScenarioEventWorkspaceVm"
+        ColumnDefinitions="*,220" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+    <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10">
+      <TextBlock Text="{Binding Summary}" Opacity="0.7" TextWrapping="Wrap"/>
+    </StackPanel>
+    <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="3">
+      <Border BorderBrush="#665C503B" BorderThickness="0,0,0,1" Padding="8,5">
+        <Grid ColumnDefinitions="2*,2*,3*,30" ColumnSpacing="7">
+          <TextBlock Text="Name / ID" FontWeight="SemiBold"/>
+          <TextBlock Grid.Column="1" Text="Trigger" FontWeight="SemiBold"/>
+          <TextBlock Grid.Column="2" Text="Possible effects" FontWeight="SemiBold"/>
+        </Grid>
+      </Border>
+      <ListBox x:Name="EventsList" Grid.Row="1" ItemsSource="{Binding Rows}"
+               SelectedItem="{Binding SelectedRow, Mode=TwoWay}" SelectionChanged="EventSelectionChanged"
+               AutoScrollToSelectedItem="False"
+               MinHeight="140" MaxHeight="430"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="5,1"/>
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:WccScenarioEventRowVm">
+            <Grid RowDefinitions="Auto,Auto" Margin="2,2">
+              <Grid ColumnDefinitions="2*,2*,3*,30" ColumnSpacing="7" MinHeight="26">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                             ToolTip.Tip="{Binding SourceTooltip}"/>
+                  <Border Grid.Column="1" IsVisible="{Binding IsMacroGroup}" BorderBrush="#80735D" BorderThickness="1"
+                          CornerRadius="8" Width="18" Height="18" VerticalAlignment="Center" ToolTip.Tip="{Binding MacroTooltip}">
+                    <TextBlock Text="M" Foreground="#D9BF85" FontSize="10" FontWeight="SemiBold"
+                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  </Border>
+                </Grid>
+                <TextBlock Grid.Column="1" Text="{Binding Trigger}" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" ToolTip.Tip="{Binding Trigger}"/>
+                <TextBlock Grid.Column="2" Text="{Binding ShortEffects}" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" ToolTip.Tip="{Binding Entry.EffectDisplay}"/>
+                <Button Grid.Column="3" Content="−" controls:WccButtonIcon.Action="Remove" Classes="fieldIcon" Click="RemoveEventClicked"
+                        IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding RemovalTooltip}"/>
+              </Grid>
+              <Border Grid.Row="1" IsVisible="{Binding IsSelected}" BorderBrush="#665C503B" BorderThickness="0,1,0,0"
+                      Padding="7,6" Margin="0,5,0,0">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="{Binding DetailSummary}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding DetailActions}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Entry.SourceDisplay}" Opacity="0.7" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Editability}" Opacity="0.75" TextWrapping="Wrap"/>
+                  <TextBlock Text="The map shows possible effects over the initial state. Runtime order and conditions are not simulated."
+                             Opacity="0.65" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <TextBlock Grid.Row="1" Text="No events match the current filters." IsVisible="{Binding !HasRows}"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.7" Margin="15"/>
+    </Grid>
+    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="7">
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="7">
+        <Button x:Name="AddDialogueGraphButton" Content="Add Event" controls:WccButtonIcon.Action="Add" controls:WccButtonIcon.ShowLabel="True" Click="AddDialogueGraphClicked"
+                IsEnabled="{Binding CanAddDialogue}" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Create an event with supported triggers and connected actions"/>
+        <Button x:Name="AddEventWmlButton" Grid.Column="1" Content="Add WML" controls:WccButtonIcon.Action="EditCode" controls:WccButtonIcon.ShowLabel="True" Click="AddEventClicked"
+                IsEnabled="{Binding CanAdd}" HorizontalAlignment="Stretch" ToolTip.Tip="Write one new [event] block; Apply queues it for the shared Save"/>
+        <Button x:Name="EditDialogueGraphButton" Grid.Row="1" Content="Edit Event" controls:WccButtonIcon.Action="Edit" controls:WccButtonIcon.ShowLabel="True" Click="EditDialogueGraphClicked"
+                IsEnabled="{Binding CanEditDialogue}" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding DialogueEditTooltip}"/>
+        <Button x:Name="EditEventWmlButton" Grid.Row="1" Grid.Column="1" Content="{Binding EditActionLabel}"
+                controls:WccButtonIcon.Action="{Binding SelectedRow.CanEdit, Converter={x:Static controls:WccEditorIconConverters.CodeAction}}" controls:WccButtonIcon.ShowLabel="True"
+                Click="EditEventClicked" IsEnabled="{Binding HasSelection}" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Edit the exact authored event block. Macro-generated groups retain their original invocation and source safeguards."/>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+        <Button x:Name="ApplyEventPresetButton" Content="Apply Preset" controls:WccButtonIcon.Action="Preset" controls:WccButtonIcon.ShowLabel="True"
+                Click="ApplyEventPresetClicked" IsEnabled="{Binding CanApplyEventPreset}" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Add a saved shared Event preset invocation to this scenario"/>
+        <Button x:Name="ManageEventPresetsButton" Grid.Column="1" Content="Presets" controls:WccButtonIcon.Action="Manage" controls:WccButtonIcon.ShowLabel="True"
+                Click="ManageEventPresetsClicked" IsEnabled="{Binding CanManageEventPresets}" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Create or edit shared Event presets for this campaign"/>
+      </Grid>
+      <TextBox Watermark="Search events…" Text="{Binding Map.EventSearchText, Mode=TwoWay}"
+               ToolTip.Tip="Search trigger, ID, filter, action or macro"/>
+      <ComboBox ItemsSource="{Binding Map.EventTriggerFilterOptions}" SelectedItem="{Binding Map.SelectedEventTriggerFilter, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" ToolTip.Tip="Trigger filter"/>
+      <ComboBox ItemsSource="{Binding Map.EventSourceFilterOptions}" SelectedItem="{Binding Map.SelectedEventSourceFilter, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" ToolTip.Tip="Source filter"/>
+      <ComboBox ItemsSource="{Binding Map.EventEffectFilterOptions}" SelectedItem="{Binding Map.SelectedEventEffectFilter, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" ToolTip.Tip="Effect filter"/>
+      <CheckBox Content="Spatial triggers only" IsChecked="{Binding Map.ShowOnlySpatialEvents, Mode=TwoWay}"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

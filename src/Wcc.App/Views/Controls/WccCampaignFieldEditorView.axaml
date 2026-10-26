@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Wcc.App.ViewModels.Wcc"
+             xmlns:controls="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.Controls.WccCampaignFieldEditorView"
+             x:DataType="vm:WccCampaignFieldEditorVm" x:Name="root">
+  <UserControl.Styles>
+    <!-- Only the edited input gets a pending outline. Constant input thickness
+         keeps adjacent click targets still while a buffered value commits. -->
+    <Style Selector="TextBox.pending">
+      <Setter Property="BorderBrush" Value="{Binding PendingBorderBrush}"/>
+    </Style>
+  </UserControl.Styles>
+  <Border Padding="0,4">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+      <TextBlock x:Name="FieldLabel" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip.Tip="{Binding Key}"/>
+      <StackPanel x:Name="InputContainer" Grid.Column="1" Spacing="5" VerticalAlignment="Center">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding ShowsBoolean}">
+          <CheckBox IsChecked="{Binding BooleanValue, Mode=TwoWay}" IsThreeState="False"
+                    IsEnabled="{Binding CanEdit}" Opacity="{Binding BooleanValueOpacity}" VerticalAlignment="Center"/>
+          <TextBox Grid.Column="1" Classes.pending="{Binding HasDraft}" BorderThickness="1" Text="{Binding BooleanTextValue, Mode=TwoWay}" GotFocus="TextFocusGained" LostFocus="TextFocusLost" IsReadOnly="{Binding IsReadOnly}"
+                   Watermark="Override value or macro" ToolTip.Tip="A nonempty override wins. Clear it to use the checkbox value."/>
+        </Grid>
+        <Grid x:Name="TextInputGrid" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding ShowsText}">
+          <TextBox x:Name="TextInput" Classes.pending="{Binding HasDraft}" BorderThickness="1" Text="{Binding TextValue, Mode=TwoWay}" GotFocus="TextFocusGained" LostFocus="TextFocusLost" IsReadOnly="{Binding IsReadOnly}"
+                   Opacity="{Binding ValueOpacity}" AcceptsReturn="{Binding IsMultiline}" MinHeight="{Binding MinimumTextHeight}" MaxHeight="{Binding MaximumTextHeight}"
+                   TextWrapping="Wrap" ToolTip.Tip="{Binding Tooltip}"/>
+          <ComboBox x:Name="StaticChoices" Grid.Column="1" MinWidth="110" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice, Mode=TwoWay}"
+                    IsVisible="False" IsEnabled="{Binding CanEdit}" PlaceholderText="Suggestions"/>
+          <Button x:Name="InlineChoicesButton" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                  Width="27" MinWidth="27" Height="28" Padding="0" Content="▼" Classes="fieldIcon"
+                  IsVisible="False" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Choose a description alignment">
+            <Button.Flyout><Flyout Placement="Bottom"><ItemsControl ItemsSource="{Binding Choices}">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <Button Content="{Binding}" Click="InlineChoiceClicked" HorizontalAlignment="Stretch"/>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl></Flyout></Button.Flyout>
+          </Button>
+          <Button x:Name="ScenarioChoicesButton" Grid.Column="1" Content="▾" Classes="fieldIcon" IsVisible="{Binding ShowsScenarioChoice}"
+                  IsEnabled="{Binding CanEdit}" ToolTip.Tip="Choose an attached scenario ID or type your own">
+            <Button.Flyout>
+              <Flyout Placement="Bottom">
+                <ScrollViewer MaxHeight="320" MinWidth="170" MaxWidth="360" HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding Choices}">
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                      <Button Content="{Binding}" Click="ScenarioChoiceClicked" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding}">
+                        <Button.ContentTemplate><DataTemplate><TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" MaxWidth="310"/></DataTemplate></Button.ContentTemplate>
+                      </Button>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
+      </StackPanel>
+      <Button x:Name="SourceButton" Grid.Column="2" Content="{Binding OriginGlyph}" Classes="fieldIcon" Click="SourceClicked" IsEnabled="{Binding HasSource}"
+              controls:WccButtonIcon.FieldStatus="{Binding OriginGlyph, Converter={x:Static controls:WccEditorIconConverters.FieldStatus}}"
+              controls:WccButtonIcon.IsBlocked="{Binding IsReadOnly}"
+              ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center"/>
+      <Button x:Name="FieldActions" Grid.Column="3" Content="Field options" Classes="fieldIcon"
+              controls:WccButtonIcon.Action="FieldSettings" VerticalAlignment="Center" ToolTip.Tip="Field options">
+        <Button.Flyout><Flyout><StackPanel Spacing="5">
+          <Button Content="{Binding ImageFitLabel}" ToolTip.Tip="{Binding ImageFitTooltip}" ToolTip.ShowOnDisabled="True" Click="FitImageClicked" IsVisible="{Binding ShowsImageFit}" IsEnabled="{Binding CanFitImage}" HorizontalAlignment="Stretch"/>
+          <Button Content="Revert pending change" Click="ResetClicked" IsEnabled="{Binding CanReset}" HorizontalAlignment="Stretch"/>
+          <Button Content="Remove override" Click="RemoveOverrideClicked" IsEnabled="{Binding CanRemoveOverride}" HorizontalAlignment="Stretch"/>
+          <Button Content="Set default" Click="SetDefaultClicked" IsEnabled="{Binding CanSetDefault}" HorizontalAlignment="Stretch"/>
+        </StackPanel></Flyout></Button.Flyout>
+      </Button>
+      <ContentControl x:Name="FooterPresenter" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Content="{Binding FooterContent, ElementName=root}"/>
+      <TextBlock x:Name="PresenceText" Grid.Row="1" Grid.Column="1" Text="{Binding SourcePresenceDescription}" Opacity="0.65" TextWrapping="Wrap"/>
+      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ResolvedExpressionValue}"
+                 IsVisible="{Binding HasResolvedExpressionValue}" ToolTip.Tip="{Binding ResolvedExpressionTooltip}" Opacity="0.7" TextWrapping="Wrap"/>
+      <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}"
+                 Foreground="DarkOrange" TextWrapping="Wrap"/>
+      <Border x:Name="ImagePreviewBorder" Grid.Row="4" Grid.Column="1" Height="104" MaxWidth="240" HorizontalAlignment="Left">
+        <controls:WccFieldImagePreviewView DataContext="{Binding ImagePreview}"/>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        x:Class="Wcc.App.Views.StandaloneWmlUnsavedChangesWindow"
+        x:DataType="vm:StandaloneWmlFileTab"
+        Classes="wccShell" Width="560" Height="240" MinWidth="420" MinHeight="220"
+        WindowStartupLocation="CenterOwner" Title="Unsaved WML changes">
+  <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+    <TextBlock Text="Save changes before closing this file?" TextWrapping="Wrap"
+               FontWeight="SemiBold" Foreground="#D9BF85" FontSize="16"/>
+    <TextBlock x:Name="FilePathText" Grid.Row="1" Text="{Binding Path}" TextWrapping="Wrap" Foreground="#B8B09C"/>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button Content="Save" icons:WccButtonIcon.Action="Save" icons:WccButtonIcon.ShowLabel="True" Classes="primary" IsDefault="True" Click="SaveClicked"/>
+      <Button Content="Discard" Click="DiscardClicked"/>
+      <Button Content="Cancel" IsCancel="True" Click="CancelClicked"/>
+    </StackPanel>
+  </Grid>
+</Window>

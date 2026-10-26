@@ -1,0 +1,122 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- The supplied @2x canvases retain their native 20x18 logical geometry.
+       Artwork and dimensions live here so future skins do not change controls. -->
+  <x:Double x:Key="WccToggleIndicatorWidth">20</x:Double>
+  <x:Double x:Key="WccToggleIndicatorHeight">18</x:Double>
+  <x:Double x:Key="WccToggleMinimumHeight">24</x:Double>
+  <x:Double x:Key="WccToggleDisabledOpacity">0.45</x:Double>
+  <Thickness x:Key="WccToggleContentMargin">8,0,0,0</Thickness>
+  <Bitmap x:Key="WccCheckBoxNormalImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/checkbox@2x.png</Bitmap>
+  <Bitmap x:Key="WccCheckBoxHoverImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/checkbox-active@2x.png</Bitmap>
+  <Bitmap x:Key="WccCheckBoxCheckedImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/checkbox-pressed@2x.png</Bitmap>
+  <Bitmap x:Key="WccCheckBoxCheckedHoverImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/checkbox-active-pressed@2x.png</Bitmap>
+  <Bitmap x:Key="WccCheckBoxTouchedImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/checkbox-touched@2x.png</Bitmap>
+  <Bitmap x:Key="WccRadioButtonNormalImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/radiobox@2x.png</Bitmap>
+  <Bitmap x:Key="WccRadioButtonHoverImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/radiobox-active@2x.png</Bitmap>
+  <Bitmap x:Key="WccRadioButtonCheckedImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/radiobox-pressed@2x.png</Bitmap>
+  <Bitmap x:Key="WccRadioButtonCheckedHoverImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/radiobox-active-pressed@2x.png</Bitmap>
+  <Bitmap x:Key="WccRadioButtonTouchedImage">avares://Wcc.App/Assets/Wesnoth/UI/buttons/radiobox-touched@2x.png</Bitmap>
+
+  <!-- Named base only: ordinary toolbar ToggleButtons keep their existing theme. -->
+  <ControlTheme x:Key="WccToggleBaseTheme" TargetType="ToggleButton">
+    <Setter Property="MinHeight" Value="{DynamicResource WccToggleMinimumHeight}"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="FocusAdorner" Value="{x:Null}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border x:Name="WccToggleRoot" Background="Transparent" Padding="{TemplateBinding Padding}"
+                BorderBrush="{TemplateBinding Foreground}" BorderThickness="0">
+          <Grid ColumnDefinitions="Auto,*">
+            <Grid Width="{DynamicResource WccToggleIndicatorWidth}" Height="{DynamicResource WccToggleIndicatorHeight}"
+                  VerticalAlignment="Center" IsHitTestVisible="False">
+              <Image x:Name="PART_Indicator" Stretch="Uniform"/>
+              <!-- No upstream indeterminate texture exists. This mark reports the
+                   native nullable state without manufacturing a checked value. -->
+              <Border x:Name="PART_IndeterminateDash" Width="8" Height="2" CornerRadius="1"
+                      Background="#D9BF85" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False"/>
+            </Grid>
+            <ContentPresenter x:Name="PART_ContentPresenter" Grid.Column="1"
+                              Margin="{DynamicResource WccToggleContentMargin}"
+                              Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              RecognizesAccessKey="True" TextWrapping="Wrap"
+                              Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}"
+                              FontSize="{TemplateBinding FontSize}" FontStyle="{TemplateBinding FontStyle}"
+                              FontWeight="{TemplateBinding FontWeight}" FontStretch="{TemplateBinding FontStretch}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+          </Grid>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^ /template/ ContentPresenter#PART_ContentPresenter:empty">
+      <Setter Property="Margin" Value="0"/>
+    </Style>
+    <Style Selector="^:indeterminate /template/ Border#PART_IndeterminateDash">
+      <Setter Property="IsVisible" Value="True"/>
+    </Style>
+    <Style Selector="^:focus-visible /template/ Border#WccToggleRoot">
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+    <Style Selector="^:disabled /template/ Border#WccToggleRoot">
+      <Setter Property="Opacity" Value="{DynamicResource WccToggleDisabledOpacity}"/>
+    </Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="{x:Type CheckBox}" TargetType="CheckBox" BasedOn="{StaticResource WccToggleBaseTheme}">
+    <Style Selector="^ /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxNormalImage}"/>
+    </Style>
+    <Style Selector="^:pointerover /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxHoverImage}"/>
+    </Style>
+    <Style Selector="^:pressed /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxTouchedImage}"/>
+    </Style>
+    <!-- Wesnoth's pressed filename means checked, not momentary pointer-down. -->
+    <Style Selector="^:checked /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxCheckedImage}"/>
+    </Style>
+    <Style Selector="^:checked:pointerover /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxCheckedHoverImage}"/>
+    </Style>
+    <Style Selector="^:checked:pressed /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxCheckedHoverImage}"/>
+    </Style>
+    <Style Selector="^:disabled /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxNormalImage}"/>
+    </Style>
+    <Style Selector="^:disabled:checked /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccCheckBoxCheckedImage}"/>
+    </Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="{x:Type RadioButton}" TargetType="RadioButton" BasedOn="{StaticResource WccToggleBaseTheme}">
+    <Style Selector="^ /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonNormalImage}"/>
+    </Style>
+    <Style Selector="^:pointerover /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonHoverImage}"/>
+    </Style>
+    <Style Selector="^:pressed /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonTouchedImage}"/>
+    </Style>
+    <Style Selector="^:checked /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonCheckedImage}"/>
+    </Style>
+    <Style Selector="^:checked:pointerover /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonCheckedHoverImage}"/>
+    </Style>
+    <Style Selector="^:checked:pressed /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonCheckedHoverImage}"/>
+    </Style>
+    <Style Selector="^:disabled /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonNormalImage}"/>
+    </Style>
+    <Style Selector="^:disabled:checked /template/ Image#PART_Indicator">
+      <Setter Property="Source" Value="{DynamicResource WccRadioButtonCheckedImage}"/>
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

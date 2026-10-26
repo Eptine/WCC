@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:edit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             xmlns:views="using:Wcc.App.Views"
+             xmlns:icons="using:Wcc.App.Views.Controls"
+             x:Class="Wcc.App.Views.WmlCodeEditorView">
+  <DockPanel LastChildFill="True">
+    <Border DockPanel.Dock="Top" Background="#202A36" BorderBrush="#76674B"
+            BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,8">
+      <StackPanel Spacing="6">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="Find" VerticalAlignment="Center" Foreground="#D9BF85" FontWeight="SemiBold"/>
+        <TextBox x:Name="FindTextBox" Grid.Column="1" Watermark="Find in this document..."
+                 TextChanged="FindTextChanged" KeyDown="FindTextBoxKeyDown"
+                 ToolTip.Tip="Find literal text, ignoring case. Ctrl+F focuses this field."/>
+        <Button x:Name="FindPreviousButton" Grid.Column="2" Content="Previous" IsEnabled="False"
+                icons:WccButtonIcon.Action="Previous" icons:WccButtonIcon.ShowLabel="True"
+                Click="FindPreviousClicked" ToolTip.Tip="Previous match (Shift+F3)"/>
+        <Button x:Name="FindNextButton" Grid.Column="3" Content="Next" IsEnabled="False"
+                icons:WccButtonIcon.Action="Next" icons:WccButtonIcon.ShowLabel="True"
+                Click="FindNextClicked" ToolTip.Tip="Next match (F3)"/>
+        <Button x:Name="ShowReplaceButton" Grid.Column="4" Content="Replace..."
+                Click="ShowReplaceClicked" ToolTip.Tip="Show literal text replacement for this tab (Ctrl+H)."/>
+        <Button x:Name="FormatWmlButton" Grid.Column="5" Content="Format WML"
+                Click="FormatWmlClicked" ToolTip.Tip="Format this tab with four-space WML indentation. Code order and value contents stay intact. Undo restores the formatting."/>
+        <TextBlock x:Name="FindStatusTextBlock" Grid.Column="6" MinWidth="82" Text="Type to find"
+                   VerticalAlignment="Center" Foreground="#B8B09C"/>
+      </Grid>
+      <Grid x:Name="ReplaceRow" IsVisible="False" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="Replace with" VerticalAlignment="Center" Foreground="#D9BF85"/>
+        <TextBox x:Name="ReplaceTextBox" Grid.Column="1" Watermark="Replacement text (empty deletes matches)"
+                 TextChanged="ReplacementTextChanged" KeyDown="ReplaceTextBoxKeyDown"
+                 ToolTip.Tip="Literal replacement text. Empty removes the matched text. No file is saved until you use the host's Save or Apply."/>
+        <Button x:Name="ReplaceOneButton" Grid.Column="2" Content="Replace" IsEnabled="False"
+                Click="ReplaceOneClicked" ToolTip.Tip="Replace the selected match, or the next match from the caret, in this tab."/>
+        <Button x:Name="ReplaceAllButton" Grid.Column="3" Content="Replace all" IsEnabled="False"
+                Click="ReplaceAllClicked" ToolTip.Tip="Replace all literal matches in this tab. Undo restores them in one step."/>
+      </Grid>
+      <TextBlock x:Name="ReplacementStatusText" IsVisible="False" Foreground="#B8B09C" FontSize="12"/>
+      </StackPanel>
+    </Border>
+    <Border DockPanel.Dock="Bottom" BorderBrush="#514D40" BorderThickness="0,1,0,0"
+            Margin="0,6,0,0" Padding="3,6,3,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="DocumentStatusText" Text="No document" Foreground="#B8B09C"/>
+        <TextBlock x:Name="CaretStatusText" Grid.Column="1" Text="Ln 1, Col 1" Foreground="#B8B09C"/>
+      </Grid>
+    </Border>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="330"/>
+        <ColumnDefinition Width="8"/>
+        <ColumnDefinition Width="250" MinWidth="170"/>
+      </Grid.ColumnDefinitions>
+      <Border Background="#101923" BorderBrush="#76674B" BorderThickness="1" CornerRadius="3">
+        <edit:TextEditor x:Name="Editor" ShowLineNumbers="True" FontSize="14"
+                         FontFamily="Consolas, DejaVu Sans Mono, Courier New, monospace"
+                         Background="#101923" Foreground="#E6DDC5" LineNumbersForeground="#89929A"
+                         HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                         WordWrap="False" Padding="5"/>
+      </Border>
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                    HorizontalAlignment="Stretch" Background="Transparent"/>
+      <Border Grid.Column="2" Background="#1B2531" BorderBrush="#76674B" BorderThickness="1"
+              CornerRadius="3" Padding="8">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Spacing="5" Margin="0,0,0,8">
+            <TextBlock Text="References" Foreground="#D9BF85" FontWeight="SemiBold" FontSize="15"/>
+            <TextBlock Text="Select a reference to cycle its uses. Open inspects its source in a tab." TextWrapping="Wrap"
+                       Foreground="#B8B09C" FontSize="12"/>
+            <TextBlock x:Name="ReferenceStatusText" Text="No references" Foreground="#B8B09C"
+                       FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+          <ListBox x:Name="ReferenceList" Background="Transparent" BorderThickness="0">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Padding" Value="0"/>
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="views:WmlEditorReferenceRow">
+                <Grid ColumnDefinitions="*,Auto">
+                  <Button Click="ReferenceClicked" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0"
+                          Padding="4,7" MinHeight="0" ToolTip.Tip="{Binding ToolTipText}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                      <Border Background="#344253" BorderBrush="#76674B" BorderThickness="1"
+                              CornerRadius="3" Padding="4,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding KindMark}" FontSize="11" Foreground="#E1C58B"/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" Foreground="#E6DDC5"/>
+                      <TextBlock Grid.Column="2" Text="{Binding CountText}" Foreground="#B8B09C"
+                                 VerticalAlignment="Center" FontSize="12"/>
+                    </Grid>
+                  </Button>
+                  <Button Grid.Column="1" Content="Open" icons:WccButtonIcon.Action="ViewCode" Click="ReferenceSourceClicked"
+                          IsEnabled="{Binding CanOpenSource}" Margin="3,0,0,0" Padding="5,4"
+                          VerticalAlignment="Center" MinHeight="0"
+                          ToolTip.Tip="Inspect source candidates. Multiple candidates require a choice."/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

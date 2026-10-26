@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Wcc.App.ViewModels" xmlns:controls="using:Wcc.App.Views.Controls" x:Class="Wcc.App.Views.CampaignLocalPresetManagerWindow"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        x:DataType="vm:CampaignLocalPresetManagerViewModel" Title="Campaign presets" Classes="wccShell"
+        Width="1040" Height="650" MinWidth="650" MinHeight="420" WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="14">
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+      <TextBlock Text="{Binding Guidance}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding CreationProblem}" TextWrapping="Wrap" Foreground="BurlyWood"/>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <ComboBox ItemsSource="{Binding RoleFilters}" SelectedItem="{Binding RoleFilter, Mode=TwoWay}"/>
+        <ComboBox Grid.Column="1" ItemsSource="{Binding ScopeFilters}" SelectedItem="{Binding ScopeFilter, Mode=TwoWay}"/>
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox Watermark="Search campaign presets" Text="{Binding SearchText, Mode=TwoWay}"/>
+        <Button Name="AddPresetButton" Grid.Column="1" Content="Add preset" icons:WccButtonIcon.Action="Add" icons:WccButtonIcon.ShowLabel="True" IsEnabled="{Binding CanCreate}" Click="CreatePresetClicked"/>
+      </Grid>
+    </StackPanel>
+    <Grid DockPanel.Dock="Bottom" RowDefinitions="Auto,Auto" RowSpacing="8" Margin="0,12,0,0">
+      <controls:CampaignPresetStorageActionsView/>
+      <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Revert pending change" icons:WccButtonIcon.Action="Reset" icons:WccButtonIcon.ShowLabel="True" IsEnabled="{Binding CanRevert}" Click="RevertClicked"/>
+        <Button Content="Edit" icons:WccButtonIcon.Action="Edit" ToolTip.Tip="Edit the selected campaign preset" IsEnabled="{Binding CanEdit}" Click="EditClicked"/>
+        <Button Content="Delete" icons:WccButtonIcon.Action="Delete" icons:WccButtonIcon.ShowLabel="True" IsEnabled="{Binding CanDelete}" ToolTip.Tip="{Binding DeleteProblem}" Click="DeleteClicked"/>
+        <Button Content="{Binding SourceButtonLabel}" icons:WccButtonIcon.Action="{Binding CanEditSelectedSource, Converter={x:Static icons:WccEditorIconConverters.CodeAction}}" icons:WccButtonIcon.ShowLabel="True" IsEnabled="{Binding CanViewSource}" Click="SourceClicked"/>
+        <Button Content="Close" icons:WccButtonIcon.Action="Close" icons:WccButtonIcon.ShowLabel="True" Click="CloseClicked"/>
+      </StackPanel>
+    </Grid>
+    <Grid ColumnDefinitions="420,*" ColumnSpacing="14">
+      <Border Classes="panel" Padding="4">
+        <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:CampaignLocalPresetRow">
+              <StackPanel Margin="3,5" Spacing="4">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9"><TextBlock Text="{Binding Role}" Foreground="BurlyWood"/><TextBlock Grid.Column="1" Text="{Binding Name}"/></Grid>
+                <TextBlock Text="{Binding ScopeLabel}" Foreground="BurlyWood" FontSize="11"/>
+                <TextBlock Text="{Binding Source}" Opacity="0.65" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Source}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+        <TextBlock Text="{Binding SelectedRow.Description}" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="1" Text="{Binding DeleteProblem}" Opacity="0.75" TextWrapping="Wrap"/>
+        <TextBox Grid.Row="2" Text="{Binding SelectedRow.Text, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" FontFamily="monospace"/>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>
