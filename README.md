@@ -92,7 +92,7 @@ See the [architecture guide](docs/architecture.md) for more detail, and the
 
 ## Feedback
 
-Bug reports and feature suggestions are welcome through the [official Wesnoth Forum Thread]() or this repository's Issues.
+Bug reports and feature suggestions are welcome through the [official Wesnoth Forum Thread](https://forums.wesnoth.org/viewtopic.php?t=60997) or this repository's Issues.
 For a bug, include the WCC version, operating system, Wesnoth version, campaign and
 dependencies, steps to reproduce, and what you expected versus what happened.
 A screenshot, small example or exported WML Tester report can help when relevant.
