@@ -73,11 +73,12 @@ public static class WmlCheckUnitReferences
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var field = reference.Field;
-                // Use the same report-only component observer as Resources. An
-                // unsupported strict multiple assignment has no scalar text or
-                // contribution history; a successful observation supplies exact
-                // paired, unamended, last-winning component evidence only.
-                var composite = field.ValueText is null ? composites.Value.Observe(reference.Owner, field.Key, cancellationToken) : null;
+                // Even when the strict projection knows a component value, the
+                // Checker still requires its own exact paired, unamended,
+                // last-winning multiple-assignment observation.
+                var composite = field.ValueText is null ||
+                    field.Contributions.LastOrDefault() is { CompositeAssignmentKeys.Count: > 0 }
+                    ? composites.Value.Observe(reference.Owner, field.Key, cancellationToken) : null;
                 if (composite is not null) field = composite;
                 var contribution = field.Contributions.LastOrDefault();
                 var calls = origins.FindInvocationOrigins(contribution, field.ValueText, cancellationToken: cancellationToken);

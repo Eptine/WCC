@@ -723,9 +723,11 @@ internal static partial class WccScenarioFieldStaticReviewer
         if ((WccScenarioFieldContentScope.CheckOwner(before) ?? WccScenarioFieldContentScope.CheckOwner(after)) is { } refusal)
             throw new InvalidOperationException(refusal);
         WccScenarioFieldValueCodec.TryGetDefinition(edit.Route.Owner.TagName, edit.Route.Key, out var definition);
+        ValidateCompositeFieldContext(edit, before, after);
         var oldValue = before.ResolveField(edit.Route.Key); var newValue = after.ResolveField(edit.Route.Key);
         if (edit.Route.Origin == WccScenarioFieldOrigin.Absent ? oldValue.State != WmlStaticScalarResolutionState.ProvenAbsent
-            : oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, oldValue.ValueText))
+            : oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, oldValue.ValueText)
+                && !IsFreshKnownEmptyComposite(before, edit.Route.Key, edit.Route.Source))
             throw new InvalidOperationException("A field's baseline value or required absence is not proven in every reviewed context.");
         if (!(edit.Operation == WmlFieldOperation.Remove && edit.Route.Kind == WccScenarioFieldRouteKind.DirectToken
                 && newValue.State == WmlStaticScalarResolutionState.ProvenAbsent)
@@ -1005,7 +1007,11 @@ internal static partial class WccScenarioFieldStaticReviewer
                     if (old.ValueMappingIsExact != current.ValueMappingIsExact
                         || !old.CompositeAssignmentKeys.SequenceEqual(current.CompositeAssignmentKeys, StringComparer.Ordinal)
                         || !SameAssignmentOutput(old, current, before.Evaluation.Text, after.Evaluation.Text)
+                            && !SameCompositeCompanionAssignment(oldOwner, newOwner, old, current,
+                                before.Evaluation.Text, after.Evaluation.Text, targets)
                         || !SameMappedOrigins(old.AssignmentOrigins, current.AssignmentOrigins, change)
+                            && !SameCompositeCompanionInsertionOrigins(oldOwner, newOwner, key, old, current, change,
+                                before.Evaluation.Text, after.Evaluation.Text, targets)
                         || !SameMappedOrigins(old.ValueOrigins, current.ValueOrigins, change)
                         || !SameMappedFrames(old.ExpansionStack, current.ExpansionStack, change)
                         || !SameMappedFrames(old.ValueExpansionStack, current.ValueExpansionStack, change))

@@ -25,21 +25,20 @@ public static partial class WccScenarioDifficultyFieldPlanner
                 {
                     var origin = contribution.AssignmentOrigin;
                     if (origin is null || origin.StartOffset < condition.BodyStart || origin.StartOffset >= condition.BodyEnd) continue;
-                    if (!ExactLocalContribution(contribution, source, out var assignment, out var value)
-                        || key is "id" or "side" or "save_id"
-                        || !WccScenarioFieldValueCodec.TryGetDefinition(owner.TagName, key, out var definition)
+                    if (!ExactInitialComponentContribution(contribution, key, source, out var assignment, out var value)
                         || !WccScenarioFieldValueCodec.IsSupportedLiteralWml(value.Text)
-                        || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition, value.Text)
                         || !IsOwnLine(source.Text, assignment.StartOffset)
                         || assignment.StartOffset + assignment.Length > condition.BodyEnd)
                     { valid = false; break; }
-                    members.Add(new(key, assignment, value, value.Text));
+                    members.Add(new(key, assignment, value, value.Text)
+                    { CompositeAssignment = ComponentContract(contribution, key, source) });
                     Array.Fill(body, ' ', assignment.StartOffset - condition.BodyStart, assignment.Length);
                 }
             if (valid && members.Count != 0 && members.Select(member => member.Key).Distinct(StringComparer.Ordinal).Count() == members.Count
                 && body.All(char.IsWhiteSpace))
                 candidates.Add(new(condition.Define!, new(source, condition.Start, condition.End - condition.Start),
-                    Array.AsReadOnly(members.OrderBy(member => member.Assignment.StartOffset).ToArray())));
+                    Array.AsReadOnly(members.OrderBy(member => member.Assignment.StartOffset)
+                        .ThenBy(member => member.CompositeAssignment?.IndexOf(member.Key) ?? 0).ToArray())));
         }
         // A branch is reusable only when every sibling has one exact literal in
         // every declared context, and the corresponding branches have the same
@@ -64,7 +63,12 @@ public static partial class WccScenarioDifficultyFieldPlanner
 
     private static bool SameGroups(IReadOnlyList<WccScenarioDifficultyFieldGroup> left, IReadOnlyList<WccScenarioDifficultyFieldGroup> right) =>
         left.Count == right.Count && left.Where((group, index) => group.Define != right[index].Define
-            || !SameRange(group.Region, right[index].Region) || !group.Members.SequenceEqual(right[index].Members)).Any() == false;
+            || !SameRange(group.Region, right[index].Region) || group.Members.Count != right[index].Members.Count
+            || group.Members.Where((member, slot) => member.Key != right[index].Members[slot].Key
+                || member.Literal != right[index].Members[slot].Literal
+                || !SameRange(member.Assignment, right[index].Members[slot].Assignment)
+                || !SameRange(member.Value, right[index].Members[slot].Value)
+                || !SameCompositeContract(member.CompositeAssignment, right[index].Members[slot].CompositeAssignment)).Any()).Any() == false;
 
     internal sealed record GroupScalarLocation(int PatchStart, int Offset, int Length);
     internal sealed record GroupPatchPlan(IReadOnlyList<WccScenarioFieldSourcePatch> Patches,
@@ -121,8 +125,31 @@ public static partial class WccScenarioDifficultyFieldPlanner
                 .Where(key => !converted.ContainsKey(key)).Distinct(StringComparer.Ordinal).ToArray();
             var independent = retained.Length != 0 || ownerEdits.Any(edit => edit.Mode == WccScenarioDifficultyValueMode.Independent);
             var groupScalars = new Dictionary<WccScenarioDifficultyFieldGroupMember, WccScenarioFieldCandidate>();
+            var sharedComposites = SharedCompositeAssignments(ownerEdits);
+            var sharedScalars = new Dictionary<(int Assignment, string Key), WccScenarioFieldCandidate>();
             foreach (var scalarEdit in scalar?.Edits ?? [])
             {
+                var shared = sharedComposites.Where(composite => scalarEdit.ReplacementStart < composite.Region.StartOffset + composite.Region.Length
+                    && scalarEdit.ReplacementStart + scalarEdit.ReplacementLength >= composite.Region.StartOffset).ToArray();
+                if (shared.Length != 0)
+                {
+                    var component = shared.Length == 1 ? shared[0].IndexOf(scalarEdit.Route.Key) : -1;
+                    if (shared.Length != 1 || scalarEdit.Route.Target is not { } target
+                        || component < 0
+                        || !SameRange(target, shared[0].Value(component))
+                        || scalarEdit.Operation != WmlFieldOperation.Set || scalarEdit.Route.Kind != WccScenarioFieldRouteKind.DirectToken
+                        || !ownerEdits[0].Snapshot.SameOwner(scalarEdit.Route.Owner)
+                        || scalarEdit.ValueInputKind != WccScenarioFieldValueInputKind.Literal || scalarEdit.RequestedSourceValue is null
+                        || !WccScenarioFieldValueCodec.IsSupportedLiteralWml(scalarEdit.RequestedSourceValue)
+                        || converted.ContainsKey(scalarEdit.Route.Key))
+                        throw new InvalidOperationException("A retained composite companion accepts only its exact direct literal value edit alongside conversion.");
+                    var identity = (shared[0].Assignment.StartOffset, scalarEdit.Route.Key);
+                    if (sharedScalars.TryGetValue(identity, out var previous) && previous.RequestedSourceValue != scalarEdit.RequestedSourceValue)
+                        throw new InvalidOperationException("Conflicting literal edits target a composite companion.");
+                    sharedScalars[identity] = scalarEdit;
+                    absorbed.Add(scalar!.Patches.Single(patch => patch.Start == scalarEdit.ReplacementStart && patch.Length == scalarEdit.ReplacementLength));
+                    continue;
+                }
                 var overlapped = groups.Where(group => scalarEdit.ReplacementStart < group.Region.StartOffset + group.Region.Length
                     && scalarEdit.ReplacementStart + scalarEdit.ReplacementLength > group.Region.StartOffset).ToArray();
                 if (overlapped.Length == 0) continue;
@@ -141,7 +168,8 @@ public static partial class WccScenarioDifficultyFieldPlanner
                 absorbed.Add(scalar!.Patches.Single(patch => patch.Start == scalarEdit.ReplacementStart && patch.Length == scalarEdit.ReplacementLength));
             }
             var builder = new StringBuilder();
-            foreach (var assignment in ownerEdits.SelectMany(edit => edit.Snapshot.Layout!.Assignments).Where(assignment => assignment.Define is null))
+            foreach (var assignment in ownerEdits.SelectMany(edit => edit.Snapshot.Layout!.Assignments).Where(assignment => assignment.Define is null)
+                         .DistinctBy(assignment => (assignment.Region.StartOffset, assignment.Region.Length)))
                 builder.Append(Comments(assignment, layout.Newline, layout.Indent));
             foreach (var edit in ownerEdits.Where(edit => edit.Snapshot.Layout!.MacroContract is not null))
             {
@@ -153,6 +181,20 @@ public static partial class WccScenarioDifficultyFieldPlanner
                     contract.Invocation.StartOffset + contract.Invocation.Length - contract.StatementRegion.StartOffset);
                 builder.Append(Comments(new(null, prefix, contract.Invocation, contract.StatementRegion, ""), layout.Newline, layout.Indent));
             }
+            foreach (var composite in sharedComposites)
+                for (var component = 0; component < composite.Keys.Count; component++)
+                {
+                    var key = composite.Keys[component];
+                    if (converted.ContainsKey(key)) continue;
+                    sharedScalars.TryGetValue((composite.Assignment.StartOffset, key), out var valueEdit);
+                    builder.Append(layout.Indent).Append(key).Append('=');
+                    var value = valueEdit?.RequestedSourceValue ?? composite.Value(component).Text;
+                    if (valueEdit is not null)
+                        foreach (var same in scalar!.Edits.Where(edit => WccScenarioFieldBatchCandidatePlanner.GetSourceEditIdentity(edit.Route)
+                                     == WccScenarioFieldBatchCandidatePlanner.GetSourceEditIdentity(valueEdit.Route)))
+                            locations[same] = new(anchor, builder.Length, value.Length);
+                    builder.Append(value).Append(layout.Newline);
+                }
             foreach (var edit in ownerEdits.Where(edit => edit.Mode == WccScenarioDifficultyValueMode.Shared))
                 builder.Append(edit.Snapshot.Layout!.Indent).Append(edit.Snapshot.Key).Append('=').Append(edit.EncodedValues[0]).Append(layout.Newline);
             for (var index = 0; index < ownerEdits[0].Values.Count; index++)
@@ -169,8 +211,32 @@ public static partial class WccScenarioDifficultyFieldPlanner
                     var absoluteStart = group.Region.StartOffset + startLine.EndOffsetExclusive;
                     var absoluteEnd = group.Region.StartOffset + endLine.StartOffset;
                     var position = absoluteStart;
-                    foreach (var member in group.Members)
+                    foreach (var statementMembers in group.Members.GroupBy(member => (member.Assignment.StartOffset, member.Assignment.Length)))
                     {
+                        var firstMember = statementMembers.First();
+                        if (firstMember.CompositeAssignment is { } composite)
+                        {
+                            var ordered = statementMembers.OrderBy(member => composite.IndexOf(member.Key)).ToArray();
+                            if (!ordered.Select(member => member.Key).SequenceEqual(composite.Keys, StringComparer.Ordinal))
+                                throw new InvalidOperationException("A composite difficulty statement omitted a physical companion.");
+                            var line = WholeStatementLine(source, firstMember.Assignment);
+                            body.Append(source.Text, position, line.StartOffset - position);
+                            body.Append(Comments(new(group.Define, firstMember.Assignment, firstMember.Value, line, firstMember.Literal), layout.Newline, layout.Indent));
+                            foreach (var sibling in ordered)
+                            {
+                                converted.TryGetValue(sibling.Key, out var convertedSibling);
+                                if (convertedSibling?.Mode == WccScenarioDifficultyValueMode.Shared) continue;
+                                groupScalars.TryGetValue(sibling, out var scalarSibling);
+                                var literal = convertedSibling is not null ? convertedSibling.EncodedValues[index]
+                                    : scalarSibling?.RequestedSourceValue ?? sibling.Literal;
+                                body.Append(layout.Indent).Append(sibling.Key).Append('=');
+                                if (scalarSibling is not null) branchLocations.Add((scalarSibling, body.Length, literal.Length));
+                                body.Append(literal).Append(layout.Newline);
+                            }
+                            position = line.StartOffset + line.Length;
+                            continue;
+                        }
+                        var member = statementMembers.Single();
                         if (converted.TryGetValue(member.Key, out var edit) && edit.Mode == WccScenarioDifficultyValueMode.Shared)
                         {
                             var line = WholeStatementLine(source, member.Assignment);
@@ -199,8 +265,8 @@ public static partial class WccScenarioDifficultyFieldPlanner
                 {
                     builder.Append("#ifdef ").Append(define).Append(layout.Newline);
                     foreach (var location in branchLocations)
-                        foreach (var scalarEdit in scalar!.Edits.Where(edit => edit.ReplacementStart == location.Edit.ReplacementStart
-                                     && edit.ReplacementLength == location.Edit.ReplacementLength))
+                        foreach (var scalarEdit in scalar!.Edits.Where(edit => WccScenarioFieldBatchCandidatePlanner.GetSourceEditIdentity(edit.Route)
+                                     == WccScenarioFieldBatchCandidatePlanner.GetSourceEditIdentity(location.Edit.Route)))
                             locations[scalarEdit] = new(anchor, builder.Length + location.Offset, location.Length);
                     builder.Append(body).Append("#endif").Append(layout.Newline);
                 }
@@ -284,6 +350,8 @@ public static partial class WccScenarioDifficultyFieldPlanner
             return "Difficulty groups are separated by other preprocessor directives; merging their source order requires RAW editing.";
         var translated = groups.SelectMany(group => group.Members).Where(member => IsTranslated(member.Literal))
             .Select(member => member.Assignment.StartOffset)
+            .Concat(SharedCompositeAssignments(edits).SelectMany(composite => composite.Keys.Select(key => composite.Value(composite.IndexOf(key))))
+                .Where(value => IsTranslated(value.Text)).Select(value => value.StartOffset))
             .Concat(edits.SelectMany(edit => edit.Snapshot.Layout!.Assignments).Where(assignment => IsTranslated(assignment.Literal))
                 .Select(assignment => assignment.Assignment.StartOffset)).ToArray();
         if (translated.Length == 0 && !edits.Any(edit => edit.EncodedValues.Any(IsTranslated))) return null;

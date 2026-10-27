@@ -28,10 +28,9 @@ launch setup serves version detection, preprocessing and image previews; each
 container request shares only its game/input and requested output directories.
 Installing Steam does not route unrelated native installations through its runtime.
 
-Direct Linux launching and split-directory detection have regression coverage run
-on Linux. Real binary checks also cover the supplied Linux game files and a Steam
-layout with Runtime 4. Those checks do not establish end-to-end compatibility with
-every distribution package or self-built installation; those remain manual test cases.
+Distribution packages and self-built installations can differ in their native
+libraries and directory layout. Check detection, preprocessing and image previews
+with the selected installation before relying on it for a project.
 
 `Library/`, `Cache/` and `settings.json` belong beside the executable. Startup creates
 portable data on first use.
@@ -88,7 +87,7 @@ Extended POSIX access ACLs are refused until exact preservation is supported.
 From PowerShell at the repository root:
 
 ```powershell
-./scripts/Publish-Portable.ps1 -Version 0.1.0-preview
+./scripts/Publish-Portable.ps1 -Version 0.1.1
 ```
 
 The script publishes sequentially into fresh staging folders under
@@ -96,15 +95,15 @@ The script publishes sequentially into fresh staging folders under
 restored package license/notice files and metadata, and creates `README.txt` and
 `ThirdPartyNotices/SHA256SUMS`. Completed folders have the form
 `WCC-<version>-<rid>`. Existing output or archive names cause refusal;
-choose a new output root instead of deleting user
-data. Interrupted staging folders remain available for inspection.
+choose a new output root instead of deleting user data. Interrupted staging
+folders remain available for inspection.
 
 The publish invocation imports `scripts/PortableAppHost.targets` only for this
 operation. It uses the pinned SDK's `CreateAppHost` task and pristine RID apphost
 to generate the native root entry point, embedding `bin/Wcc.App.dll` and selecting
-app-local .NET lookup. The SDK stock host is retained outside the release in its
-unique staging parent as build evidence. The Windows GUI subsystem and managed PE
-resources are retained. Normal development builds do not import this target.
+app-local .NET lookup. The original SDK apphost remains in its unique staging
+parent outside the release. The Windows GUI subsystem and managed PE resources
+are retained. Normal development builds do not import this target.
 
 The [.NET HostWriter contract](https://github.com/dotnet/runtime/blob/v10.0.3/src/installer/managed/Microsoft.NET.HostModel/AppHost/HostWriter.cs)
 supports relative managed paths and a different host filename. The native
@@ -124,8 +123,8 @@ download the existing project dependencies and required runtime/apphost packs.
 Select one runtime or a different fresh destination when needed:
 
 ```powershell
-./scripts/Publish-Portable.ps1 -RuntimeIdentifiers win-x64 -Version 0.1.0-preview -OutputRoot artifacts/release-review
-./scripts/Publish-Portable.ps1 -RuntimeIdentifiers linux-x64 -Version 0.1.0-preview -OutputRoot artifacts/linux-review -NoArchive
+./scripts/Publish-Portable.ps1 -RuntimeIdentifiers win-x64 -Version 0.1.1 -OutputRoot artifacts/release-review
+./scripts/Publish-Portable.ps1 -RuntimeIdentifiers linux-x64 -Version 0.1.1 -OutputRoot artifacts/linux-review -NoArchive
 ```
 
 Windows output becomes a ZIP. Linux output becomes a tar.gz when the script runs
@@ -134,43 +133,44 @@ because ZIP/Windows file modes do not establish the apphost's Unix executable bi
 On Linux, from the directory containing the completed Linux folder:
 
 ```sh
-chmod 755 WCC-0.1.0-preview-linux-x64/WCC
-if [ -f WCC-0.1.0-preview-linux-x64/bin/createdump ]; then
-  chmod 755 WCC-0.1.0-preview-linux-x64/bin/createdump
+chmod 755 WCC-0.1.1-linux-x64/WCC
+if [ -f WCC-0.1.1-linux-x64/bin/createdump ]; then
+  chmod 755 WCC-0.1.1-linux-x64/bin/createdump
 fi
 tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
-  -czf WCC-0.1.0-preview-linux-x64.tar.gz WCC-0.1.0-preview-linux-x64
+  -czf WCC-0.1.1-linux-x64.tar.gz WCC-0.1.1-linux-x64
 ```
 
 The resulting archive retains executable mode without requiring .NET on the test
 machine. GNU tar's fixed ordering/timestamps make archive metadata repeatable;
 this is not a claim that unpinned package feeds or SDK versions produce identical
-binaries. Keep the exact source/build/test receipts for the release being shared.
+binaries. Record the source revision, SDK and package versions, and archive hashes
+for each release.
 
 ## Check before sharing
 
 Test the extracted archives, not only the build directory. Verify startup from a
 different working directory, a writable folder with spaces, fresh Library
-initialization without importing existing legacy data, relocation with owned Library
-entries, and a fresh profile pointing to an actual matching Wesnoth installation.
-Check one campaign create/save/reopen,
+initialization, relocation with owned Library entries, and a fresh profile pointing
+to an actual matching Wesnoth installation. Check campaign create/save/reopen,
 images/fonts, pickers and native preprocessing. On Linux use a case-sensitive local
-filesystem and verify both text and binary-resource writes. Retain original fixtures.
+filesystem and verify both text and binary-resource writes using backed-up sample
+projects.
 
-The source tests and packaging commands alone do not establish native Linux GUI or
+A successful build and packaging command alone do not establish native Linux GUI or
 Wesnoth gameplay compatibility. Record the OS/runtime/desktop actually tested and
 any missing native dependencies. WSL/X11 smoke checks should be identified as such.
 
 `ThirdPartyNotices/WCC.txt` is the central license and attribution index in source
-and distributions. WCC's source uses LGPL-3.0-or-later (see the root LICENSE and
-COPYING texts). Original component and
-font licenses and the Wesnoth image inventory are kept beside the index.
-Add future components/assets to the index and retain
-their required notices in `ThirdPartyNotices/`; the App project copies that folder
-into development and publish outputs.
+and distributions. WCC's source uses LGPL-3.0-or-later (see the root
+[LICENSE](../LICENSE), [COPYING](../COPYING) and [COPYING.LESSER](../COPYING.LESSER)).
+Original component and font licenses and the Wesnoth image inventory are kept
+beside the index. Add future components/assets to the index and retain their
+required notices in `ThirdPartyNotices/`; the App project copies that folder into
+development and publish outputs.
 
 Portable publishing also gathers restored package license/notice files and
 `.nuspec` version metadata under `ThirdPartyNotices/Packages/`, and the exact
 self-contained runtime's license/notices under `ThirdPartyNotices/DotNet/`.
 The explicit MicroCom and Tmds notices cover upstream MIT texts absent from
-those NuGet packages. No WCC license is selected by the publishing process.
+those NuGet packages.

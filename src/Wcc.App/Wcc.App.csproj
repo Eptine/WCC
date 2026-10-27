@@ -4,6 +4,11 @@
     <Product>WCC</Product>
     <AssemblyTitle>WCC</AssemblyTitle>
     <TargetFramework>net10.0</TargetFramework>
+    <Version>0.1.1</Version>
+    <AssemblyVersion>0.1.1.0</AssemblyVersion>
+    <FileVersion>0.1.1.0</FileVersion>
+    <InformationalVersion>0.1.1</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Wcc\Icons\WCC.ico</ApplicationIcon>

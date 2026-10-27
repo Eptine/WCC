@@ -51,6 +51,8 @@ public static class WccScenarioFieldBatchCandidatePlanner
                      route.Kind == WccScenarioFieldRouteKind.OptionalArgument ? route.ParameterName ?? ""
                          : route.Kind == WccScenarioFieldRouteKind.LocalAssignment ? route.Key : "" })
             identity.Append(part.Length).Append(':').Append(part);
+        if (route.Kind == WccScenarioFieldRouteKind.DirectToken && range.Length == 0 && route.CompositeAssignment is not null)
+            identity.Append(":component:").Append(route.CompositeComponentIndex.ToString("D4", CultureInfo.InvariantCulture));
         return identity.ToString();
     }
 
@@ -78,12 +80,18 @@ public static class WccScenarioFieldBatchCandidatePlanner
         var distinct = edits.GroupBy(edit => GetSourceEditIdentity(edit.Route), StringComparer.Ordinal)
             .Select(group => group.First()).ToArray();
         var patches = new List<WccScenarioFieldSourcePatch>();
+        var compositeLocations = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var group in distinct.GroupBy(edit => (edit.ReplacementStart, edit.ReplacementLength)))
         {
             var items = group.OrderBy(edit => GetSourceEditIdentity(edit.Route), StringComparer.Ordinal).ToArray();
             if (group.Key.ReplacementLength != 0 && items.Any(edit => edit.ReplacementText != items[0].ReplacementText))
                 throw new InvalidOperationException("Conflicting proposals replace the same authored source token.");
-            patches.Add(new(group.Key.ReplacementStart, group.Key.ReplacementLength,
+            if (group.Key.ReplacementLength == 0 && WccScenarioCompositeAssignment.ComposeEmptyInsertions(items, out var inserted, out var offsets))
+            {
+                patches.Add(new(group.Key.ReplacementStart, 0, inserted));
+                foreach (var (identity, offset) in offsets) compositeLocations.Add(identity, offset);
+            }
+            else patches.Add(new(group.Key.ReplacementStart, group.Key.ReplacementLength,
                 group.Key.ReplacementLength == 0 ? string.Concat(items.Select(edit => edit.ReplacementText)) : items[0].ReplacementText));
         }
         patches = patches.OrderBy(patch => patch.Start).ThenBy(patch => patch.Length).ToList();
@@ -105,6 +113,9 @@ public static class WccScenarioFieldBatchCandidatePlanner
             var patch = patches.Single(item => item.Start == edit.ReplacementStart && item.Length == edit.ReplacementLength);
             var precedingDelta = patches.TakeWhile(item => !ReferenceEquals(item, patch))
                 .Sum(item => item.ReplacementText.Length - item.Length);
+            if (compositeLocations.TryGetValue(GetSourceEditIdentity(edit.Route), out var componentOffset))
+                return edit with { ProposedValueOrigin = new(candidateSource,
+                    edit.ReplacementStart + precedingDelta + componentOffset, edit.RequestedSourceValue!.Length) };
             var insertionPrefix = edit.ReplacementLength == 0 ? distinct.Where(item => item.ReplacementStart == edit.ReplacementStart
                     && item.ReplacementLength == 0).OrderBy(item => GetSourceEditIdentity(item.Route), StringComparer.Ordinal)
                 .TakeWhile(item => GetSourceEditIdentity(item.Route) != GetSourceEditIdentity(edit.Route))

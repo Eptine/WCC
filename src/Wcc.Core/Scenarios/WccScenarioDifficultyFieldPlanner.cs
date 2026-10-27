@@ -68,7 +68,7 @@ public static partial class WccScenarioDifficultyFieldPlanner
                 && (!rawOwner.Fields.TryGetValue(key, out var macroRawField)
                     || macroRawField.Contributions.Any(contribution =>
                     {
-                        if (!ExactLocalContribution(contribution, source, out var assignment, out var value)
+                        if (!ExactInitialComponentContribution(contribution, key, source, out var assignment, out var value)
                             || !WccScenarioFieldValueCodec.IsSupportedLiteralWml(value.Text)) return true;
                         var statement = WholeStatementLine(source, assignment);
                         return scan.Macros.Any(macro => macro.StartOffset < statement.StartOffset + statement.Length
@@ -101,7 +101,7 @@ public static partial class WccScenarioDifficultyFieldPlanner
             if (rawOwner.Fields.TryGetValue(key, out var rawField))
                 foreach (var contribution in rawField.Contributions)
                 {
-                    if (!ExactLocalContribution(contribution, source, out var assignment, out var value)
+                    if (!ExactInitialComponentContribution(contribution, key, source, out var assignment, out var value)
                         || !WccScenarioFieldValueCodec.IsSupportedLiteralWml(value!.Text)
                         || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(field!, value.Text))
                         throw new InvalidOperationException("The field is composite, generated or contains a nonliteral value; use its existing value edit or RAW.");
@@ -112,15 +112,20 @@ public static partial class WccScenarioDifficultyFieldPlanner
                         throw new InvalidOperationException("The field needs a standalone literal assignment without a macro value.");
                     var containing = blocks.Where(block => block.Start < assignment.StartOffset && block.End > assignment.StartOffset).ToArray();
                     if (containing.Length == 0)
-                        assignments.Add(new(null, assignment, value, lineRange, value.Text));
+                        assignments.Add(new(null, assignment, value, lineRange, value.Text)
+                        { CompositeAssignment = ComponentContract(contribution, key, source) });
                     else if (containing.Length == 1 && containing[0] is { } block && block.Define is not null
                         && block.Start > opening.StartOffset && block.End <= closing.StartOffset
                         && block.DirectiveCount == 2 && !block.HasElse && groups.Any(group => group.Region.StartOffset == block.Start
                             && group.Region.Length == block.End - block.Start && group.Members.Any(member => member.Key == key
                                 && SameRange(member.Assignment, assignment))))
-                        assignments.Add(new(block.Define, assignment, value, new(source, block.Start, block.End - block.Start), value.Text));
+                        assignments.Add(new(block.Define, assignment, value, new(source, block.Start, block.End - block.Start), value.Text)
+                        { CompositeAssignment = ComponentContract(contribution, key, source) });
                     else throw new InvalidOperationException("The field uses mixed, nested or shared conditional code; its existing source remains editable without changing topology.");
                 }
+            foreach (var composite in assignments.Select(item => item.CompositeAssignment).OfType<WccScenarioCompositeAssignment>()
+                         .DistinctBy(item => (item.Assignment.StartOffset, item.Assignment.Length)))
+                RequireLiteralComposite(rawOwner, composite);
             if (assignments.Count > 0 && assignments.All(item => item.Define is not null))
             {
                 mode = WccScenarioDifficultyValueMode.Independent;
@@ -153,7 +158,7 @@ public static partial class WccScenarioDifficultyFieldPlanner
             var selected = owner.ResolveField(key);
             if (selected.State == WmlStaticScalarResolutionState.Unresolved
                 || selected.State == WmlStaticScalarResolutionState.Known && (!owner.Fields.TryGetValue(key, out var captured)
-                    || captured.Contributions.Count != 1 || !ExactLocalContribution(captured.Contributions[0], source, out var current, out _)
+                    || captured.Contributions.Count != 1 || !ExactInitialComponentContribution(captured.Contributions[0], key, source, out var current, out _)
                     || !assignments.Any(item => SameRange(item.Assignment, current!))))
                 throw new InvalidOperationException("The captured field is not one exact direct local literal assignment or proven absence.");
             for (var index = 0; index < plan.Difficulties.Count; index++)
@@ -225,7 +230,7 @@ public static partial class WccScenarioDifficultyFieldPlanner
     internal static bool Equivalent(WccScenarioDifficultyFieldSnapshot left, WccScenarioDifficultyFieldSnapshot right) =>
         left.CanEdit && right.CanEdit && SameOwner(left.Owner, right.Owner) && left.Key == right.Key && left.Mode == right.Mode
         && SameSource(left.MainSource, right.MainSource) && SameSource(left.Source, right.Source)
-        && left.Values.SequenceEqual(right.Values) && left.Layout!.Assignments.SequenceEqual(right.Layout!.Assignments)
+        && left.Values.SequenceEqual(right.Values) && SameDifficultyAssignments(left.Layout!.Assignments, right.Layout!.Assignments)
         && SameGroups(left.Layout.Groups, right.Layout.Groups)
         && SameMacroContract(left.Layout.MacroContract, right.Layout.MacroContract)
         && SameInsertionIntent(left.InsertionIntent, right.InsertionIntent)

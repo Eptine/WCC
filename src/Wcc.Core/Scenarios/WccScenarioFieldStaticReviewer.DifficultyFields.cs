@@ -112,6 +112,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         }
         ValidateRetainedDifficultyGroupFields(file, converted, context,
             allowedBefore, allowedAfter);
+        ValidateSharedCompositeCompanions(file, converted, context, change, allowedBefore, allowedAfter);
         ValidateConvertedFootprints(baseline, file.Regions.Where(region => region.Kind == "DifficultyField").Select(region => region.Before),
             allowedBefore, allowedMacroBefore);
         ValidateConvertedFootprints(proposed, file.Regions.Where(region => region.Kind == "DifficultyField").Select(region => region.After), allowedAfter);
@@ -186,9 +187,8 @@ internal static partial class WccScenarioFieldStaticReviewer
                     if (item.Edit.Snapshot.Values[index].ContextSemanticKey != context.SemanticKey) continue;
                     var before = new WccScenarioDifficultyFieldAssignment(oldSlots[index].Define,
                         old.Assignment, old.Value, old.Assignment, old.Literal);
-                    ValidateConvertedContribution(item.Before, file.Request.Source, key, before, null);
-                    ValidateConvertedContribution(item.After, file.Candidate.CandidateSource, key, after,
-                        scalar?.RequestedValue ?? WccScenarioFieldValueCodec.DecodeLiteral(old.Literal));
+                    ValidatePreservedDifficultyContribution(item.Before, file.Request.Source, key, before);
+                    ValidatePreservedDifficultyContribution(item.After, file.Candidate.CandidateSource, key, after);
                     allowedBefore.Add((item.Before, key, old.Assignment));
                     allowedAfter.Add((item.After, key, after.Assignment));
                 }
@@ -247,7 +247,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         }
         if (resolution.State != WmlStaticScalarResolutionState.Known || !owner.Fields.TryGetValue(key, out var field)
             || field.Contributions.Count != 1
-            || !WccScenarioDifficultyFieldPlanner.ExactLocalContribution(field.Contributions[0], source, out var assignment, out var value)
+            || !WccScenarioDifficultyFieldPlanner.ExactInitialComponentContribution(field.Contributions[0], key, source, out var assignment, out var value)
             || !WccScenarioDifficultyFieldPlanner.SameRange(expected.Assignment, assignment!)
             || !WccScenarioDifficultyFieldPlanner.SameRange(expected.Value, value!) || resolution.ValueText != expected.Literal)
             throw new InvalidOperationException("The converted field is not exactly its one expected direct contribution; an earlier, generated or overriding assignment remains.");
@@ -279,5 +279,88 @@ internal static partial class WccScenarioFieldStaticReviewer
                             throw new InvalidOperationException("A difficulty conversion changes another scalar inside its approved field-only footprint.");
             }
         }
+    }
+
+    private static void ValidateSharedCompositeCompanions(WccProjectComposedFile file,
+        IReadOnlyList<(WccScenarioDifficultyFieldEdit Edit, WmlStaticScalarOwner Before,
+            WmlStaticScalarOwner After, WccScenarioDifficultyFieldSnapshot Current)> converted,
+        WmlEvaluationContext context, WccScenarioFieldSourceChange change,
+        List<(WmlStaticScalarOwner Owner, string Key, WmlStaticSourceRange Assignment)> allowedBefore,
+        List<(WmlStaticScalarOwner Owner, string Key, WmlStaticSourceRange Assignment)> allowedAfter)
+    {
+        if (context.CampaignDefine is null) return;
+        var checkedStatements = new HashSet<(WmlStaticScalarOwner Owner, int Start, int Length)>();
+        var regions = file.Regions.Where(region => region.Kind == "DifficultyField").ToArray();
+        foreach (var item in converted)
+        {
+            var ownerEdits = converted.Where(other => WccScenarioDifficultyFieldPlanner.SameOwner(
+                other.Edit.Snapshot.Owner, item.Edit.Snapshot.Owner)).ToArray();
+            var selected = ownerEdits.Select(other => other.Edit.Snapshot.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var assignment in item.Edit.Snapshot.Layout!.Assignments.Where(slot => slot.Define is null && slot.CompositeAssignment is not null))
+            {
+                var recorded = assignment.CompositeAssignment!;
+                if (!checkedStatements.Add((item.Before, recorded.Assignment.StartOffset, recorded.Assignment.Length))) continue;
+                // Reconstruct the complete tuple from the fresh captured physical
+                // contribution. Recipe metadata never defines the companion set.
+                if (!item.Before.Fields.TryGetValue(item.Edit.Snapshot.Key, out var requested)
+                    || requested.Contributions.Count != 1
+                    || !WccScenarioCompositeAssignment.TryCapture(requested.Contributions[0], item.Edit.Snapshot.Key,
+                        file.Request.Source, out var physical) || !physical.Same(recorded)
+                    || !regions.Any(region => ContainsDifficultyAssignment(region.Before, physical.Assignment)))
+                    throw new InvalidOperationException("The composite conversion does not reproduce its complete fresh physical statement.");
+                WccScenarioDifficultyFieldPlanner.RequireLiteralComposite(item.Before, physical);
+                foreach (var key in physical.Keys.Where(key => !selected.Contains(key)))
+                {
+                    var oldValue = physical.Value(physical.IndexOf(key));
+                    var scalarEdits = file.Candidate.Edits.Where(edit => edit.Route.Key == key
+                        && WccScenarioDifficultyFieldPlanner.SameOwner(edit.Route.Owner, item.Edit.Snapshot.Owner)
+                        && edit.Route.Target is { } target && WccScenarioDifficultyFieldPlanner.SameRange(target, oldValue)).ToArray();
+                    if (scalarEdits.Length > 1 && scalarEdits.Select(edit => edit.RequestedSourceValue).Distinct(StringComparer.Ordinal).Count() != 1)
+                        throw new InvalidOperationException("A composite companion has conflicting scalar intents.");
+                    var scalar = scalarEdits.FirstOrDefault();
+                    if (scalar is not null && (scalar.Route.Kind != WccScenarioFieldRouteKind.DirectToken
+                        || scalar.Operation != WmlFieldOperation.Set || scalar.ValueInputKind != WccScenarioFieldValueInputKind.Literal
+                        || scalar.RequestedSourceValue is null))
+                        throw new InvalidOperationException("Only an exact literal companion edit can accompany composite conversion.");
+                    var expected = scalar?.RequestedSourceValue ?? oldValue.Text;
+                    if (!item.After.Fields.TryGetValue(key, out var next) || next.Contributions.Count != 1
+                        || !WccScenarioDifficultyFieldPlanner.ExactInitialComponentContribution(next.Contributions[0], key,
+                            file.Candidate.CandidateSource, out var newAssignment, out var newValue)
+                        || newValue.Text != expected
+                        || !regions.Any(region => ContainsDifficultyAssignment(region.After, newAssignment))
+                        || scalar is not null && (scalar.ProposedValueOrigin is not { } intended
+                            || !WccScenarioDifficultyFieldPlanner.SameRange(intended, newValue)))
+                        throw new InvalidOperationException("A retained composite companion changed or disappeared in the candidate.");
+                    var oldAssignment = new WccScenarioDifficultyFieldAssignment(null, physical.Assignment,
+                        oldValue, physical.Region, oldValue.Text) { CompositeAssignment = physical };
+                    var afterAssignment = new WccScenarioDifficultyFieldAssignment(null, newAssignment, newValue, newAssignment, expected);
+                    ValidatePreservedDifficultyContribution(item.Before, file.Request.Source, key, oldAssignment);
+                    ValidatePreservedDifficultyContribution(item.After, file.Candidate.CandidateSource, key, afterAssignment);
+                    var previous = item.Before.Fields[key].Contributions[0];
+                    if (previous.ValueMappingIsExact != next.Contributions[0].ValueMappingIsExact
+                        || !SameMappedFrames(previous.ExpansionStack, next.Contributions[0].ExpansionStack, change)
+                        || !SameMappedFrames(previous.ValueExpansionStack, next.Contributions[0].ValueExpansionStack, change))
+                        throw new InvalidOperationException("A retained composite companion changed its exact expansion ancestry.");
+                    ValidateConvertedTextdomain(file.Request.Source, physical.Assignment.StartOffset,
+                        file.Candidate.CandidateSource, afterAssignment);
+                    allowedBefore.Add((item.Before, key, physical.Assignment));
+                    allowedAfter.Add((item.After, key, newAssignment));
+                }
+            }
+        }
+    }
+
+    private static void ValidatePreservedDifficultyContribution(WmlStaticScalarOwner owner, WmlStaticSource source,
+        string key, WccScenarioDifficultyFieldAssignment expected)
+    {
+        if (owner.ResolveField(key).State != WmlStaticScalarResolutionState.Known
+            || !owner.Fields.TryGetValue(key, out var field) || field.Contributions.Count != 1
+            || !WccScenarioDifficultyFieldPlanner.ExactInitialComponentContribution(field.Contributions[0], key,
+                source, out var assignment, out var value)
+            || !WccScenarioDifficultyFieldPlanner.SameRange(assignment, expected.Assignment)
+            || !WccScenarioDifficultyFieldPlanner.SameRange(value, expected.Value)
+            || field.ValueText != expected.Literal || value.Text != expected.Literal
+            || !WccScenarioFieldValueCodec.IsSupportedLiteralWml(expected.Literal))
+            throw new InvalidOperationException("A retained difficulty companion changed its sole exact literal contribution.");
     }
 }

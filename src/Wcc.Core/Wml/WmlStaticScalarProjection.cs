@@ -295,16 +295,11 @@ public sealed partial class WmlStaticScalarProjection
                 var split = keys.Split(',').Select(key => key.Trim()).ToArray();
                 if (split.Length > 1 && split.All(Identifier))
                 {
-                    // Numeric pairs also occur as side,color and on generated [unit] tags.
-                    // Observe each exact component without lending a new typed edit route.
-                    if (split.Length == 2 && split.Distinct(StringComparer.Ordinal).Count() == 2
-                        && (split.All(key => key is "x" or "y") && owner.TagName is "side" or "leader" or "image" or "unit"
-                            || split.All(key => key is "side" or "color") && owner.TagName == "side")
-                        && TryLiteralPairComponents(statement.Code, equals + 1, out var components))
+                    if (WmlMultipleAssignmentSyntax.TryRead(statement.Code, out var assignment, out _, cancellationToken))
                     {
-                        for (var index = 0; index < split.Length; index++)
-                            AddScalarContribution(owner, split[index], statement, components[index].Start,
-                                components[index].Value, split);
+                        foreach (var component in assignment.Components)
+                            AddScalarContribution(owner, component.Key, statement, component.ValueOffset,
+                                statement.Code.Substring(component.ValueOffset, component.ValueLength), assignment.Keys);
                         return;
                     }
                     foreach (var key in split) UnknownField(owner, key);
@@ -326,6 +321,10 @@ public sealed partial class WmlStaticScalarProjection
             // authored value and ordinary origin mappings; observation grants no edit authority.
             var known = IsSimpleValue(value) || WccWmlPlainTextCodec.IsTextField(owner.TagName, key, owner.Parent?.TagName) &&
                 WccWmlPlainTextCodec.TryReadLiteral(value, out _, out _);
+            // Existing scalar codecs trim Unicode boundary whitespace. Preserve
+            // native bytes in component evidence but keep those values RAW until
+            // that separate codec contract can represent them without normalization.
+            if (compositeKeys.Count != 0 && value != value.Trim()) known = false;
             WmlStaticScalarContribution contribution;
             IReadOnlyList<WmlStaticSourceRange> valueOrigins;
             if (maskedContributions?.Find(owner.TagName, key, statement.Offset, statement.Code,
@@ -360,35 +359,6 @@ public sealed partial class WmlStaticScalarProjection
             owner.Values[key] = new(key, value, known && owner.StructureKnown,
                 valueOrigins) { Contributions = history.AsReadOnly() };
             if (!known) owner.HasUnresolvedContributions = true;
-        }
-
-        private static bool TryLiteralPairComponents(string code, int start,
-            out (int Start, string Value)[] components)
-        {
-            components = [];
-            var quoted = false; var comma = -1;
-            for (var index = start; index < code.Length; index++)
-            {
-                if (code[index] == '"')
-                {
-                    if (quoted && index + 1 < code.Length && code[index + 1] == '"') { index++; continue; }
-                    quoted = !quoted;
-                }
-                if (!quoted && code[index] == ',') { if (comma >= 0) return false; comma = index; }
-            }
-            if (quoted || comma < 0) return false;
-            var result = new List<(int Start, string Value)>();
-            foreach (var (offset, length) in new[] { (start, comma - start), (comma + 1, code.Length - comma - 1) })
-            {
-                var valueStart = offset;
-                while (valueStart < offset + length && char.IsWhiteSpace(code[valueStart])) valueStart++;
-                var value = code.Substring(valueStart, offset + length - valueStart).TrimEnd();
-                var literal = value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
-                if (literal != "recall" && !int.TryParse(literal, System.Globalization.NumberStyles.AllowLeadingSign,
-                        System.Globalization.CultureInfo.InvariantCulture, out _)) return false;
-                result.Add((valueStart, value));
-            }
-            components = result.ToArray(); return true;
         }
 
         private void SkipDefinition(ref int position)
@@ -674,29 +644,8 @@ public sealed partial class WmlStaticScalarProjection
             return new(start, Text[start..position].TrimEnd());
         }
 
-        private int? FindContinuedStringOperand(int position)
-        {
-            while (position < Text.Length)
-            {
-                while (position < Text.Length && char.IsWhiteSpace(Text[position])) position++;
-                if (position >= Text.Length || Text[position] != '#') break;
-                var end = position;
-                while (end < Text.Length && Text[end] is not ('\r' or '\n')) end++;
-                var directive = Directive(Text[position..end]);
-                if (IsCondition(directive) || directive is "define" or "undef" or "else" or "endif" or
-                    "enddef" or "arg" or "endarg" or "error" or "warning" or "deprecated") return null;
-                position = end; // Ordinary comments and textdomain metadata between string operands.
-            }
-            if (position < Text.Length && Text[position] == '_')
-            {
-                position++;
-                while (position < Text.Length && Text[position] is ' ' or '\t') position++;
-            }
-            return position < Text.Length && (Text[position] == '"' ||
-                Text[position] == '<' && position + 1 < Text.Length && Text[position + 1] == '<')
-                ? position : null;
-        }
-
+        private int? FindContinuedStringOperand(int position) =>
+            WmlMultipleAssignmentSyntax.FindContinuedOperand(Text, position, cancellationToken);
 
         private static bool IsSimpleValue(string value)
         {

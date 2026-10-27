@@ -122,13 +122,15 @@ internal static partial class WccScenarioFieldStaticReviewer
                 if ((WccScenarioFieldContentScope.CheckOwner(oldOwner)
                     ?? WccScenarioFieldContentScope.CheckOwner(newOwner)) is { } contentRefusal)
                     return Refuse(contentRefusal);
+                ValidateCompositeFieldContext(candidate, oldOwner, newOwner);
                 var oldValue = oldOwner.ResolveField(route.Key);
                 var newValue = newOwner.ResolveField(route.Key);
                 if (route.Origin == WccScenarioFieldOrigin.Absent
                     && oldValue.State != WmlStaticScalarResolutionState.ProvenAbsent)
                     return Refuse("Insertion requires proven field absence in every declared context.");
                 if (route.Origin != WccScenarioFieldOrigin.Absent
-                    && (oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition, oldValue.ValueText)))
+                    && (oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition, oldValue.ValueText)
+                        && !IsFreshKnownEmptyComposite(oldOwner, route.Key, state.Source)))
                     return Refuse("The current field is not a known supported scalar in every declared context.");
                 if (!(operation == WmlFieldOperation.Remove && route.Kind == WccScenarioFieldRouteKind.DirectToken
                       && newValue.State == WmlStaticScalarResolutionState.ProvenAbsent)
@@ -499,6 +501,12 @@ internal static partial class WccScenarioFieldStaticReviewer
                     refusal = "The scalar operation adds or removes an unexpected assignment; its expanded output needs RAW review.";
                     return effects;
                 }
+                if (target is null && !SameUnrequestedCompositeHistory(oldOwner, newOwner, key, oldField, newField,
+                        candidate, baselineText, proposedText, targets))
+                {
+                    refusal = "The source operation changes an unrequested multiple assignment or its ordered history; its coupled output needs RAW review.";
+                    return effects;
+                }
                 if (oldValue.State == newValue.State && oldValue.ValueText == newValue.ValueText) continue;
                 if (target is not null) continue;
                 if (!HasEventAncestor(newOwner)
@@ -509,7 +517,10 @@ internal static partial class WccScenarioFieldStaticReviewer
                                             && contribution.ExpansionStack.Any(frame =>
                                                 frame.InvocationOrigins.Any(origin => SameMappedRange(invocation, origin, candidate)))))
                 {
-                    refusal = "The source operation changes another field outside its verified local event consumers; use RAW review.";
+                    refusal = newOwner.Fields.TryGetValue(key, out var changedField)
+                        && changedField.Contributions.Any(item => item.CompositeAssignmentKeys.Count != 0)
+                        ? "The source operation changes an unrequested multiple assignment; its coupled event output needs RAW review."
+                        : "The source operation changes another field outside its verified local event consumers; use RAW review.";
                     return effects;
                 }
                 effects.Add($"{newOwner.TagName}.{key}: {oldValue.ValueText ?? "(absent)"} → {newValue.ValueText ?? "(absent)"}");
@@ -663,7 +674,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         // their scalar value remains unknown. Never borrow retained history from
         // an unknown conditional/multiple-key write (those have no current text).
         var contribution = field.Contributions.LastOrDefault();
-        return field.ValueText is not null && contribution is { ValueMappingIsExact: true }
+        return field.ValueText is not null && contribution is { ValueMappingIsExact: true, CompositeAssignmentKeys.Count: 0 }
             && contribution.ValueOutputLength == field.ValueText.Length
             && contribution.ValueOrigins.Sum(origin => origin.Length) == field.ValueText.Length
             && string.Concat(contribution.ValueOrigins.Select(origin => origin.Text)) == field.ValueText

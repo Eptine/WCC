@@ -55,11 +55,41 @@ public static class WccScenarioFieldRouteAnalyzer
         route = route with { Invocation = localFrames.LastOrDefault() is { } nearest ? LocalInvocation(nearest, editableSource) : null };
         if (!supportedField)
             return route with { Diagnostic = "This property has no supported initial-field edit; its authored value remains available in RAW source." };
-        if (contribution.CompositeAssignmentKeys.Count != 0 &&
-            !(owner.TagName is "side" or "leader" or "image" &&
-              contribution.CompositeAssignmentKeys.Count == 2 &&
-              contribution.CompositeAssignmentKeys.All(component => component is "x" or "y")))
-            return route with { Diagnostic = "This multiple assignment is available for inspection; edit its authored RAW source." };
+        var definitionComposite = false;
+        if (contribution.CompositeAssignmentKeys.Count != 0)
+        {
+            if (owner.TagName == "side" && key == "side")
+                return route with { Diagnostic = "A side number in a multiple assignment remains an identity field; use its supported topology workflow or RAW source." };
+            if (contribution.CompositeAssignmentKeys.Distinct(StringComparer.Ordinal).Count() != contribution.CompositeAssignmentKeys.Count)
+                return route with { Diagnostic = "Duplicate assignment keys have no unique structured component target; use authored RAW source." };
+            if (!WccScenarioCompositeAssignment.TryCapture(contribution, key, editableSource, out var composite))
+            {
+                // A generated owner can keep its assignment head in a read-only
+                // definition while its complete value comes from a local required
+                // argument. Only that existing exact argument route may proceed.
+                definitionComposite = !contribution.AssignmentOrigins.Any(origin =>
+                    SameSource(origin.Source, editableSource) && OutsideDefinitions(origin, contribution.ExpansionStack)
+                    && WmlMultipleAssignmentSyntax.TryReadAt(editableSource.Text, origin.StartOffset, out var header, out _)
+                    && header.Keys.SequenceEqual(contribution.CompositeAssignmentKeys, StringComparer.Ordinal));
+                if (!definitionComposite)
+                    return route with { Diagnostic = "This multiple assignment has no exact single-component source mapping; use authored RAW source." };
+            }
+            else
+            {
+                if (!composite.HasExclusiveComponent(owner, key, contribution))
+                    return route with { Diagnostic = "Another native component consumes this physical value expression; use authored RAW source." };
+                route = route with { CompositeAssignment = composite, CompositeComponentIndex = composite.IndexOf(key) };
+                var component = composite.Value(route.CompositeComponentIndex);
+                localFrames = localFrames.Where(frame => composite.ContainsValue(key, LocalInvocation(frame, editableSource)!)).ToArray();
+                var exactComponent = contribution.ValueOrigins.Count == 1 &&
+                    WccScenarioDifficultyFieldPlanner.SameRange(contribution.ValueOrigins[0], component)
+                    || component.Length == 0 && contribution.ValueOutputLength == 0 && contribution.ValueOrigins.Count == 0;
+                if (contribution.ValueMappingIsExact && exactComponent && component.Text == route.Value)
+                    return route with { Kind = WccScenarioFieldRouteKind.DirectToken, Target = component,
+                        Assignment = composite.Assignment, SourceValue = component.Text, CanSet = true, CanRemove = false,
+                        Diagnostic = "Edit this exact component; the other assignment keys and values remain unchanged." };
+            }
+        }
 
         var exactDirect = contribution.ValueOrigins.Count == 1 ? contribution.ValueOrigins[0]
             : contribution.ValueOutputLength == 0 && contribution.AssignmentOrigin is { } emptyAssignment
@@ -106,6 +136,7 @@ public static class WccScenarioFieldRouteAnalyzer
                         invocation.StartOffset + argument.Span.StartOffset, argument.Span.Length);
                     var exactLiteral = contribution.ValueOrigins.Count == 1 && SameSource(mappedValue.Source, editableSource)
                         && mappedValue.StartOffset == value.StartOffset && mappedValue.Length == value.Length && mappedValue.Text == route.Value;
+                    if (definitionComposite && !exactLiteral) continue;
                     if (!exactLiteral && !(directRequired && requiredName == frame.RequiredParameters[index]
                           && WccScenarioFieldValueCodec.ValidateExpression(value.Text) is null
                           && ValueHasArgumentAncestry(contribution, value))) continue;
@@ -131,6 +162,9 @@ public static class WccScenarioFieldRouteAnalyzer
                 }
             }
         }
+
+        if (definitionComposite)
+            return route with { Diagnostic = "The generated multiple assignment has no complete local required-argument mapping; use authored RAW source." };
 
         // Only a direct declared optional placeholder establishes the parameter-to-field route.
         // A whole-side producer must be one unambiguous generated child of its exact parent.
@@ -179,7 +213,7 @@ public static class WccScenarioFieldRouteAnalyzer
         if (literal && TryAuthoredScalarAssignment(contribution, key, editableSource, out var authoredAssignment, out var authoredValue))
             return route with { Kind = WccScenarioFieldRouteKind.DirectToken, Target = authoredValue,
                 Assignment = authoredAssignment, SourceValue = authoredValue.Text, CanSet = true,
-                CanRemove = IsStandaloneAssignment(authoredAssignment),
+                CanRemove = contribution.CompositeAssignmentKeys.Count == 0 && IsStandaloneAssignment(authoredAssignment),
                 Diagnostic = "Edit this exact authored scalar expression; its expanded output is checked in every context." };
         if (literal && macroValue && CanAppend(owner, editableSource))
             return route with { Kind = WccScenarioFieldRouteKind.LocalAssignment, CanSet = true, CanInsert = true,
@@ -236,6 +270,16 @@ public static class WccScenarioFieldRouteAnalyzer
         WmlStaticSource source, out WmlStaticSourceRange assignment, out WmlStaticSourceRange value)
     {
         assignment = null!; value = null!;
+        if (contribution.CompositeAssignmentKeys.Count != 0
+            && WccScenarioCompositeAssignment.TryCapture(contribution, key, source, out var composite))
+        {
+            var index = composite.IndexOf(key);
+            var component = composite.Value(index);
+            if (!composite.IsImplicit(index) && (WccScenarioFieldValueCodec.IsSupportedLiteralWml(component.Text)
+                || WccScenarioFieldValueCodec.ValidateExpression(component.Text) is null))
+            { assignment = composite.Assignment; value = component; return true; }
+            return false;
+        }
         if (contribution.CompositeAssignmentKeys.Count != 0 || contribution.AssignmentOrigins.FirstOrDefault() is not { } first
             || !SameSource(first.Source, source) || !OutsideDefinitions(first, contribution.ExpansionStack)) return false;
         var end = source.Text.IndexOfAny(['\r', '\n'], first.StartOffset);

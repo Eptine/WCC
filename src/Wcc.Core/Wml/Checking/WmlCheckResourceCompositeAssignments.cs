@@ -2,7 +2,8 @@ namespace Wcc.Core.Wml.Checking;
 
 /// <summary>
 /// Checker-only observations of direct multiple assignments in already paired,
-/// unamended evaluated owners. The strict scalar projection stays unchanged.
+/// unamended evaluated owners. Generic distribution shares the strict scalar syntax;
+/// these report-only observations retain their own provenance and refusal gates.
 /// Commas outside quoted tokens distribute values until the last key, which
 /// receives the remaining list (serialization/parser.cpp parse_variable).
 /// </summary>
@@ -107,13 +108,15 @@ public sealed class WmlCheckResourceCompositeAssignments
             if (names.Length == 1) continue;
             if (names.Length > 64 || names.Any(name => name.Length == 0)) return Empty;
 
-            var values = SplitValues(equals + 1, end.Value, names.Length, cancellationToken);
-            if (values is null || Map(token.StartOffset, end.Value - token.StartOffset, out var assignments,
+            if (!WmlMultipleAssignmentSyntax.TryRead(_evaluation.Text[token.StartOffset..end.Value],
+                    out var tuple, out _, cancellationToken)) return Empty;
+            if (Map(token.StartOffset, end.Value - token.StartOffset, out var assignments,
                     out var frames, cancellationToken) is false)
                 return Empty;
             for (var index = 0; index < names.Length; index++)
             {
-                var value = values[index];
+                var component = tuple.Components[index];
+                var value = (Start: token.StartOffset + component.ValueOffset, Length: component.ValueLength);
                 // An absent RHS component is an actual empty value, not a span
                 // borrowed from a sibling. Nonempty components require exact maps.
                 if (!Map(value.Start, value.Length, out var origins, out var valueFrames, cancellationToken)) return Empty;
@@ -178,40 +181,6 @@ public sealed class WmlCheckResourceCompositeAssignments
             }
         }
         return null;
-    }
-
-    private IReadOnlyList<(int Start, int Length)>? SplitValues(int start, int end, int count,
-        CancellationToken cancellationToken)
-    {
-        var values = new List<(int Start, int Length)>();
-        var quoted = false;
-        var componentStart = start;
-        for (var cursor = start; cursor < end; cursor++)
-        {
-            if ((cursor & 255) == 0) cancellationToken.ThrowIfCancellationRequested();
-            var character = _evaluation.Text[cursor];
-            if (character == '"')
-            {
-                if (quoted && cursor + 1 < end && _evaluation.Text[cursor + 1] == '"') { cursor++; continue; }
-                quoted = !quoted;
-            }
-            else if (!quoted && character == ',' && values.Count < count - 1)
-            {
-                Add(componentStart, cursor);
-                componentStart = cursor + 1;
-            }
-        }
-        if (quoted) return null;
-        Add(componentStart, end);
-        while (values.Count < count) values.Add((end, 0));
-        return values;
-
-        void Add(int from, int to)
-        {
-            while (from < to && _evaluation.Text[from] is ' ' or '\t') from++;
-            while (to > from && _evaluation.Text[to - 1] is ' ' or '\t') to--;
-            values.Add((from, to - from));
-        }
     }
 
     private bool Map(int start, int length, out IReadOnlyList<WmlStaticSourceRange> origins,

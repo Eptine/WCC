@@ -1,8 +1,20 @@
-# WCC connection guide
+# WCC architecture
 
-Start here when following an edit through the application. Links point to source
-files rather than line numbers so they survive ordinary maintenance. The tables
-describe responsibilities, not interchangeable implementations.
+This guide follows source loading, previews, editor drafts and saving through the
+application. It is intended for readers exploring or extending WCC's App and Core
+projects. Source links identify the components responsible for each operation.
+
+WCC keeps authored WML separate from evaluated previews. A value that can be shown
+or inspected is not necessarily safe to edit. Structured writes require fresh
+source, context and ownership checks; unsupported content remains available as RAW WML.
+
+- [Application ownership](#application-and-editor-ownership)
+- [WML and campaign evaluation](#wml-macros-and-resolution)
+- [Multiple-key assignments](#multiple-key-assignments-and-component-edits)
+- [Catalogs and resources](#catalogs-references-and-resources)
+- [Pending changes and Save](#pending-changes-and-save)
+- [Extending a feature](#extending-a-feature)
+- [Campaign presets](#campaign-preset-scopes-and-storage)
 
 ## Application and editor ownership
 
@@ -98,6 +110,13 @@ and include its identity in the ordinary membership evidence.
 closing brace inside its scalar statement. Unsupported brace-containing values
 remain unresolved without consuming later fields or scenario boundaries. An
 unmatched opening invocation retains the existing structural refusal.
+
+[Campaign field capture](../src/Wcc.App/ViewModels/CampaignWindowViewModel.FieldEditing.cs)
+submits in-memory overlays only for the exact selected working-copy revision.
+Installed and other read-only sources use their pinned disk capture; the opened
+main file's path, hash and text must still match before its menu is published.
+An installed source remains read-only even when its previews resolve completely.
+
 `ConfigureScenarioEvaluationPlan` in the shell connects the campaign and its contexts to
 the scenario editor. [WmlCapturedCampaignEvaluationPlan](../src/Wcc.Core/Wml/WmlCapturedCampaignEvaluationPlan.cs)
 derives metadata from an exact evaluated menu; the scalar/static editing paths use that
@@ -129,6 +148,12 @@ binds a physical literal opening to its imported document, including when a help
 closes and amends that scenario. It supplies display identity, not write permission;
 `AuthoredScenarioSpan` retains its stricter writer requirements. Generated macro-body
 owners keep source inspection without borrowing a template as an editable document.
+
+[Scenario source classification](../src/Wcc.Core/Projects/WccScenarioSourceCandidate.cs)
+excludes proven definition-only helper files from standalone scenario candidates,
+without directory-name rules. Scenario-generating definitions and uncertain sources
+remain candidates; reached scenario membership takes precedence over that initial
+filter. Source/RAW inspection remains available for helpers.
 
 | Responsibility | Connection point |
 | --- | --- |
@@ -186,7 +211,7 @@ It does not require an included menu to be the entrypoint. The ordinary selected
 menu-owner proof, unit-source evidence and root units-container checks remain.
 
 [WccSelectedCampaignEntryAdapter](../src/Wcc.Core/Campaigns/WccSelectedCampaignEntryAdapter.cs)
-now presents a complete selected campaign to the ordinary editing workflow. Its
+presents a complete selected campaign to the ordinary editing workflow. Its
 `RootSource` remains the real package entrypoint, with the actual include order and
 captured dependencies. `OwnerSource` and `Menu.Source` identify the physical file
 containing the selected campaign declaration; an included menu's
@@ -210,9 +235,8 @@ binds the real root and selected entry identity. It is an expectation to authent
 again during Prepare, not write authority. The ordinary
 [Project reviewer](../src/Wcc.Core/Scenarios/WccScenarioFieldStaticReviewer.Project.cs)
 uses the existing validators, composer and coordinator for collected typed edits.
-Selected-entry proposals do not use the direct single-context saver. The former
-`ScalarFields` mode, field whitelist and separate `PackageScalar` proof have been
-removed. Ordinary single-entry main-file workflows keep their existing route.
+Selected-entry proposals use the collected reviewer across the declared contexts.
+Ordinary single-entry main-file workflows keep their existing route.
 
 Prepare evaluates the real menu and the selected campaign's declared difficulty
 scope before and after the candidate. Other campaign declaration subtrees are
@@ -238,12 +262,10 @@ parser fallback. No output is deduplicated and no write obligation is omitted.
 [WccSourceSaveDiagnostics](../src/Wcc.Core/Scenarios/WccSourceSaveDiagnostics.cs)
 records this work under `SelectedCampaignScoping`, with fast-path, fallback, no-op
 and selected-mask projection counters. Selected-mask projections also participate
-in the ordinary scalar-projection timing/counts; older reports did not count that
-extra projection. Compact owner-comparison attempt/success/fallback counters expose
-its existing size-budget cliff without changing that algorithm or budget. New enum
-members append to existing values so stored diagnostic receipts retain their numeric
-meaning. Timings are inclusive and nested phases must not be added as disjoint work;
-telemetry grants no persistence authority.
+in the ordinary scalar-projection timing/counts. Compact owner-comparison
+attempt/success/fallback counters expose the existing size-budget boundary.
+Timings are inclusive, so nested phases must not be added as disjoint work.
+Diagnostic reports do not authorize persistence.
 
 **Edit scenario WML** retains its separate whole-file draft contract for an exact
 physical scenario source. Main/menu files and generated ownership remain excluded.
@@ -272,22 +294,8 @@ all old membership receipts
 and immediately evaluates the selected campaign. Sibling rows may retain navigation
 labels only; opening one rebuilds its membership from the fresh capture before it
 can supply fields or edit bindings. Save/Discard/Cancel, newer requests, profile and
-snapshot fences remain in force. This is not a measured Save-speed improvement.
+snapshot fences remain in force.
 
-The selected-adapter integration is verified in
-`artifacts/selected-campaign-adapter-checks/finalcloseout.json` (2026-10-21): Windows
-full Core6432/App2524 and focused202/130; offline Linux focused202/130, with no failed
-or skipped tests. The receipt binds 1387 frozen compiled inputs, separate platform
-outputs and their dependency copies. A fresh Core-only actual AtS check prepares
-one included-menu field plus five scenario/side edits in two physical files, using
-the menu and three selected difficulties instead of ten package review phases.
-It never commits installed sources and is not a rendered App, engine playthrough
-or measured full Save-speed result. Preview.4 is unchanged. Earlier all-entry and
-scalar-pilot receipts remain historical in `artifacts/campaign-entry-display-checks`,
-`artifacts/package-scalar-gui-checks` and `artifacts/ats-editor-followup-checks`.
-
-The current feedback follow-up is implemented and independently verified on
-2026-10-21 in `artifacts/adapter-feedback-checks/finalcloseout.json`.
 [WccScenarioDifficultyFieldPlanner](../src/Wcc.Core/Scenarios/WccScenarioDifficultyFieldPlanner.cs)
 can prove a paired literal side or leader beneath a helper-amended scenario. The
 target and intermediate side parent retain exact paired boundaries; lexical matching
@@ -298,7 +306,7 @@ contribution, explicit absence/insertion, candidate value and outside footprint.
 Converting the amended scenario root itself, or a generated/amended child, remains
 unsupported.
 
-The same follow-up separates local insertion from destructive side topology.
+Local insertion and destructive side topology have separate requirements.
 [WccScenarioLeaderAdditionPlanner](../src/Wcc.Core/Scenarios/WccScenarioLeaderAdditionEdit.cs)
 supplies the bounded insertion anchor reused by initial-unit placement. An amended
 ancestor can contain an exact unconditional local side when a complete captured
@@ -309,15 +317,14 @@ and uncertain source/projection bindings retain RAW. Neither change turns bounde
 scenario inspection into Save authority: full selected-context and unit-registration
 proofs, ordinary semantic checks and the existing writer guards still apply.
 
-The shared structural reviewer now accepts output after an amended scenario's first
+The shared structural reviewer accepts output after an amended scenario's first
 closing tag only for independently validated `DifficultyField`, `UnitInstance` and
 `LeaderAddition` child recipes. Exact source openings, lower bounds, local target
 boundaries, parent/footprint checks and final outside-output comparison remain.
 This is not a general amended-owner insertion route: RAW, Music and Schedule retain
 their stricter region bounds.
 
-The AtS feedback follow-up changes RAW composition to disjoint changed-line
-footprints in
+Whole-file scenario RAW edits use disjoint changed-line footprints in
 [PackageRawDiff](../src/Wcc.Core/Scenarios/WccScenarioFieldStaticReviewer.PackageRawDiff.cs).
 Changing turns, a nested side's gold and a later leader name no longer masks every
 unchanged tag and invocation between those edits. The composer must reconstruct the
@@ -326,8 +333,7 @@ still refuses preprocessor directives, and the current menu/selected-difficulty,
 outside-output, source-history, translation-domain, context, closure and native writer
 checks remain. Diff work is bounded at 128K physical lines per source version and 4M
 frontier/search operations; an excessive rewrite is refused rather than receiving a
-broader mask. The verified follow-up is recorded in
-`artifacts/ats-feedback-checks/finalcloseout.json`.
+broader mask.
 
 Large or unsupported contexts retain diagnostics and an **Unresolved membership -
 source only** group. A typed output-character-limit failure can additionally request
@@ -340,8 +346,8 @@ translation-domain directives. Final output must prove every omitted occurrence 
 direct child of root `units`; ambiguous, quoted or scenario-nested occurrences refuse.
 Computed names, arguments and defaults remain ordinary value buffers until emitted.
 
-The full `16 * 1024 * 1024` output-character limit is unchanged. A single source can
-still overflow before inspection can omit its unit interiors. Source, processing,
+The ordinary campaign evaluation retains its `64 * 1024 * 1024` UTF-16 output limit. A
+single source can still overflow before inspection can omit its unit interiors. Source, processing,
 depth and separate inspection-inventory limits remain bounded. The receipt's ordinary
 `Evaluation.IsComplete` is always false: it cannot prove unit values or absence,
 replace full RAW review, or authorize saving. Read-only fields, Story, Map/Events and
@@ -358,20 +364,13 @@ scalar helper. Malformed directives still emit unresolved text and block evaluat
 The inspection tag pass shares the editor's tag readers without allocating its
 presentation tokens, folds or references; its separate tag and processing bounds remain.
 
-The installed LotI beta now yields 95/115 reached scenarios across both entries and all
-six difficulty contexts through this read-only route. AtS's nine ordinary full contexts
-and retained views match the same 55 scenario mappings and field values. Windows full
-Core6379/App2489 and offline Linux focused Core262/App326 pass; source, binaries, original
-files and exact mappings are bound by `artifacts/loti-scenario-inspection-checks/finalcloseout.json`.
-This evidence does not turn omitted units or retained scenarios into write authority.
-
 Opened campaign units reuse this same inspection for image search when their ordinary
 full display scope reaches the output limit. `UnitDisplayScope` computes it off the UI
 thread once per captured package/context; it does not replace the full unit projection.
 The image adapter accepts the exact complete captured Core-unit prelude, while foreign
 copies remain invalid. Changed-source drafts cannot borrow the unchanged baseline's
 inspection. Sprites, portraits and animation frames continue through the existing
-shared image context. Evidence: `artifacts/unit-campaign-image-checks/finalcloseout.json`.
+shared image context.
 
 ### Managed dependency and chapter authoring
 
@@ -400,8 +399,7 @@ Readable dependency markers use the add-on ID; loaders use
 `loaders/<AddonId>_loader.cfg` and phase-specific `WCC_DEP_<AddonId>_*` wrappers.
 Full private identities, recipe hashes and file hashes stay in the companion.
 Readable source names are locators, never sufficient ownership evidence. Missing or
-changed receipts retain RAW. Earlier development-only inline/compact formats are
-not adopted automatically. Only the fixed companion JSON enters ordinary capture.
+changed receipts retain RAW. Only the fixed companion JSON enters ordinary capture.
 
 The public companion contract is `schema: "wcc.package-authoring"`,
 `schemaVersion: 1`. A positive `generatorVersion` records the emitting generation
@@ -412,8 +410,7 @@ reader instead of being discarded. Duplicate JSON properties, unsupported schema
 escaping paths and portable filename collisions are refused. Opening never rewrites
 the companion. Future incompatible schema changes require a supported reader or an
 explicit checked upgrade that preserves the original project on failure; existing
-identities and emitted difficulty symbols must remain stable. The frozen schema-1
-fixture in `WccPackageAuthoringManifestTests` is the compatibility baseline.
+identities and emitted difficulty symbols must remain stable.
 
 Keep the complete `.wcc` folder when sharing editable projects. `project.json`
 contains stable project identity, Core compatibility and selected library bindings;
@@ -525,22 +522,21 @@ reentrant context changes retire the old retained view without clearing a newer 
 
 ### Captured Story, event and map previews
 
-The AtS feedback follow-up is implemented and verified. It reuses
-the exact selected physical scenario and complete captured difficulty projection;
-display ownership remains separate from the strict authored writer span.
+Read-only Story, event and map previews reuse the exact selected physical scenario
+and complete captured difficulty projection. Display ownership remains separate
+from the strict authored writer span.
 [WccScenarioStoryPlanner.CapturedPreview](../src/Wcc.Core/Scenarios/WccScenarioStoryPlanner.CapturedPreview.cs)
 joins macro-provided parts and their fields to a read-only Story snapshot, including
 amended Naia scenarios. Part/field editing and topology operations stay disabled.
 [ScenarioWindowViewModel.WccStoryEditing](../src/Wcc.App/ViewModels/ScenarioWindowViewModel.WccStoryEditing.cs)
 publishes that snapshot without replacing the authored macro invocation.
 
-The ordinary Story preview now falls back to that same read-only route when a
+The ordinary Story preview falls back to that same read-only route when a
 helper closes or amends an otherwise exact physical scenario. Failure to prove the
 scenario's writable closing extent cannot establish that its Story is absent:
 captured macro slides remain visible, while unproved field and topology editing
 stay disabled. A genuine absent Story in an exact ordinary scenario retains the
-existing creation workflow. This fallback is verified by
-`artifacts/selected-campaign-adapter-checks/finalcloseout.json`.
+existing creation workflow.
 
 The read-only route also retains a complete slide whose title uses literal string
 concatenation, as AtS title cards do. Exact captured expressions stay in `RawValues`;
@@ -564,8 +560,6 @@ they cannot be used to write the detached representation back.
 replaces inspection overlays only under the current source/owner/context/generation
 checks. Ordinary editable scenarios retain their existing authored mappings.
 
-The prior schedule display follow-up is independently verified on 2026-10-21 in
-`artifacts/adapter-feedback-checks/finalcloseout.json`.
 [WccCapturedScenarioSchedulePreview](../src/Wcc.Core/Scenarios/WccCapturedScenarioSchedulePreview.cs)
 reads the same exact physical scenario from a complete full projection or an explicit
 complete scenario-inspection receipt. It shows direct initial `[time]` owners after
@@ -586,34 +580,13 @@ For fragment and picker thumbnails,
 [WccScheduleImagePreviews](../src/Wcc.App/ViewModels/Wcc/WccScheduleImagePreviews.cs)
 authenticates each value origin before comparing physical package/file identities.
 Nested macros in one exact file can therefore contribute one image expression;
-missing, stale or mixed physical origins still refuse. The prior verified slice
-showed the base image without rendering image modifiers.
+missing, stale or mixed physical origins still refuse. Captured display and
+authoring remain separate: a readable schedule alone cannot establish that its
+original invocation can be safely replaced.
 
-That slice retained the detached music/schedule composers' chronology limits:
-isolated AtS `MAP` needed its active `ME` binding, and LotI `GLOBAL_EVENTS` depended
-on its actual environment. A readable captured schedule did not itself unlock
-authoring. The new captured-authoring path below addresses bounded cases without
-changing that display receipt's authority.
+### Captured initial settings and local image crops
 
-Those historical feedback receipts record Windows full Core6452/App2533, Windows focused
-535/172 and offline Linux focused535/172, all passing. The read-only Core checks in
-`artifacts/adapter-feedback-checks/actual-ats-r1/report.json` pass 26 assertions:
-AtS I01/I03/I12 expose 15/15/1 effective initial slots with 31 resolved image paths;
-two public Prepare calls accept I01 side income conversion and initial-unit addition,
-without Commit or native writes. The LotI report in `actual-loti-r1/report.json`
-passes 13 assertions and resolves Twilight's six time images. LotI's ordinary full
-evaluation still reaches the existing output-character limit, so its inspection
-remains read-only even where local music/time source looks conventional. These
-reports do not establish actual App rendering, image-modifier rendering, engine
-playthrough or end-to-end Save performance.
-
-### Captured initial settings and local image crops — verified
-
-`artifacts/music-schedule-authoring-checks/finalcloseout.json` verifies the 1409
-frozen inputs: Windows full Core 6497/App 2550 and focused Core 720/App 293 on both
-Windows and Linux, with no failures or skips. Actual read-only AtS/LotI checks and
-the App bitmap/crop probe pass 24/13/42 assertions. The prior receipts above remain
-historical evidence. These routes apply equally to WCC-created and imported campaigns.
+Captured initial-setting routes apply to both WCC-created and imported campaigns.
 
 [ScenarioInitialSettingsCapturedContext](../src/Wcc.Core/Scenarios/ScenarioInitialSettingsCapturedContext.cs)
 is internal planning evidence from a complete full evaluation of the exact physical
@@ -639,22 +612,18 @@ when required into the existing shared composer; `ComposePreview` supplies candi
 The candidate schedule preview denies composition/persistence authority. Mixed
 music, schedule, field, flag and event drafts still use the ordinary collected Save.
 
-The music picker already distinguishes direct references from copying. Core Campaign
+The music picker distinguishes direct references from copying. Core Campaign
 and WCC tracks go through `AddWccMusicSelectionsAsync` and
 [WccPackageMusicImporter](../src/Wcc.Core/References/WccPackageMusicImporter.cs),
 which copies/reuses exact bytes under the campaign's `music/` folder and returns its
-relative name for WML. Core tracks remain references. The actual AtS I04
-`decoherence.ogg` has a campaign-local copy matching the TDG source bytes; AtS's
-active own binary path makes that relative name accessible. This does not rely on
-TDG's private binary path being active. Imported assets remain after playlist
-Discard, as the existing picker contract states. Asset lookup follows the
+relative name for WML. Core tracks remain references. Imported assets remain after
+playlist Discard, as the picker explains. Lookup follows the
 [engine binary-path rules](https://wiki.wesnoth.org/BinaryPathWML).
-This particular AtS result does not prove generic imported-project activation:
-copying a track alone does not establish an active project music path or resolve
-filename shadowing by another active path. That emitted-lookup proof remains a
-separate follow-up.
+Copying a track alone does not establish an active project music path or resolve
+filename shadowing by another active path. Imported-project activation needs its
+own lookup proof.
 
-Core 1.19.28's `data/core/macros/schedules.cfg` already defines
+Core 1.19.28's `data/core/macros/schedules.cfg` defines
 `TWO_SUNS_DEFAULT_SCHEDULE` and `DEFAULT_SCHEDULE_DUSK`. AtS's contained Naia
 explicitly undefines and replaces the two-sun macros, including different atlas
 images. Catalog availability and the active physical definition are therefore
@@ -699,11 +668,9 @@ The same parsed tree must remain structurally known and within the existing
 4096-node, 128-depth and 2 * 1024 * 1024 output-character preview bounds. Amended
 owners that need reconstruction still require exact final captured assignments.
 These display bounds do not establish source-edit anchors or give a detached child
-a fabricated ordinal. The display correction is verified in
-`artifacts/ats-editor-followup-checks/finalcloseout.json`.
+a fabricated ordinal.
 
-The subsequent schedule feedback slice is verified in
-`artifacts/schedule-feedback-checks/finalcloseout.json`. It retains original
+Schedule editing retains original
 image-slot provenance across repeated/reordered pending times and Save, permits
 only balanced lexical textdomain switches when materializing literal time blocks,
 and removes otherwise-empty owned time lines without consuming comments or
@@ -712,14 +679,45 @@ multiple observed definitions stay ambiguous. These changes retain the existing
 fresh selected-context reviewer and do not promote LotI's bounded inspection into
 write authority or raise the ordinary full-output limit.
 
-[WmlStaticScalarProjection](../src/Wcc.Core/Wml/WmlStaticScalarProjection.cs) observes
-bounded literal numeric `side,color` pairs on sides and `x,y` pairs on supported
-side/leader/image/unit owners, retaining each exact component's contribution.
-[WmlCoordinateValueText](../src/Wcc.Core/Wml/WmlCoordinateValueText.cs) is shared by
-coordinate inspection: `x,y="6","15"` supplies two literal coordinates, whereas
-`x,y="6,15"` supplies one quoted value and leaves Y missing/unresolved. It splits
-outside quotes before decoding, so a comma inside one string cannot manufacture the
-second key. This adds no general multiple-assignment editor or typed write route.
+### Multiple-key assignments and component edits
+
+[WmlMultipleAssignmentSyntax](../src/Wcc.Core/Wml/WmlMultipleAssignmentSyntax.cs)
+reads one bounded assignment as ordered key/value components, including arbitrary
+key names and order. Quotes, raw strings and macro tokens protect their internal
+commas. Extra keys receive empty values; the final key receives remaining values
+and commas. Parentheses alone do not protect native WML commas.
+
+[WmlStaticScalarProjection](../src/Wcc.Core/Wml/WmlStaticScalarProjection.cs)
+uses this shared syntax after preprocessing. Each component retains its exact
+value origins, assignment keys, contribution history and expansion frames.
+Unsupported expressions remain unresolved independently of their literal siblings.
+For example, `gold,income=35,$runtime` can expose the literal gold without guessing
+income. Unicode value bytes are preserved; values outside the supported decoding
+contract remain RAW.
+
+[WccScenarioCompositeAssignment](../src/Wcc.Core/Scenarios/WccScenarioCompositeAssignment.cs)
+and the ordinary field-route analyzer authenticate authored component targets.
+Supported edits change the exact component or required macro argument while
+preserving companions and comments. A macro can change value arity, so a physical
+component index alone cannot identify the evaluated field. Duplicate keys,
+ambiguous origins and shared macro outputs retain RAW access. Removing one scalar
+must not erase sibling assignments; side identity retains its topology restrictions.
+
+The difficulty planner supports splitting or collapsing supported direct literal
+components through the same typed recipes and collected Save. Fresh evaluation
+in every declared context verifies requested values and untouched companions,
+histories, owners, domains and outside output. Generated or otherwise unproved
+layouts remain unavailable for topology conversion.
+
+Checker resource and reference modules use their independent report-only component
+observer even when the scalar value is known. Paired owner boundaries, exact value
+mapping, source freshness and amendment rules still apply; displayed knownness
+does not substitute for those checks or grant edit authority.
+
+[WmlCoordinateValueText](../src/Wcc.Core/Wml/WmlCoordinateValueText.cs) handles
+coordinate inspection. `x,y="6","15"` supplies two literal coordinates;
+`x,y="6,15"` supplies one quoted value and leaves Y empty, so it cannot establish a
+coordinate pair. A comma inside one string cannot manufacture a second coordinate.
 
 ### Catalogs, references and resources
 
@@ -745,8 +743,7 @@ Incomplete registration, several active declarations, unresolved visuals or a st
 source/profile/context return an unavailable preview. Read-only scenario inspection
 cannot choose an omitted unit. This adds no resolver, catalog deduplication or write
 authority; the shared asynchronous scope is reused, with current-publication checks
-before and after awaiting it. The same prior follow-up receipt verifies this display
-correction; it does not establish selected-adapter Save verification.
+before and after awaiting it.
 
 [WccLibraryCoordinator](../src/Wcc.Core/Library/WccLibraryCoordinator.cs) publishes Library
 snapshots. `RefreshConfiguredLibraryIndexAsync` in the shell connects publication to
@@ -784,15 +781,15 @@ adapters because their source/context requirements differ. Preserve those requir
 when sharing path-handling code.
 
 [WccCapturedImageResourceContext](../src/Wcc.Core/References/WccCapturedImageResourceContext.cs)
-is now shared by campaign unit images and captured scenario leader/portrait previews.
+is shared by campaign unit images and captured scenario leader/portrait previews.
 It uses the active top-level binary paths from the exact evaluated campaign, searches
 them in reverse declaration order and retains Core as the final implicit path. An
 indexed or attached package alone does not activate its images; an unknown earlier
 route prevents choosing a later file. Scenario preview requests retain the current
 source/context/resource identity and stale-result fences in
 [ScenarioWindowViewModel.WccImagePreviews](../src/Wcc.App/ViewModels/ScenarioWindowViewModel.WccImagePreviews.cs).
-This verified follow-up is display-only; resource copying, registration,
-image-modifier authority and multi-entry typed editing remain unchanged.
+This context supplies display resources; copying, registration and editing retain
+their separate checks.
 
 Difficulty icon
 display reuses the existing resource observer in `WccCampaignStructureInventory`
@@ -805,7 +802,7 @@ existing owner/package route. Source/profile cancellation and publication fences
 remain.
 
 [WccInstalledResourceRootDiscovery](../src/Wcc.Core/Library/WccInstalledResourceRootDiscovery.cs)
-now supplies the shared, bounded known-layout inventory for those assets.
+supplies the shared, bounded known-layout inventory for those assets.
 [Core capture's installation-resource bridge](../src/Wcc.Core/Library/WccStaticSourceCapture.InstallationResources.cs)
 uses one exact pinned external Core with a proven `game/data/core` layout to add
 transient resource-only aliases for existing supported asset folders. The selected
@@ -818,16 +815,6 @@ reuses the same discovery helper instead of a second walker. Optional asset-fold
 capture failures leave the requested resource locally unknown rather than making
 unrelated campaign WML incomplete. There is no arbitrary-root or global filename
 search.
-
-The first actual campaign-preview check exposed this bridge gap: earlier unit
-fixtures had supplied resource metadata manually, while normal CorePlanner output
-had none. A normal-planner regression now covers the bridge; final actual-source
-verification is still pending. The actual harness independently protects its four
-Core resource trees and selected add-on roots. Newly discovered optional asset
-folders outside those roots are not independently pinned as whole directory
-memberships or complete byte inventories; observed TROW background files have
-separate image-byte pins. This remains a limit of that evidence, not a claim that
-every discovered installed asset was independently verified.
 
 Unit copy/create/edit resource planning starts in
 [WccUnitTypeDependencyPlanner](../src/Wcc.Core/Units/WccUnitTypeDependencyPlanner.cs) and
@@ -854,10 +841,9 @@ source navigation and useful previews. They do not justify campaign-specific loa
 parallel resolvers or an attempt to simulate all runtime behavior. Improve the shared
 paths incrementally; preserve RAW access when structured ownership is not proven.
 
-This is a standing follow-up, requested during the 2026-10-19 dependency/resource
-review. Campaign image lookup is implemented; general campaign-helper scalar previews
-and mainline inherited catalog grouping remain separate work. Keep these cases in
-the plan until their display paths and regression checks are implemented:
+Campaign image lookup is implemented. General campaign-helper scalar previews and
+mainline inherited catalog grouping remain incomplete. Examples of these limits
+include:
 
 | Installed campaign example, relative to `data/campaigns/` | Required behavior |
 | --- | --- |
@@ -866,7 +852,7 @@ the plan until their display paths and regression checks are implemented:
 | `Eastern_Invasion/units/Human_Dacyn_White_Mage.cfg`, `Dacyn L2` | Resolve its `White Mage` base and local overrides consistently in selected-unit previews and race grouping. Use bounded lazy/cached display work; avoid repeated full captures merely to populate every mainline row. |
 | `Secrets_of_the_Ancients/units/SotA_Soulless.cfg` | Retain all fourteen literal unit identities while resolving shared body macros through the campaign's actual helper context, including `WEAPON_SPECIAL_SOTA_PLAGUE`. These are literal roots with macro-provided fields, a different case from generated Elite registrations. |
 
-Also deferred from the 2026-10-20 LotI feedback: the installed add-on's
+The installed add-on
 `Legend_of_the_Invincibles_beta/units/vampires.cfg` defines `Vampire General` through
 `[base_unit] id=General`. Its inherited values and images need a bounded selected-unit
 proof when the package's full unit inventory exceeds its limits. An image-path receipt
@@ -891,9 +877,7 @@ unsupported or ambiguous cases keep source access and RAW fallback.
 Cover empty/default and explicit arguments, local-over-base precedence, multiple
 literal roots sharing helpers, missing or shadowed helpers, source/profile/context
 revocation, unchanged drafts, and read-only generated children. Exercise standalone
-Library and campaign views, including imported and WCC-owned sources. The source
-audit in `artifacts/unit-catalog-followup-audit/README.txt` records the inspected
-examples; it does not establish current runtime behavior for every selected unit.
+Library and campaign views, including imported and WCC-owned sources.
 
 ## Pending changes and Save
 
@@ -964,10 +948,8 @@ folder uses its own instance scope and state. See [portable builds](portable-bui
 Related save paths:
 
 - `WccScenarioFieldEditCoordinator` handles its scalar single/batch proof contract.
-- Turns/gold/income use WCC inline drafts and global Save. The former native scalar dialog,
-  session and exclusive review/composer/persistence transaction have been retired. The
-  independent native evaluator and read-only source-location display retain their separate
-  verification and navigation roles.
+- Turns/gold/income use inline drafts and global Save. The native evaluator and
+  read-only source-location display provide separate verification and navigation.
 - Working-copy savers, shared-definition editing and managed Library storage have distinct
   ownership and loaded-baseline rules. `SaveLibraryUnitIfDirty` uses the owned Library
   root and loaded content hash; campaign/scenario typed recipes use the checked source
@@ -992,9 +974,8 @@ partials coordinate actual shared-definition edits and rebasing consumers.
 3. For structured writes, add the smallest typed recipe and its review/publication behavior
    to the existing save route. Do not add a view-model file writer that bypasses review.
 4. Cover the actual contract: inherited/local behavior, context differences, stale source
-   refusal, Save/reopen and draft retention as applicable. Prefer existing workflow suites
-   such as `AppShellCollectedSaveTests` and `AppShellPendingNavigationTests` over duplicating
-   the same implementation in a new test.
+   refusal, Save/reopen and draft retention as applicable. Exercise the complete
+   workflow rather than reproducing implementation details in an isolated check.
 
 ## Retiring an older workflow
 

@@ -94,10 +94,12 @@ internal static partial class WccScenarioFieldStaticReviewer
                         continue;
                     }
                     WccScenarioFieldValueCodec.TryGetDefinition("campaign", edit.Route.Key, out var definition);
+                    ValidateCompositeFieldContext(edit, oldOwner, newOwner);
                     var oldValue = oldOwner.ResolveField(edit.Route.Key);
                     var newValue = newOwner.ResolveField(edit.Route.Key);
                     if (oldValue.State == WmlStaticScalarResolutionState.Unresolved || newValue.State == WmlStaticScalarResolutionState.Unresolved
                         || oldValue.State == WmlStaticScalarResolutionState.Known && !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, oldValue.ValueText)
+                            && !IsFreshKnownEmptyComposite(oldOwner, edit.Route.Key, state.Source)
                         || newValue.State == WmlStaticScalarResolutionState.Known && !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, newValue.ValueText))
                         return RefuseBatch("A campaign field is not a known supported scalar in a reviewed phase.");
                     if (edit.Route.Origin == WccScenarioFieldOrigin.Absent && oldValue.State != WmlStaticScalarResolutionState.ProvenAbsent)
@@ -195,7 +197,11 @@ internal static partial class WccScenarioFieldStaticReviewer
                     if (oldContribution.ValueMappingIsExact != newContribution.ValueMappingIsExact
                         || !oldContribution.CompositeAssignmentKeys.SequenceEqual(newContribution.CompositeAssignmentKeys, StringComparer.Ordinal)
                         || !SameAssignmentOutput(oldContribution, newContribution, baselineText, proposedText)
+                            && !SameCompositeCompanionAssignment(before, after, oldContribution, newContribution,
+                                baselineText, proposedText, targets)
                         || !SameMappedOrigins(oldContribution.AssignmentOrigins, newContribution.AssignmentOrigins, change)
+                            && !SameCompositeCompanionInsertionOrigins(before, after, key, oldContribution, newContribution, change,
+                                baselineText, proposedText, targets)
                         || !SameMappedOrigins(oldContribution.ValueOrigins, newContribution.ValueOrigins, change)
                         || !SameMappedFrames(oldContribution.ExpansionStack, newContribution.ExpansionStack, change)
                         || !SameMappedFrames(oldContribution.ValueExpansionStack, newContribution.ValueExpansionStack, change))

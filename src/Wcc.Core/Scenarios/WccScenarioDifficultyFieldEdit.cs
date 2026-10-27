@@ -75,7 +75,10 @@ public sealed class WccScenarioDifficultyFieldEdit
 }
 
 internal sealed record WccScenarioDifficultyFieldAssignment(string? Define,
-    WmlStaticSourceRange Assignment, WmlStaticSourceRange Value, WmlStaticSourceRange Region, string Literal);
+    WmlStaticSourceRange Assignment, WmlStaticSourceRange Value, WmlStaticSourceRange Region, string Literal)
+{
+    internal WccScenarioCompositeAssignment? CompositeAssignment { get; init; }
+}
 internal sealed record WccScenarioDifficultyFieldLayout(IReadOnlyList<WccScenarioDifficultyFieldAssignment> Assignments,
     int InsertionOffset, string Indent, string Newline,
     IReadOnlyList<WccScenarioDifficultyFieldGroup> Groups,
@@ -105,6 +108,9 @@ internal sealed record WccScenarioDifficultyMacroSlot(string Define, string Cont
 
 /// <summary>Exact direct sibling assignments inside one proved literal difficulty branch.</summary>
 internal sealed record WccScenarioDifficultyFieldGroupMember(string Key, WmlStaticSourceRange Assignment,
-    WmlStaticSourceRange Value, string Literal);
+    WmlStaticSourceRange Value, string Literal)
+{
+    internal WccScenarioCompositeAssignment? CompositeAssignment { get; init; }
+}
 internal sealed record WccScenarioDifficultyFieldGroup(string Define, WmlStaticSourceRange Region,
     IReadOnlyList<WccScenarioDifficultyFieldGroupMember> Members);

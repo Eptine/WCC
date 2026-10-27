@@ -3,7 +3,7 @@ param(
     [ValidateSet('win-x64', 'linux-x64')]
     [string[]] $RuntimeIdentifiers = @('win-x64', 'linux-x64'),
     [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$')]
-    [string] $Version = '0.1.0-preview',
+    [string] $Version = '0.1.1',
     [string] $OutputRoot,
     [string] $NuGetConfig,
     [switch] $NoArchive

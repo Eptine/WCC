@@ -160,13 +160,15 @@ internal static partial class WccScenarioFieldStaticReviewer
                     if ((WccScenarioFieldContentScope.CheckOwner(oldOwner)
                         ?? WccScenarioFieldContentScope.CheckOwner(newOwner)) is { } contentRefusal)
                         return RefuseBatch(contentRefusal);
+                    ValidateCompositeFieldContext(edit, oldOwner, newOwner);
                     var oldValue = oldOwner.ResolveField(route.Key);
                     var newValue = newOwner.ResolveField(route.Key);
                     if (route.Origin == WccScenarioFieldOrigin.Absent
                         && oldValue.State != WmlStaticScalarResolutionState.ProvenAbsent)
                         return RefuseBatch("Insertion requires proven field absence in every declared context.");
                     if (route.Origin != WccScenarioFieldOrigin.Absent
-                        && (oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition, oldValue.ValueText)))
+                        && (oldValue.State != WmlStaticScalarResolutionState.Known || !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition, oldValue.ValueText)
+                        && !IsFreshKnownEmptyComposite(oldOwner, route.Key, state.Source)))
                         return RefuseBatch("A current draft field is not a known supported scalar in every declared context.");
                     if (!(edit.Operation == WmlFieldOperation.Remove && route.Kind == WccScenarioFieldRouteKind.DirectToken
                           && newValue.State == WmlStaticScalarResolutionState.ProvenAbsent)

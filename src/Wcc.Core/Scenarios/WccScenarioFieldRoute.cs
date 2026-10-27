@@ -27,6 +27,8 @@ public sealed record WccScenarioFieldRoute
     public bool CanSet { get; init; }
     public bool CanInsert { get; init; }
     public bool CanRemove { get; init; }
+    internal WccScenarioCompositeAssignment? CompositeAssignment { get; init; }
+    internal int CompositeComponentIndex { get; init; } = -1;
     public string Diagnostic { get; init; } = "No verified scenario-local edit route; use authored RAW source.";
 }
 

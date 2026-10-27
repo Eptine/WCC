@@ -253,8 +253,16 @@ public partial class CampaignWindowViewModel
             var catalog = ReusableCampaignEntryCatalog(configuration, source);
             if (catalog is null)
             {
-                var freshCapture = await WccStaticSourceCapture.CaptureAsync(snapshot, root, source.Path, [source], cancellationToken,
-                    configuration.AddonsRoot);
+                var canOverlay = snapshot.RevisionsById.TryGetValue(root, out var revision) &&
+                                 snapshot.PackagesById.TryGetValue(revision.PackageId, out var package) &&
+                                 package.StorageMode == WccPackageStorageMode.WorkingCopy;
+                var freshCapture = await WccStaticSourceCapture.CaptureAsync(snapshot, root, source.Path,
+                    canOverlay ? [source] : null, cancellationToken, configuration.AddonsRoot);
+                // External inspection reads its exact indexed disk source. It must not
+                // replace a stale opened main with newly indexed text behind the UI.
+                if (!canOverlay && freshCapture.EntrySource is { } captured &&
+                    (!SamePresentationSource(captured, source) || captured.Text != source.Text))
+                    throw new InvalidOperationException("The campaign source changed. Reopen its main file before reading its menu and scenarios.");
                 catalog = await Task.Run(() => WccCampaignEntryCatalog.Project(freshCapture, configuration.Plan, cancellationToken), cancellationToken);
             }
             var capture = catalog.Capture;

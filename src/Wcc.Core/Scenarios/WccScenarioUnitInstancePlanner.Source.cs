@@ -46,7 +46,13 @@ public static partial class WccScenarioUnitInstancePlanner
         foreach (var pair in literal.Fields.Where(pair => IsEditableKey(pair.Key)))
         {
             if (!spec.Values.TryGetValue(pair.Key, out var desired))
+            {
+                if (literal.Fields.Any(other => other.Key != pair.Key
+                    && other.Value.AssignmentStart == pair.Value.AssignmentStart
+                    && other.Value.AssignmentLength == pair.Value.AssignmentLength))
+                    throw new InvalidOperationException("Removing one field from a multiple assignment would remove retained unit companions; edit the assignment in RAW.");
                 patches.Add(new(pair.Value.AssignmentStart, pair.Value.AssignmentLength, ""));
+            }
             else
             {
                 WccScenarioFieldValueCodec.TryGetDefinition("leader", pair.Key, out var definition);

@@ -85,6 +85,31 @@ public sealed record WmlEditorAnalysis(
         return offset - occurrence.StartOffset <= occurrence.Length ? occurrence : null;
     }
 
+    /// <summary>Shared lexical bounds for one protected value token. This supplies
+    /// syntax only; callers retain statement, mapping and source authority checks.</summary>
+    internal static bool TryReadProtectedValueRegion(string text, int start, out int end,
+        out bool isComplete, CancellationToken cancellationToken)
+    {
+        end = start; isComplete = false;
+        if (start < 0 || start >= text.Length) return false;
+        if (text[start] == '"')
+        {
+            end = ReadQuotedEnd(text, start, cancellationToken);
+            var state = new WmlStringScanState();
+            WmlRawStringScanner.UpdateState(text.AsSpan(start, end - start), ref state);
+            isComplete = !state.InsideMultilineString;
+            return true;
+        }
+        if (StartsRaw(text, start))
+        {
+            end = ReadRawEnd(text, start, cancellationToken);
+            isComplete = end >= start + 4 && text.AsSpan(end - 2, 2).SequenceEqual(">>");
+            return true;
+        }
+        if (text[start] != '{') return false;
+        end = ReadBraceEnd(text, start, cancellationToken, out isComplete);
+        return true;
+    }
     public static WmlEditorAnalysis Build(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);

@@ -61,6 +61,7 @@ public static class WccScenarioFieldCandidatePlanner
             else if (route.Target is { } target)
             {
                 start = target.StartOffset; length = target.Length; replacement = sourceValue!;
+
                 if (NeedsArgumentGrouping(sourceValue!) && !HasOuterParentheses(currentSource.Text,
                         target.StartOffset - route.ParameterName!.Length - 1, target.StartOffset + target.Length, invocation))
                 {
@@ -96,6 +97,12 @@ public static class WccScenarioFieldCandidatePlanner
         {
             var target = route.Target ?? throw new InvalidOperationException("The exact value token is unavailable.");
             start = target.StartOffset; length = target.Length; replacement = sourceValue!;
+            if (route.Kind == WccScenarioFieldRouteKind.DirectToken && route.CompositeAssignment is { } composite)
+            {
+                var prefix = composite.MissingPrefix(route.CompositeComponentIndex);
+                replacement = prefix + sourceValue;
+                scalarOffset = prefix.Length;
+            }
             if (route.Kind == WccScenarioFieldRouteKind.ScalarArgument && NeedsArgumentGrouping(sourceValue!)
                 && !HasOuterParentheses(currentSource.Text, start, start + length, route.Invocation!))
             { replacement = "(" + sourceValue + ")"; scalarOffset = 1; }

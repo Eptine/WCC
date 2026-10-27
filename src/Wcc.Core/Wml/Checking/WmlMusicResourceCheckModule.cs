@@ -113,10 +113,13 @@ public sealed class WmlMusicResourceCheckModule(WmlCheckReferenceContext? contex
                         WmlResourceFieldKind.Lua => ("lua", "Lua file", (string?)null),
                         _ => ("image", "Image", "images")
                     };
-                    // Multiple assignment remains unresolved in the strict scalar
-                    // projection. Its direct, paired, exactly mapped components
-                    // are independently observable by this report-only adapter.
-                    var composite = field.ValueText is null ? composites.Value.Observe(owner, key, cancellationToken) : null;
+                    // Strict scalar knownness does not replace the Checker's
+                    // independent paired, unamended component observation.
+                    var requiresCompositeObservation = field.Contributions.LastOrDefault() is
+                        { CompositeAssignmentKeys.Count: > 0 };
+                    var composite = field.ValueText is null || requiresCompositeObservation
+                        ? composites.Value.Observe(owner, key, cancellationToken) : null;
+                    var hasObservedComposite = !requiresCompositeObservation || composite is not null;
                     if (composite is not null) field = composite;
                     var contribution = field.Contributions.LastOrDefault();
                     if (!TrySelectedLocation(owner, field, contribution, out var location, out var caller, out var related)) continue;
@@ -125,11 +128,12 @@ public sealed class WmlMusicResourceCheckModule(WmlCheckReferenceContext? contex
                     contribution = field.Contributions.LastOrDefault();
                     if (!TrySelectedLocation(valueOwner, field, contribution, out location, out caller, out related)) continue;
                     var value = valueOwner.ResolveField(key);
-                    var boundedMappedValue = valueOwner.OpeningOutputOffset.HasValue && valueOwner.ClosingOutputOffset.HasValue &&
+                    var knownValue = hasObservedComposite && value.State == WmlStaticScalarResolutionState.Known;
+                    var boundedMappedValue = hasObservedComposite && valueOwner.OpeningOutputOffset.HasValue && valueOwner.ClosingOutputOffset.HasValue &&
                         contribution is { ValueMappingIsExact: true };
                     boundedMappedValue |= resource.CanObserveLiteralField(key);
                     var rawLua = field.ValueText?.Trim() ?? "";
-                    var boundedLuaOwner = valueOwner.OpeningOutputOffset.HasValue && valueOwner.ClosingOutputOffset.HasValue && !valueOwner.IsAmended;
+                    var boundedLuaOwner = hasObservedComposite && valueOwner.OpeningOutputOffset.HasValue && valueOwner.ClosingOutputOffset.HasValue && !valueOwner.IsAmended;
                     var boundedLuaPayload = boundedLuaOwner && rawLua.StartsWith("<<", StringComparison.Ordinal) &&
                         rawLua.EndsWith(">>", StringComparison.Ordinal) && rawLua.IndexOf(">>", StringComparison.Ordinal) == rawLua.Length - 2;
                     var quotedLua = boundedLuaOwner && rawLua.StartsWith('"') && rawLua.EndsWith('"')
@@ -137,7 +141,7 @@ public sealed class WmlMusicResourceCheckModule(WmlCheckReferenceContext? contex
                     if (quotedLua == rawLua) quotedLua = null;
                     // Raw Lua is intentionally not a known scalar in the shared writer projection.
                     // A complete mapped payload in a paired owner permits lexical path observation only.
-                    if (fieldKind == WmlResourceFieldKind.Lua && (value.State == WmlStaticScalarResolutionState.Known || boundedLuaPayload || quotedLua is not null))
+                    if (fieldKind == WmlResourceFieldKind.Lua && (knownValue || boundedLuaPayload || quotedLua is not null))
                     {
                         foreach (var lua in WmlLuaFileReferenceScanner.Find(quotedLua ?? field.ValueText ?? "", cancellationToken))
                         {
@@ -179,7 +183,7 @@ public sealed class WmlMusicResourceCheckModule(WmlCheckReferenceContext? contex
                     // An exactly mapped literal payload may contain runtime siblings. The pure
                     // parser observes only its independent static filenames, never effective value proof.
                     var decoded = WmlResourceValueTextDecoder.Decode(field.ValueText, cancellationToken);
-                    if (value.State != WmlStaticScalarResolutionState.Known && !boundedMappedValue)
+                    if (!knownValue && !boundedMappedValue)
                     {
                         var literalOwnerUncertainty = resource.HasUncertainEnclosingStructure &&
                             decoded.IsDecoded && SupportedFilename(decoded.ValueText);

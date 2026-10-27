@@ -109,7 +109,9 @@ public static class WmlCheckDefinitionReferences
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var field = reference.Field;
-                var component = field.ValueText is null ? valueComposites.Value.Observe(reference.Owner, field.Key, cancellationToken) : null;
+                var component = field.ValueText is null ||
+                    field.Contributions.LastOrDefault() is { CompositeAssignmentKeys.Count: > 0 }
+                    ? valueComposites.Value.Observe(reference.Owner, field.Key, cancellationToken) : null;
                 if (component is not null) field = component;
                 var contribution = field.Contributions.LastOrDefault();
                 var calls = valueOrigins.FindInvocationOrigins(contribution, field.ValueText, cancellationToken: cancellationToken);
