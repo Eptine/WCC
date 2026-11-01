@@ -236,7 +236,11 @@ public static partial class WccWorkingProjectDependencyResolver
             return result;
         var usesDefaultCore = string.IsNullOrWhiteSpace(metadata.DeclaredCore) ||
             string.Equals(metadata.DeclaredCore, "default", StringComparison.Ordinal);
-        if (retained is null)
+        // Opening while the selected Core is unavailable can leave a working
+        // revision with no dependency edges. It has no exact pins to preserve;
+        // once the caller resolves a Core, initialize it like a fresh project.
+        // Nonempty graphs remain exact, including incomplete or unavailable pins.
+        if (retained is null || result.Count == 0)
         {
             if (usesDefaultCore)
                 result.Add(coreId);

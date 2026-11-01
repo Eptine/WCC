@@ -37,7 +37,9 @@ public sealed partial class WmlStaticEvaluator
                 evaluation = new(evaluation.Text, evaluation.Segments, evaluation.Diagnostics.Append(new(
                     "Scenario inspection could not prove every omitted unit-type occurrence beneath root units.")),
                     evaluation.Sources, evaluation.Includes, false, evaluation.Invocations)
-                { OutputLimitExceeded = evaluation.OutputLimitExceeded };
+                { OutputLimitExceeded = evaluation.OutputLimitExceeded,
+                    SourceContext = evaluation.SourceContext, SourceEntry = evaluation.SourceEntry,
+                    SourceInputs = evaluation.SourceInputs };
                 projection = WmlStaticScalarProjection.Create(evaluation, _cancellation);
             }
             var complete = _complete && scopesProved && !evaluation.Diagnostics.Any(item => item.IsBlocking)

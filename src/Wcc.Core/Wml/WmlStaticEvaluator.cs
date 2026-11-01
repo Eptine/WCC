@@ -80,7 +80,9 @@ public sealed partial class WmlStaticEvaluator
                 return segment;
             }).ToArray();
             return new WmlStaticEvaluationResult(mapped.Text, segments, _diagnostics, _sources, _includes,
-                !_inspectionMode && _complete, _invocations) { OutputLimitExceeded = outputLimitExceeded };
+                !_inspectionMode && _complete, _invocations)
+            { OutputLimitExceeded = outputLimitExceeded, SourceContext = _request.Context, SourceEntry = _request.EntrySource,
+                SourceInputs = new(_request) };
         }
 
         private MappedText ProcessSource(WmlStaticSource source, int depth, IReadOnlyList<WmlStaticExpansionFrame> stack)
@@ -627,6 +629,8 @@ public sealed partial class WmlStaticEvaluator
                         // turning unsupported evaluation into a proven mismatch.
                         if (!value.Text.Contains('{') && !value.Text.Contains('$'))
                             failure = Failure(WmlStaticArgumentBindingFailureKind.UnexpectedPositional, index);
+                        else
+                            failure = Failure(WmlStaticArgumentBindingFailureKind.ComputedExtra, index);
                         return false;
                     }
                     name = value.Text[..equals];

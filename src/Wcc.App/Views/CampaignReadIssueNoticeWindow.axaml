@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Wcc.App.Views.Controls"
+        xmlns:vm="using:Wcc.App.ViewModels"
+        x:Class="Wcc.App.Views.CampaignReadIssueNoticeWindow"
+        x:DataType="vm:CampaignReadIssueNotice"
+        Classes="wccShell"
+        Width="740" Height="540" MinWidth="560" MinHeight="380"
+        WindowStartupLocation="CenterOwner" Title="Campaign reading errors">
+  <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
+    <StackPanel Spacing="6">
+      <TextBlock Text="WCC could not fully read this campaign" FontSize="20" FontWeight="SemiBold"
+                 Foreground="#D57166" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding CampaignName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding EntryPath}" FontSize="12" Opacity="0.7" TextWrapping="Wrap"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12">
+        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+        <TextBlock Text="The information WCC could read is still available. Some values may be empty or unresolved, and editing or saving may be blocked."
+                   TextWrapping="Wrap"/>
+        <TextBlock Text="Run a full campaign scan in WCC Tester before editing. After fixing and saving the source files, close the Tester and choose Reload Campaign to check the campaign again."
+                   TextWrapping="Wrap"/>
+        <Border Classes="panel" BorderThickness="1" Padding="12">
+          <SelectableTextBlock Text="{Binding Details}" TextWrapping="Wrap" FontSize="12"/>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <TextBlock Grid.Row="2" x:Name="ActionStatus" TextWrapping="Wrap" FontSize="12" Foreground="#D57166"/>
+    <WrapPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="IgnoreButton" Content="Ignore" Click="IgnoreClicked" Margin="0,0,10,0"
+              ToolTip.Tip="Continue with the current reading and editing limitations. The source errors are not fixed or suppressed."/>
+      <Button x:Name="OpenTesterButton" Content="Open Tester" Classes="primary" Click="OpenTesterClicked"
+              icons:WccButtonIcon.Action="Tester" icons:WccButtonIcon.ShowLabel="True" Margin="0,0,10,0"/>
+      <Button x:Name="ReloadCampaignButton" Content="Reload Campaign" Click="ReloadCampaignClicked"
+              icons:WccButtonIcon.Action="Reset" icons:WccButtonIcon.ShowLabel="True"/>
+    </WrapPanel>
+  </Grid>
+</Window>

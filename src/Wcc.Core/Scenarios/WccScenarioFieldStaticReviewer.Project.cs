@@ -111,17 +111,19 @@ internal static partial class WccScenarioFieldStaticReviewer
                 if (!baselines.ContainsKey(proposal.Route.ContextSemanticKey)
                     || !WccScenarioFieldValueCodec.TryGetDefinition(proposal.Route.Owner.TagName, proposal.Route.Key, out _)
                     || (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu
-                        ? proposal.Route.Owner.TagName != "campaign" || proposal.Route.ContextSemanticKey != state.Context.SemanticKey
-                        : proposal.Route.Owner.TagName == "campaign"))
+                        ? !IsCampaignMenuScalar(proposal.Route.Owner, proposal.Route.Key) || proposal.Route.ContextSemanticKey != state.Context.SemanticKey
+                        : proposal.Route.Owner.TagName is "campaign" or "difficulty"))
                     throw new InvalidOperationException("A field draft is outside its explicit source and review scope.");
                 var owner = LookupProjectOwner(baselineOwners[proposal.Route.ContextSemanticKey], proposal.Route.Owner, diagnostics);
                 var contextAnchor = state.ReviewScope == WccScenarioFieldReviewScope.Scenario && selectedEntry is not null
                     ? LookupProjectOwner(baselineOwners[proposal.Route.ContextSemanticKey], state.Owner, diagnostics) : anchor;
-                if (owner is null || (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu ? !ReferenceEquals(owner, anchor) :
+                if (owner is null || (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu ? !IsCampaignMenuScalarWithin(owner, proposal.Route.Key, anchor) :
                     selectedEntry is not null && (contextAnchor is null || !ReferenceEquals(owner, contextAnchor) && !IsOwnerWithin(owner, contextAnchor))))
                     throw new InvalidOperationException("A field draft has no unique exact current owner.");
                 var context = contexts.Single(context => context.SemanticKey == proposal.Route.ContextSemanticKey);
                 var route = WccScenarioFieldRouteAnalyzer.Analyze(owner, proposal.Route.Key, state.Source, context);
+                if (!IsSupportedCampaignScalarRoute(route))
+                    throw new InvalidOperationException("A difficulty image requires an exact existing token or required macro argument; use RAW source.");
                 if (!EquivalentRoute(proposal.Route, route))
                     throw new InvalidOperationException("A field's winning value, definition or exact source route changed.");
                 fresh.Add(proposal with { Route = route });
@@ -320,7 +322,7 @@ internal static partial class WccScenarioFieldStaticReviewer
             {
                 var oldOwner = LookupProjectOwner(oldOwners, edit.Route.Owner, diagnostics);
                 var newOwner = LookupProjectOwner(newOwners, edit.Route.Owner, diagnostics);
-                var menu = edit.Route.Owner.TagName == "campaign";
+                var menu = IsCampaignMenuScalar(edit.Route.Owner, edit.Route.Key);
                 if (oldOwner is null || newOwner is null)
                 {
                     // A literal menu-only campaign can be inactive in play, and
@@ -334,6 +336,16 @@ internal static partial class WccScenarioFieldStaticReviewer
                     throw new InvalidOperationException("An edited owner is absent, ambiguous or structurally uncertain in a reviewed context.");
                 }
                 diagnostics?.Add(WccSourceSaveCount.FieldValidations);
+                if (edit.Route.Owner.TagName == "difficulty")
+                {
+                    var beforeCampaign = campaignAnchor is null ? null : LookupProjectOwner(oldOwners, campaignAnchor, diagnostics);
+                    var afterCampaign = campaignAnchor is null ? null : LookupProjectOwner(newOwners, campaignAnchor, diagnostics);
+                    if (beforeCampaign is null || afterCampaign is null ||
+                        !IsCampaignMenuScalarWithin(oldOwner, edit.Route.Key, beforeCampaign) ||
+                        !IsCampaignMenuScalarWithin(newOwner, edit.Route.Key, afterCampaign) ||
+                        !HasSameCampaignDifficultyOccurrence(oldOwner, newOwner, change))
+                        throw new InvalidOperationException("A difficulty image no longer belongs to the exact selected campaign owner.");
+                }
                 using (diagnostics?.Measure(WccSourceSavePhase.FieldValidation))
                     ValidateProjectField(edit, oldOwner, newOwner, proposed.Evaluation, context);
                 fullTargets.Add(new(oldOwner, newOwner, edit.Route) { Edit = edit });
@@ -572,35 +584,42 @@ internal static partial class WccScenarioFieldStaticReviewer
     private static void RequireComplete(PairedEvaluation evaluated, WmlEvaluationContext? context = null, string? phase = null)
     {
         if (!evaluated.Evaluation.IsComplete || evaluated.Projection.Diagnostics.Count != 0)
+            throw new InvalidOperationException("A menu or declared play context has unresolved or malformed expanded WML; the combined Save needs RAW review."
+                + CompletenessDiagnosticDetail(evaluated, context, phase));
+    }
+
+    // Every checked Save path reports the same first blocking cause without
+    // changing its completeness guard or borrowing another context's evidence.
+    private static string CompletenessDiagnosticDetail(PairedEvaluation evaluated,
+        WmlEvaluationContext? context = null, string? phase = null)
+    {
+        var diagnostic = evaluated.Evaluation.Diagnostics.FirstOrDefault(item => item.IsBlocking)
+            ?? evaluated.Projection.Diagnostics.FirstOrDefault(item => item.IsBlocking);
+        var scope = phase ?? "";
+        if (context is not null)
+            scope += (scope.Length == 0 ? "" : " ") + "(" +
+                (context.CampaignDefine is null ? "Menu" : context.DisplayName) + ")";
+        var detail = scope.Length == 0 ? "" : " " + scope + ":";
+        if (diagnostic is not null)
         {
-            var diagnostic = evaluated.Evaluation.Diagnostics.FirstOrDefault(item => item.IsBlocking)
-                ?? evaluated.Projection.Diagnostics.FirstOrDefault(item => item.IsBlocking);
-            var scope = phase ?? "";
-            if (context is not null)
-                scope += (scope.Length == 0 ? "" : " ") + "(" +
-                    (context.CampaignDefine is null ? "Menu" : context.DisplayName) + ")";
-            var detail = scope.Length == 0 ? "" : " " + scope + ":";
-            if (diagnostic is not null)
+            detail += " " + diagnostic.Message;
+            if (diagnostic.Origin is { } origin)
             {
-                detail += " " + diagnostic.Message;
-                if (diagnostic.Origin is { } origin)
-                {
-                    var invocation = (evaluated.Evaluation.MaskedOriginalEvaluation ?? evaluated.Evaluation).Invocations
-                        .FirstOrDefault(call => call.InvocationOrigins.Any(callOrigin =>
-                            WccScenarioFieldRouteAnalyzer.SameSource(callOrigin.Source, origin.Source)
-                            && origin.StartOffset >= callOrigin.StartOffset
-                            && origin.StartOffset + origin.Length <= callOrigin.StartOffset + callOrigin.Length));
-                    if (invocation is not null && !diagnostic.Message.Contains(invocation.Name, StringComparison.Ordinal))
-                        detail += " {" + invocation.Name + "}";
-                    var line = 1;
-                    for (var offset = 0; offset < origin.StartOffset; offset++)
-                        if (origin.Source.Text[offset] == '\n' || origin.Source.Text[offset] == '\r' &&
-                            (offset + 1 >= origin.Source.Text.Length || origin.Source.Text[offset + 1] != '\n')) line++;
-                    detail += " [" + origin.Source.Path + ":" + line + "]";
-                }
+                var invocation = (evaluated.Evaluation.MaskedOriginalEvaluation ?? evaluated.Evaluation).Invocations
+                    .FirstOrDefault(call => call.InvocationOrigins.Any(callOrigin =>
+                        WccScenarioFieldRouteAnalyzer.SameSource(callOrigin.Source, origin.Source)
+                        && origin.StartOffset >= callOrigin.StartOffset
+                        && origin.StartOffset + origin.Length <= callOrigin.StartOffset + callOrigin.Length));
+                if (invocation is not null && !diagnostic.Message.Contains(invocation.Name, StringComparison.Ordinal))
+                    detail += " {" + invocation.Name + "}";
+                var line = 1;
+                for (var offset = 0; offset < origin.StartOffset; offset++)
+                    if (origin.Source.Text[offset] == '\n' || origin.Source.Text[offset] == '\r' &&
+                        (offset + 1 >= origin.Source.Text.Length || origin.Source.Text[offset + 1] != '\n')) line++;
+                detail += " [" + origin.Source.Path + ":" + line + "]";
             }
-            throw new InvalidOperationException("A menu or declared play context has unresolved or malformed expanded WML; the combined Save needs RAW review." + detail);
         }
+        return detail;
     }
 
     private static void RequireCapturedDefinition(WmlMacroExpansionDefinition definition, WccStaticSourceCaptureResult capture)

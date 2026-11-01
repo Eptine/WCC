@@ -1,6 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Selection;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using System.Collections.Generic;
+using System.Linq;
 using Wcc.App.ViewModels;
 using Wcc.App.ViewModels.Wcc;
 
@@ -19,6 +22,7 @@ public partial class CatalogInspectorView : UserControl
     }
 
     private AppShellViewModel? _subscribedViewModel;
+    private readonly Dictionary<Control, ScrollViewer> _unitSidebarAnchors = new();
 
     public CatalogInspectorView()
     {
@@ -35,8 +39,26 @@ public partial class CatalogInspectorView : UserControl
             await vm.PrepareCatalogInspectorTabAsync(CatalogTabs.SelectedIndex);
     }
 
-    private void ViewUnloaded(object? sender, RoutedEventArgs e) =>
+    private void ViewUnloaded(object? sender, RoutedEventArgs e)
+    {
         UnsubscribeFromViewModel();
+        foreach (var (candidate, scroll) in _unitSidebarAnchors) scroll.UnregisterAnchorCandidate(candidate);
+        _unitSidebarAnchors.Clear();
+    }
+
+    private void UnitSidebarAnchorLoaded(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control candidate || _unitSidebarAnchors.ContainsKey(candidate) ||
+            candidate.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault() is not { } scroll) return;
+        scroll.RegisterAnchorCandidate(candidate);
+        _unitSidebarAnchors.Add(candidate, scroll);
+    }
+
+    private void UnitSidebarAnchorUnloaded(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control candidate && _unitSidebarAnchors.Remove(candidate, out var scroll))
+            scroll.UnregisterAnchorCandidate(candidate);
+    }
 
     private void SubscribeToViewModel()
     {

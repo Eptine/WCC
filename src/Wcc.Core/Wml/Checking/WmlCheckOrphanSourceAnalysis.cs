@@ -104,6 +104,10 @@ public static class WmlCheckOrphanSourceAnalysis
             }
             var continued = continuation;
             continuation = last > first && text[last - 1] == '+' && !endsInOpaque;
+            var malformedAssignment = !continued && previousBoundary && owners.Count > 0
+                ? WmlMalformedAssignmentCheck.AnalyzeStatement(document, first, last, tokenIndex, lineTokensEnd,
+                    owners[^1], conditionals > 0, cancellationToken) : null;
+            if (malformedAssignment is not null) findings.Add(malformedAssignment);
             if (!continued && !hasOpaque && !leadingAttribute && !leadingTag &&
                 previousBoundary && owners.Count > 0 && IsBareLiteral(text.AsSpan(first, last - first)))
             {
@@ -145,7 +149,7 @@ public static class WmlCheckOrphanSourceAnalysis
             // An unevaluated macro could emit a trailing '+' or incomplete value.
             // A later literal assignment/tag can establish a new physical boundary.
             previousBoundary = !hasMacro && !spansFollowingLine && !continuation &&
-                (leadingAttribute || leadingTag || continued || previousBoundary && !hasOpaque &&
+                (leadingAttribute || leadingTag || continued || malformedAssignment is not null || previousBoundary && !hasOpaque &&
                     IsBareLiteral(text.AsSpan(first, last - first)));
             start = NextLine(text, end);
         }

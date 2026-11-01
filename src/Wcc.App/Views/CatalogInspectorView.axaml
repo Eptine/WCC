@@ -46,6 +46,7 @@
                             Margin="0,0,0,6">
                     <Expander.Header>
                       <TextBlock Text="{Binding DisplayNameWithCount}"
+                                 Loaded="UnitSidebarAnchorLoaded" Unloaded="UnitSidebarAnchorUnloaded"
                                  FontWeight="SemiBold"/>
                     </Expander.Header>
                     <ItemsControl ItemsSource="{Binding Units}"
@@ -58,6 +59,7 @@
                       <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="wccvm:UnitTypeCatalogEntryVm">
                           <Button Click="LibraryUnitTileClicked"
+                                  Loaded="UnitSidebarAnchorLoaded" Unloaded="UnitSidebarAnchorUnloaded"
                                   Tag="{Binding}"
                                   Padding="0"
                                   Margin="2,0,2,6"

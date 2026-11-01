@@ -50,8 +50,8 @@
                         <TextBox Grid.Column="1" Text="{Binding TextDescription, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" Watermark="Description" ToolTip.Tip="Difficulty description"/>
                       </Grid>
                       <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                        <TextBox Text="{Binding TextImage, Mode=TwoWay}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsReadOnly}" Watermark="Icon" ToolTip.Tip="Core, campaign or visible dependency image reference"/>
-                        <Button Grid.Column="1" Content="Choose difficulty icon" icons:WccButtonIcon.Action="Select" Tag="{Binding}" Click="PickDifficultyImageClicked" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Select an existing Core or campaign image"/>
+                        <TextBox Text="{Binding TextImage, Mode=TwoWay}" icons:WccImageEditor.FieldKey="image" icons:WccImageEditor.AlwaysVisible="True" icons:WccImageEditor.ShowWhenDisabled="True" icons:WccImageEditor.CommitResult="{Binding CommitImageEditorResult}" GotFocus="CampaignRowTextGotFocus" LostFocus="CampaignRowTextLostFocus" IsReadOnly="{Binding IsImageReadOnly}" Watermark="Icon" ToolTip.Tip="{Binding ImageEditStatus}"/>
+                        <Button Grid.Column="1" Content="Choose difficulty icon" icons:WccButtonIcon.Action="Select" Tag="{Binding}" Click="PickDifficultyImageClicked" IsEnabled="{Binding CanEditImage}" ToolTip.Tip="Select an existing Core or campaign image"/>
                         <Button Grid.Column="2" Content="Difficulty icon options" icons:WccButtonIcon.Action="FieldSettings" ToolTip.Tip="Difficulty icon options">
                           <Button.Flyout><Flyout><Button Content="Fit image into 72 × 72" Click="FitDifficultyImageClicked" Tag="{Binding}" IsEnabled="{Binding CanFitImage}" ToolTip.Tip="Keep the proportions and original file. Save applies the size modifier."/></Flyout></Button.Flyout>
                         </Button>

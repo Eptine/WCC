@@ -21,7 +21,7 @@ public enum WccActionIcon
 {
     None, Add, Remove, Delete, Copy, Browse, Info, Help, Close, Undo, Redo,
     Previous, Next, Up, Down, Preview, Play, Pause, Stop, Settings,
-    Accept, Edit, EditCode, FieldSettings, Locate, Manage, Preset, Reset, Save, Select, ViewCode
+    Accept, Edit, EditCode, FieldSettings, Locate, Manage, Preset, Reset, Save, Select, ViewCode, ImageEditor, Tester
 }
 
 public enum WccFieldStatusIcon { None, Absent, Macro, Override, Unresolved, Value }
@@ -102,6 +102,8 @@ public sealed class WccButtonIcon : AvaloniaObject
     private static string AssetPath(Button button)
     {
         const string custom = "avares://Wcc.App/Assets/Wcc/Icons/";
+        if (GetAction(button) == WccActionIcon.ImageEditor) return custom + "ImageEditor/ImageEditor.png";
+        if (GetAction(button) == WccActionIcon.Tester) return custom + "Tester.png";
         // Status is explicit presentation metadata, independent of a button's
         // source navigation/edit authority. Static status artwork has no hover state.
         if (GetFieldStatus(button) is { } status && status != WccFieldStatusIcon.None)

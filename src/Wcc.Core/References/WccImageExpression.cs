@@ -11,6 +11,7 @@ public sealed record WccImageExpression(
 
     public bool MayContainNestedImageReferences =>
         ModifierSuffix.Contains("~BLIT(", StringComparison.OrdinalIgnoreCase) ||
+        ModifierSuffix.Contains("~L(", StringComparison.OrdinalIgnoreCase) ||
         ModifierSuffix.Contains("~MASK(", StringComparison.OrdinalIgnoreCase) ||
         ModifierSuffix.Contains("~LAYER(", StringComparison.OrdinalIgnoreCase);
 }
@@ -77,7 +78,7 @@ public static class WccImageExpressionParser
 public static class WccImageExpressionNestedReferenceScanner
 {
     private static readonly HashSet<string> ImageArgumentFunctions = new(
-        ["BLIT", "MASK", "LAYER"],
+        ["BLIT", "MASK", "LAYER", "L"],
         StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlyList<string> FindBaseReferences(WccImageExpression expression)

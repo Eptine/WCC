@@ -180,7 +180,8 @@ public sealed class WccScenarioEventRowVm : ViewModelBase
     public bool IsSelected => ReferenceEquals(_workspace.SelectedRow, this);
     public bool CanEdit => _displayDraft?.CanEdit == true;
     public bool CanRemove => _displayDraft?.CanRemove == true;
-    public bool CanEditDialogue => CanEdit && !IsMacroGroup && _supportsDialogue;
+    public bool CanEditDialogue => CanEdit && !IsMacroGroup &&
+        Entry.SourceKind != ScenarioEventSourceKind.CapturedStaticEvaluation && _supportsDialogue;
     public string DialogueReason => CanEditDialogue ? "Edit this local event with supported triggers and actions. Apply queues the event; Save writes it."
         : _displayDraft is not { CanEdit: true, IsMacroGroup: false } ? Editability
         : _dialogueProblem ?? "Additional WML stays available through RAW editing.";
@@ -197,7 +198,9 @@ public sealed class WccScenarioEventRowVm : ViewModelBase
         ? draft.IsMacroGroup ? draft.CanEdit
             ? "Edit this whole local macro invocation as one collected draft. Save preserves its event count in each context and leaves the shared definition unchanged."
             : draft.RemovalSummary : draft.CanEdit
-            ? "Edit this local event as a collected RAW draft, then use the shared Save."
+            ? Entry.SourceKind == ScenarioEventSourceKind.CapturedStaticEvaluation && _workspace.Editor.IsWccEventDraftRow(Entry)
+                ? "This event has pending RAW changes. The map and possible effects show the saved source until Save."
+                : "Edit this local event as a collected RAW draft, then use the shared Save."
             : Entry.EditabilityReason ?? "This event is read-only in the current source context."
         : Entry.EditabilityReason ?? "No exact editable source fragment is available.";
 

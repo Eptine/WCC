@@ -37,6 +37,21 @@ portable data on first use.
 Close WCC before moving its folder. Move the whole folder to retain its Library;
 configure local Wesnoth/campaign paths again when moving between computers.
 
+To update an existing portable installation:
+
+1. Close WCC and extract the new version into a fresh writable folder.
+2. Copy the complete old `Library/` folder and `settings.json` beside the new
+   executable. Include `Library/.wcc-location.json`, `index-v1`, owned snapshots,
+   resources and notices. Keep the old installation until the copied data is checked.
+3. Omit `Cache/`; WCC recreates derived caches as needed. Startup automatically
+   rebases Library-owned locations and retains old analysis before rebuilding it.
+4. Keep campaign folders, their assets and their complete `.wcc/` directories
+   together. Campaign sidecars are separate from the application Library.
+
+External Wesnoth, add-on and campaign paths stay unchanged. Reconfigure those paths
+if the external folders also moved; changing the WCC application folder alone does
+not change a project's exact Core pin.
+
 Creator campaigns retain their exact Core version, target and content fingerprint in
 their sidecar. A rebuilt Library can reconnect that identical Core under new local index
 IDs; it does not change the campaign's recorded Core pin or substitute another version.
@@ -87,7 +102,7 @@ Extended POSIX access ACLs are refused until exact preservation is supported.
 From PowerShell at the repository root:
 
 ```powershell
-./scripts/Publish-Portable.ps1 -Version 0.1.1
+./scripts/Publish-Portable.ps1 -Version 0.2
 ```
 
 The script publishes sequentially into fresh staging folders under
@@ -123,8 +138,8 @@ download the existing project dependencies and required runtime/apphost packs.
 Select one runtime or a different fresh destination when needed:
 
 ```powershell
-./scripts/Publish-Portable.ps1 -RuntimeIdentifiers win-x64 -Version 0.1.1 -OutputRoot artifacts/release-review
-./scripts/Publish-Portable.ps1 -RuntimeIdentifiers linux-x64 -Version 0.1.1 -OutputRoot artifacts/linux-review -NoArchive
+./scripts/Publish-Portable.ps1 -RuntimeIdentifiers win-x64 -Version 0.2 -OutputRoot artifacts/release-review
+./scripts/Publish-Portable.ps1 -RuntimeIdentifiers linux-x64 -Version 0.2 -OutputRoot artifacts/linux-review -NoArchive
 ```
 
 Windows output becomes a ZIP. Linux output becomes a tar.gz when the script runs
@@ -133,12 +148,12 @@ because ZIP/Windows file modes do not establish the apphost's Unix executable bi
 On Linux, from the directory containing the completed Linux folder:
 
 ```sh
-chmod 755 WCC-0.1.1-linux-x64/WCC
-if [ -f WCC-0.1.1-linux-x64/bin/createdump ]; then
-  chmod 755 WCC-0.1.1-linux-x64/bin/createdump
+chmod 755 WCC-0.2-linux-x64/WCC
+if [ -f WCC-0.2-linux-x64/bin/createdump ]; then
+  chmod 755 WCC-0.2-linux-x64/bin/createdump
 fi
 tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
-  -czf WCC-0.1.1-linux-x64.tar.gz WCC-0.1.1-linux-x64
+  -czf WCC-0.2-linux-x64.tar.gz WCC-0.2-linux-x64
 ```
 
 The resulting archive retains executable mode without requiring .NET on the test

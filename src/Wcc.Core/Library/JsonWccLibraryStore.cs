@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Wcc.Core.Library;
@@ -43,6 +44,20 @@ public sealed class JsonWccLibraryStore : IWccLibraryStore
     }
 
     public string LibraryRoot { get; }
+
+    // Relocation inspects JSON without deserializing all owned records. Apply the
+    // store's exact version spelling/default and integer codec before it moves
+    // analysis or changes any stored paths.
+    internal static void ValidateManifestFormat(JsonObject manifest)
+    {
+        var property = JsonOptions.PropertyNamingPolicy?.ConvertName(nameof(WccLibraryManifest.FormatVersion))
+            ?? nameof(WccLibraryManifest.FormatVersion);
+        var version = manifest.TryGetPropertyValue(property, out var value)
+            ? value?.Deserialize<int>(JsonOptions)
+                ?? throw new JsonException("The library manifest format version must be an integer.")
+            : WccLibraryFormat.CurrentManifestVersion;
+        EnsureSupportedVersion(version, WccLibraryFormat.CurrentManifestVersion, "library manifest");
+    }
 
     public WccFileAnalysisCacheStatistics AnalysisCacheStatistics => _analysisCache.Statistics;
 

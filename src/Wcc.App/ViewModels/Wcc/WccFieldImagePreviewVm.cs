@@ -18,6 +18,7 @@ public sealed class WccFieldImagePreviewVm : ViewModelBase, IDisposable
     private bool _isInherited;
     private bool _isLoading;
     internal object? RequestIdentity { get; private set; }
+    internal ImageEditorFieldContext? EditorContext { get; set; }
     internal Task LoadingTask { get; private set; } = Task.CompletedTask;
 
     public Bitmap? Bitmap => _bitmap;
@@ -80,6 +81,7 @@ public sealed class WccFieldImagePreviewVm : ViewModelBase, IDisposable
         _cancellation?.Dispose();
         _cancellation = null;
         RequestIdentity = null;
+        EditorContext = null;
         _isLoading = false;
     }
 

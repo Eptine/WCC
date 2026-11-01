@@ -67,9 +67,22 @@ public sealed class WccUnitTypeEffectiveDisplay
         return CreateCore(evaluation, projection, selectedOwner, registry, cancellationToken);
     }
 
+    /// <summary>
+    /// Resolves only the effective root fields for compact display summaries. Child data is
+    /// intentionally omitted; the exact registry and physical base-unit chain are still required.
+    /// This detached preview has no edit authority.
+    /// </summary>
+    public static WccUnitTypeEffectiveDisplay CreateScalarPreview(WmlStaticEvaluationResult evaluation,
+        WmlStaticScalarProjection projection, WmlStaticScalarOwner selectedOwner,
+        WmlUnitReferenceProjection registry, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        return CreateCore(evaluation, projection, selectedOwner, registry, cancellationToken, scalarOnly: true);
+    }
+
     private static WccUnitTypeEffectiveDisplay CreateCore(WmlStaticEvaluationResult evaluation,
         WmlStaticScalarProjection projection, WmlStaticScalarOwner selectedOwner,
-        WmlUnitReferenceProjection? registry, CancellationToken cancellationToken)
+        WmlUnitReferenceProjection? registry, CancellationToken cancellationToken, bool scalarOnly = false)
     {
         ArgumentNullException.ThrowIfNull(evaluation);
         ArgumentNullException.ThrowIfNull(projection);
@@ -80,7 +93,7 @@ public sealed class WccUnitTypeEffectiveDisplay
         if (registry is not null && (!ReferenceEquals(registry.SourceEvaluation, evaluation) ||
             !ReferenceEquals(registry.SourceProjection, projection)))
             throw new ArgumentException("Use a unit registry from this exact scalar projection.", nameof(registry));
-        var builder = new Builder(evaluation, projection, selectedOwner, registry, cancellationToken);
+        var builder = new Builder(evaluation, projection, selectedOwner, registry, cancellationToken, scalarOnly);
         var root = builder.Resolve(selectedOwner, []);
         return new(selectedOwner, root, UnitTypeImporter.ImportSingleUnitFromRawText(Render(root)), builder.Diagnostics)
             { HasResolvedInheritance = builder.HasResolvedInheritance };
@@ -105,7 +118,8 @@ public sealed class WccUnitTypeEffectiveDisplay
     }
 
     private sealed class Builder(WmlStaticEvaluationResult evaluation, WmlStaticScalarProjection projection,
-        WmlStaticScalarOwner selected, WmlUnitReferenceProjection? registry, CancellationToken cancellationToken)
+        WmlStaticScalarOwner selected, WmlUnitReferenceProjection? registry, CancellationToken cancellationToken,
+        bool scalarOnly)
     {
         private WmlUnitReferenceProjection? _registry = registry;
         private WmlUnitReferenceProjection Registry =>
@@ -158,7 +172,7 @@ public sealed class WccUnitTypeEffectiveDisplay
                 if (!field.IsKnown) Diagnostics.Add($"The [{owner.TagName}] field '{field.Key}' is unresolved in this context.");
             }
             return new(owner.TagName, IsSelected(owner) ? owner : null, fields,
-                owner.DirectChildren.Select(child => FromOwner(child, depth + 1)), structure);
+                scalarOnly ? [] : owner.DirectChildren.Select(child => FromOwner(child, depth + 1)), structure);
         }
 
         private bool IsSelected(WmlStaticScalarOwner owner)

@@ -37,7 +37,12 @@ public partial class AppShellViewModel
         _dependencySourceSessionMain = project?.SourcePath;
         _dependencySourceSessionProfileId = profileId;
         _campaignDependencySourcePaths = _campaignCreationSourceSeed is { } seed && profileId == seed.ProfileId &&
-            project?.SourcePath is { } seedPath && PathsEqual(seedPath, seed.MainPath) ? seed.Folders.ToArray() : [];
+            project?.SourcePath is { } seedPath && PathsEqual(seedPath, seed.MainPath) ? seed.Folders.ToArray()
+            : _campaignReadReloadSourceSeed is { } reload && profileId == reload.ProfileId &&
+                project?.SourcePath is { } reloadPath && PathsEqual(reloadPath, reload.MainPath) ? reload.Folders.ToArray() : [];
+        // A reload seed belongs only to this first replacement session. A switch
+        // elsewhere revokes it; a later opening cannot revive manual locations.
+        _campaignReadReloadSourceSeed = null;
         _dependencySourceSessionVersion++;
         _dependencySourceStatus = null;
         _campaignDependencyEvidence = null;
@@ -69,7 +74,7 @@ public partial class AppShellViewModel
         {
             Interlocked.Exchange(ref _dependencySourceAvailabilityNotificationQueued, 0);
             CampaignEditor.NotifyCampaignDependencySourceAvailabilityChanged();
-            _ = ShowCampaignDependencyNoticeAsync();
+            _ = ShowCampaignOpeningNoticesAsync();
         });
     }
 

@@ -2,11 +2,21 @@ using System.Security.Cryptography;
 
 namespace Wcc.Core.References;
 
+/// <summary>Ephemeral source-to-engine resource binding from one fresh review, never write authority.</summary>
+public sealed record WccImageRenderResourcePin(string LogicalReference, string AbsolutePath, string Sha256)
+{
+    // The bridge compares the original source; Core separately checks the exact
+    // existing staged copy (or Core image) which this engine invocation consumes.
+    internal string EnginePath { get; init; } = AbsolutePath;
+}
 public sealed record WccWesnothImageRenderContext(
     string ImageExpression,
     string UserDataDirectory,
     string CacheIdentity,
-    bool HasUnresolvedNestedReferences);
+    bool HasUnresolvedNestedReferences)
+{
+    public IReadOnlyList<WccImageRenderResourcePin> ReviewedResources { get; init; } = [];
+}
 
 /// <summary>
 /// Creates an isolated Wesnoth userdata image root for resolved non-Core assets.
@@ -102,6 +112,54 @@ public sealed class WccWesnothImageRenderContextBuilder
             hasUnresolvedNestedReferences);
     }
 
+    /// <summary>Fresh editor review must account for nested resources even when the base is Core-mapped.
+    /// This proves only the existing same-Core/same-package boundary, never another caller's override.</summary>
+    public WccWesnothImageRenderContext BuildForReview(string executablePath,
+        WccImageExpression expression, string resolvedBaseImagePath)
+    {
+        var context = Build(executablePath, expression, resolvedBaseImagePath);
+        var mapped = WccImageExpressionParser.TryParse(context.ImageExpression)
+            ?? throw new InvalidOperationException("The reviewed engine expression has no exact image base.");
+        var core = context.CacheIdentity == "core";
+        var source = Path.GetFullPath(resolvedBaseImagePath);
+        var root = TryInferImageRoot(source, core ? mapped.BaseReference : expression.BaseReference);
+        var engineRoot = core ? root : Path.Combine(context.UserDataDirectory, "images");
+        var pins = new List<WccImageRenderResourcePin>();
+        if (engineRoot is null || !TryResolveNestedReference(engineRoot, mapped.BaseReference, out var engineBase))
+            throw new InvalidOperationException("The reviewed base image has no exact engine-input mapping.");
+        pins.Add(ReviewPin(expression.BaseReference, source, engineBase));
+        var unresolved = context.HasUnresolvedNestedReferences;
+        foreach (var reference in WccImageExpressionNestedReferenceScanner.FindBaseReferences(expression))
+        {
+            if (root is null || !TryResolveNestedReference(root, reference, out var nestedSource)
+                || !TryResolveNestedReference(engineRoot, reference, out var nestedEngine))
+            { unresolved = true; continue; }
+            pins.Add(ReviewPin(reference, nestedSource, nestedEngine));
+        }
+        return context with { HasUnresolvedNestedReferences = unresolved, ReviewedResources = Array.AsReadOnly(pins.ToArray()) };
+    }
+
+    private static WccImageRenderResourcePin ReviewPin(string reference, string source, string engineInput)
+    {
+        var sourceHash = ResourceHash(source);
+        if (ResourceHash(engineInput) != sourceHash)
+            throw new InvalidOperationException("A staged image differs from its reviewed physical source: " + reference);
+        return new(reference, Path.GetFullPath(source), sourceHash) { EnginePath = Path.GetFullPath(engineInput) };
+    }
+
+    internal static void ValidateReviewResources(IReadOnlyList<WccImageRenderResourcePin> resources)
+    {
+        if (resources.Count == 0) throw new InvalidOperationException("Fresh image review has no resource receipt.");
+        foreach (var resource in resources)
+            if (ResourceHash(resource.AbsolutePath) != resource.Sha256 || ResourceHash(resource.EnginePath) != resource.Sha256)
+                throw new InvalidOperationException("A reviewed source or engine-input image changed during engine review: " + resource.LogicalReference);
+    }
+
+    private static string ResourceHash(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
     private static string? TryInferImageRoot(string absoluteSourcePath, string logicalBaseReference)
     {
         var logicalPath = NormalizeLogicalPath(logicalBaseReference);

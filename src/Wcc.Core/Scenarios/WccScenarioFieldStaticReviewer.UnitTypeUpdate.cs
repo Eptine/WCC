@@ -138,11 +138,13 @@ internal static partial class WccScenarioFieldStaticReviewer
         if (contextual.Identity != edit.Identity || !contextual.SourceCreates.Select(source => (source.Path, source.ContentHash))
             .SequenceEqual(edit.SourceCreates.Select(source => (source.Path, source.ContentHash))))
             throw new InvalidOperationException("The selected unit helper or resource recipe differs in " + context.DisplayName + ". Review one supported shared closure for every difficulty.");
-        if (units.Length != 1 || unitVisits != 1 || units[0].IsAmended || units[0].Parent is not { TagName: "units", Parent: null } container
-            || container.IsAmended || container.OpeningOrigin is not { } opening || candidateCapture.EntrySource is null
-            || !WccUnitTypeUpdatePlanner.SameSource(opening.Source, candidateCapture.EntrySource)
-            || container.ClosingOrigin is not { } closing || !WccUnitTypeUpdatePlanner.SameSource(closing.Source, candidateCapture.EntrySource))
+        if (units.Length != 1 || unitVisits != 1 || units[0].IsAmended || units[0].Parent is not { TagName: "units", Parent: null } container)
             throw new InvalidOperationException("The edited unit must load exactly once inside the campaign's literal units container.");
+        var canonicalContainer = !container.IsAmended && container.OpeningOrigin is { } opening && candidateCapture.EntrySource is not null
+            && WccUnitTypeUpdatePlanner.SameSource(opening.Source, candidateCapture.EntrySource)
+            && container.ClosingOrigin is { } closing && WccUnitTypeUpdatePlanner.SameSource(closing.Source, candidateCapture.EntrySource);
+        if (!canonicalContainer && !HasExistingUnitUpdateRegistration(edit, baseline, proposed, capture, candidateCapture, units[0], change))
+            throw new InvalidOperationException("The edited unit needs one unchanged, exactly captured global units registration in every campaign context.");
         if (WccScenarioFieldValueCodec.DecodeLiteral(units[0].GetKnownValue("id")) != edit.Id)
             throw new InvalidOperationException("The edited unit no longer has its requested literal ID.");
         var registered = WccUnitTypeUpdatePlanner.EvaluateProject(candidateCapture, context, null, proposed.CancellationToken);
@@ -151,7 +153,8 @@ internal static partial class WccScenarioFieldStaticReviewer
             || registeredProjection.Owners.Count(owner => owner.TagName == "unit_type"
                 && WccScenarioFieldValueCodec.DecodeLiteral(owner.GetKnownValue("id")) == edit.Id) != 1)
             throw new InvalidOperationException("Unit ID '" + edit.Id + "' is duplicated or unresolved in the actual Core and campaign registry.");
-        ValidateUnitUpdateRuntimeReferences(edit, registered, registeredProjection, proposed.CancellationToken);
+        ValidateUnitUpdateRuntimeReferences(edit, registered, registeredProjection, capture, context,
+            change, proposed.CancellationToken);
         var bounds = UnitRegistryBounds(units[0]);
         foreach (var segment in proposed.GetProjectRegionSegments(edit.CandidateRange))
         {
@@ -237,7 +240,8 @@ internal static partial class WccScenarioFieldStaticReviewer
     }
 
     private static void ValidateUnitUpdateRuntimeReferences(WccUnitTypeUpdateEdit edit, WmlStaticEvaluationResult evaluation,
-        WmlStaticScalarProjection projection, CancellationToken cancellationToken)
+        WmlStaticScalarProjection projection, WccStaticSourceCaptureResult capture, WmlEvaluationContext context,
+        WccScenarioFieldSourceChange? change, CancellationToken cancellationToken)
     {
         var types = WmlUnitReferenceProjection.Create(evaluation, projection, cancellationToken);
         if (!types.HasCompleteDeclaredInventory) throw new InvalidOperationException("The actual unit registry is incomplete for the edited unit.");
@@ -252,11 +256,21 @@ internal static partial class WccScenarioFieldStaticReviewer
                     throw new InvalidOperationException("The edited unit reference '" + id + "' has no unique active Core or campaign definition: " + reference.Field.Key);
         }
         var definitions = WmlDefinitionReferenceProjection.Create(evaluation, projection, cancellationToken);
+        var originalDefinitions = new Lazy<WmlDefinitionReferenceProjection>(() =>
+        {
+            var original = WccUnitTypeUpdatePlanner.EvaluateProject(capture, context, null, cancellationToken);
+            return WmlDefinitionReferenceProjection.Create(original, cancellationToken: cancellationToken);
+        });
         foreach (var reference in definitions.References.Where(reference => reference.Kind is WmlDefinitionReferenceKind.Race or WmlDefinitionReferenceKind.MovementType
             && UnitUpdateOwner(reference.Owner, edit.CandidateRange)))
-            if (!definitions.TryObserveField(reference.Owner, reference.Field, out var id)
-                || !WmlUnitReferenceProjection.IsStaticName(id) || definitions.Declarations.Count(declaration => declaration.Kind == reference.Kind && declaration.Id == id) != 1)
+        {
+            var observed = definitions.TryObserveField(reference.Owner, reference.Field, out var id);
+            var count = definitions.Declarations.Count(declaration => declaration.Kind == reference.Kind && declaration.Id == id);
+            if (!observed || !WmlUnitReferenceProjection.IsStaticName(id)
+                || count != 1 && (count < 2 || !PreservesExistingUnitDefinitionReference(edit, reference,
+                    definitions, originalDefinitions.Value, change)))
                 throw new InvalidOperationException("The edited unit needs one active Core or campaign " + reference.Kind + " definition: " + reference.Field.ValueText);
+        }
         foreach (var owner in projection.Owners.Where(owner => UnitUpdateOwner(owner, edit.CandidateRange)))
             foreach (var key in new[] { "abilities_list", "specials_list" })
                 if (owner.Fields.TryGetValue(key, out var field))
@@ -336,7 +350,19 @@ internal static partial class WccScenarioFieldStaticReviewer
                         if (aliases.Any(alias => WccStaticSourceCapture.FindCapturedResourceMember(edit.ManagedCapture, library.Revision, folder + "/" + alias) is { IsCore: false }))
                             throw new InvalidOperationException("Library-owned helper resource '" + filename + "' needs a checked asset copy before this unit can be saved; a Core or campaign filename match does not prove the same resource.");
                     }
-                    if (!WmlResourceLookupPaths.Create(filename, folder, mounts, folder == "images", proposed.CancellationToken, resolver.InstallationResourceFolders).Candidates
+                    // Existing campaign image/sound references are authoring values:
+                    // artists may supply their files later. Tester reports missing
+                    // resources; ordinary unit updates do not require those bytes.
+                    // Materialized Library content still has to prove its exact
+                    // captured transfer instead of borrowing a matching filename.
+                    var libraryResource = transferred || dependencyPaths.Contains(resource.OriginalOwner.OpeningOrigin?.Source.Path ?? "")
+                        || contribution.ValueOrigins.Any(origin => libraryOwners.Any(row => PathComparer.Equals(row.Source.Path, origin.Source.Path)))
+                        || contribution.ExpansionStack.Concat(contribution.ValueExpansionStack).Any(frame =>
+                            libraryOwners.Any(row => PathComparer.Equals(row.Source.Path, frame.Definition.Source.Path)));
+                    for (var owner = resource.OriginalOwner; owner is not null && !libraryResource; owner = owner.Parent)
+                        libraryResource = owner.OpeningExpansionStack.Any(frame => libraryOwners.Any(row => PathComparer.Equals(row.Source.Path, frame.Definition.Source.Path)));
+                    var optionalAuthoredResource = !libraryResource && kind is WmlResourceFieldKind.Image or WmlResourceFieldKind.AnimationImage or WmlResourceFieldKind.Sound;
+                    if (!optionalAuthoredResource && !WmlResourceLookupPaths.Create(filename, folder, mounts, folder == "images", proposed.CancellationToken, resolver.InstallationResourceFolders).Candidates
                         .Any(path => resolver.ResolveResource(path, edit.CandidateSource) is { Exists: WmlStaticTruth.True, MembershipIdentity.Length: > 0 }))
                         throw new InvalidOperationException("Resource '" + filename + "' is not available in the actual campaign or Core. Library-owned helper assets need a separate checked asset copy.");
                 }

@@ -34,6 +34,8 @@ public partial class WccInitialFieldEditorView : UserControl
     public WccInitialFieldEditorView()
     {
         InitializeComponent();
+        WccImageEditor.Attach(ValueInput, () => (DataContext as WccInitialFieldEditorVm)?.ImagePreview?.EditorContext,
+            () => DataContext is WccInitialFieldEditorVm { ShowsImagePreview: true });
         ChoicesButton.Flyout!.Opened += (_, _) =>
         { _scenarioChoiceField = DataContext as WccInitialFieldEditorVm; _scenarioChoiceValues = _scenarioChoiceField?.Choices; };
         ChoicesButton.Flyout.Closed += (_, _) => { _scenarioChoiceField = null; _scenarioChoiceValues = null; };

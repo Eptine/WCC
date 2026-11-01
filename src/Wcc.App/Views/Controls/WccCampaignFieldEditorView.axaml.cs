@@ -41,7 +41,7 @@ public partial class WccCampaignFieldEditorView : UserControl
         var inlineChoice = UseInlineChoice && DataContext is WccCampaignFieldEditorVm { Key: "description_alignment" };
         StaticChoices.IsVisible = !inlineChoice && DataContext is WccCampaignFieldEditorVm { ShowsStaticChoice: true };
         InlineChoicesButton.IsVisible = inlineChoice;
-        TextInput.Padding = inlineChoice ? new Thickness(8, 5, 31, 5) : new Thickness(8, 5);
+        ImageExpressionInput.Padding = inlineChoice ? new Thickness(8, 5, 31, 5) : new Thickness(8, 5);
         FooterPresenter.IsVisible = below && FooterContent is not null;
         PresenceText.IsVisible = ShowPresence;
         ImagePreviewBorder.IsVisible = ShowImagePreview && DataContext is WccCampaignFieldEditorVm { ShowsImagePreview: true };
@@ -63,6 +63,8 @@ public partial class WccCampaignFieldEditorView : UserControl
     public WccCampaignFieldEditorView()
     {
         InitializeComponent();
+        WccImageEditor.Attach(ImageExpressionInput, () => (DataContext as WccCampaignFieldEditorVm)?.ImagePreview.EditorContext,
+            () => DataContext is WccCampaignFieldEditorVm { ShowsImagePreview: true });
         ApplyFieldLayout();
         InlineChoicesButton.Flyout!.Opened += (_, _) =>
         { _inlineChoiceField = DataContext as WccCampaignFieldEditorVm; _inlineChoiceValues = _inlineChoiceField?.Choices; };

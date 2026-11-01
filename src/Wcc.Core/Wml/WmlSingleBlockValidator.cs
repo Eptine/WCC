@@ -78,7 +78,7 @@ public static class WmlSingleBlockValidator
         var structure = WmlAuthoredStructureScanner.Scan(rawWml);
         var problem = structure.Problem ?? ValidateDirectives(structure.Directives) ??
             ValidateTagBalance(structure.MaskedText.Replace("\r\n", "\n", StringComparison.Ordinal)
-                .Replace('\r', '\n').Split('\n'));
+                .Replace('\r', '\n').Split('\n'), allowCompactClosingSequences: true);
         return new(problem is null, problem);
     }
 
@@ -107,13 +107,40 @@ public static class WmlSingleBlockValidator
         return conditionals.Count == 0 ? null : "A preprocessor conditional is missing its #endif.";
     }
 
-    private static string? ValidateTagBalance(IReadOnlyList<string> lines)
+    private static string? ValidateTagBalance(IReadOnlyList<string> lines, bool allowCompactClosingSequences = false)
     {
         var tags = new Stack<string>();
         foreach (var sourceLine in lines)
         {
             var line = sourceLine.Trim();
             if (!line.StartsWith('[') || !line.EndsWith(']')) continue;
+            if (allowCompactClosingSequences && line.StartsWith("[/", StringComparison.Ordinal)
+                && line.IndexOf(']') < line.Length - 1)
+            {
+                // Authored sources may close nested nonempty tags on one line.
+                // Reuse the shared header reader over already masked source; each
+                // closer must match the real stack, with no intervening WML text.
+                // The stricter RAW single-block editor retains its projection and
+                // standalone closing-line requirements above.
+                var closers = WmlEditorAnalysis.ReadMaskedTagOccurrences(line, line.Length,
+                    default, static () => { });
+                if (closers is { Count: > 1 } && closers.All(tag => tag.IsClosing))
+                {
+                    var cursor = 0;
+                    foreach (var closer in closers)
+                    {
+                        if (!closer.IsComplete || closer.IsComputedName || closer.Name.Length == 0
+                            || !line.AsSpan(cursor, closer.StartOffset - cursor).Trim().IsEmpty)
+                            return "A compact WML closing sequence contains malformed tags or surrounding code.";
+                        if (tags.Count == 0 || !tags.Pop().Equals(closer.Name, StringComparison.OrdinalIgnoreCase))
+                            return $"The closing [/{closer.Name}] tag does not match an open literal tag.";
+                        cursor = closer.StartOffset + closer.Length;
+                    }
+                    if (!line.AsSpan(cursor).Trim().IsEmpty)
+                        return "A compact WML closing sequence contains surrounding code.";
+                    continue;
+                }
+            }
             if (line.Contains("][", StringComparison.Ordinal))
             {
                 // The projection reader deliberately omits compact empty children.

@@ -13,6 +13,9 @@ public static class WccScenarioFieldValueCodec
 {
     private static readonly ScenarioInitialFieldDefinition Turns =
         ScenarioInitialFieldCatalog.ScenarioFields.Single(field => field.Key == "turns");
+    private static readonly ScenarioInitialFieldDefinition DifficultyImage = new("image", "Difficulty image", "Difficulties",
+        ScenarioInitialFieldKind.Image, new(ScenarioInitialFieldDefaultKind.None, null, "No difficulty image declared."), [])
+        { OwnerScope = ScenarioInitialFieldOwnerScope.Campaign };
 
     /// <summary>Input syntax only. Marker text still requires scalar validation and complete source review.</summary>
     public static WccScenarioFieldValueInputKind InferInputKind(string? text) =>
@@ -22,6 +25,7 @@ public static class WccScenarioFieldValueCodec
     public static bool TryGetDefinition(string tag, string key, [NotNullWhen(true)] out ScenarioInitialFieldDefinition? field)
     {
         if (tag == "campaign") return CampaignInitialFieldCatalog.TryGet(key, out field) && field.IsEditable;
+        if (tag == "difficulty") { field = key == "image" ? DifficultyImage : null; return field is not null; }
         if (tag == "scenario" && key == "turns") { field = Turns; return true; }
         if (ScenarioInitialFieldCatalog.TryGet(tag, key, out field)) return field.IsEditable;
         return tag == "side" && ScenarioInitialFieldCatalog.LegacyInlineKeys.Contains(key)

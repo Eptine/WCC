@@ -77,7 +77,11 @@ public static partial class WccUnitTypeUpdatePlanner
             throw new InvalidOperationException("Unit updates need complete pinned project and Library source captures.");
         if (WccCampaignCreationTokenPolicy.ValidateTextDomain(projectTextDomain) is { } domainProblem) throw new ArgumentException(domainProblem);
         var root = Path.GetDirectoryName(projectCapture.EntrySource.Path)!;
-        if (!SamePath(original.Path, candidate.Path) || !Inside(Path.Combine(root, "units"), original.Path)
+        // Existing registrations may load project-owned units from a nested data
+        // tree (for example an embedded dependency). Their exact captured source
+        // and registration are reviewed below; creation's canonical units layout
+        // is not an ownership rule for updates.
+        if (!SamePath(original.Path, candidate.Path) || !Inside(root, original.Path)
             || projectCapture.Sources.Count(source => SameSource(source, original)) != 1)
             throw new InvalidOperationException("The unit draft is not the exact captured project unit file.");
         var before = ReadStandalone(original); var after = ReadStandalone(candidate);

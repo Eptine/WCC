@@ -1,3 +1,5 @@
+using Wcc.Core.Wml;
+
 namespace Wcc.Core.Library;
 
 /// <summary>
@@ -15,18 +17,23 @@ internal static class WccLibraryReferenceResolver
         IReadOnlyDictionary<WccReferenceId, WccReferenceRecord> references,
         List<WccDiagnosticRecord> diagnostics)
     {
+        // File analysis preserves authored WML, including quotes around a unit
+        // ID or reference. Normalize only this run's unit lookup keys so existing
+        // cached analyses resolve too, without changing their source identities.
+        var unitSymbols = new Dictionary<string, string?>(StringComparer.Ordinal);
         var definitions = entities.Values
             .Where(x => !string.IsNullOrWhiteSpace(x.ExportSymbol))
             .Select(x => new
             {
                 Entity = x,
-                SourceFile = sourceFiles.GetValueOrDefault(x.SourceFileId)
+                SourceFile = sourceFiles.GetValueOrDefault(x.SourceFileId),
+                Symbol = LookupSymbol(x.EntityType, x.ExportSymbol!, unitSymbols)
             })
-            .Where(x => x.SourceFile is not null)
+            .Where(x => x.SourceFile is not null && x.Symbol is not null)
             .GroupBy(x => new WccScopedSymbolKey(
                 x.SourceFile!.PackageRevisionId,
                 x.Entity.EntityType,
-                x.Entity.ExportSymbol!))
+                x.Symbol!))
             .ToDictionary(x => x.Key, x => x.Select(y => y.Entity).ToArray());
 
         DiagnoseMissingDependencies(revisions, diagnostics);
@@ -47,6 +54,7 @@ internal static class WccLibraryReferenceResolver
                 revisions,
                 sourceFiles,
                 definitions,
+                unitSymbols,
                 dependencyLevelsByRevision,
                 candidatesByLookup,
                 diagnostics);
@@ -61,6 +69,7 @@ internal static class WccLibraryReferenceResolver
         IReadOnlyDictionary<WccPackageRevisionId, WccPackageRevisionRecord> revisions,
         IReadOnlyDictionary<WccSourceFileId, WccSourceFileRecord> sourceFiles,
         IReadOnlyDictionary<WccScopedSymbolKey, WccEntityRecord[]> definitions,
+        Dictionary<string, string?> unitSymbols,
         Dictionary<WccPackageRevisionId, IReadOnlyList<WccPackageRevisionId>[]> dependencyLevelsByRevision,
         Dictionary<ReferenceLookupKey, WccEntityRecord[]> candidatesByLookup,
         List<WccDiagnosticRecord> diagnostics)
@@ -74,16 +83,19 @@ internal static class WccLibraryReferenceResolver
             return reference;
         }
 
+        if (LookupSymbol(targetType, reference.LookupValue, unitSymbols) is not { } lookupValue)
+            return reference;
+
         var lookupKey = new ReferenceLookupKey(
             sourceRevision.Id,
             targetType,
-            reference.LookupValue);
+            lookupValue);
         if (!candidatesByLookup.TryGetValue(lookupKey, out var candidates))
         {
             candidates = FindVisibleDefinitions(
                 sourceRevision,
                 targetType,
-                reference.LookupValue,
+                lookupValue,
                 revisions,
                 definitions,
                 dependencyLevelsByRevision);
@@ -101,6 +113,19 @@ internal static class WccLibraryReferenceResolver
             revisions,
             sourceFiles,
             diagnostics);
+    }
+
+    private static string? LookupSymbol(WccEntityTypeId targetType, string raw,
+        Dictionary<string, string?> unitSymbols)
+    {
+        if (targetType != WccEntityTypes.UnitType) return raw;
+        if (!unitSymbols.TryGetValue(raw, out var literal))
+        {
+            literal = WmlUnitReferenceProjection.TryLiteral(raw, out var decoded) && decoded.Length != 0 && !decoded.Contains(',')
+                ? decoded : null;
+            unitSymbols.Add(raw, literal);
+        }
+        return literal;
     }
 
     private static WccEntityRecord[] FindVisibleDefinitions(

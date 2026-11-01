@@ -28,7 +28,7 @@ public partial class AppShellViewModel
     }
 
     // Interaction state is display only; persistence authority remains in the existing coordinators.
-    public bool IsShellBusy => IsEditorSourceLoading || IsCampaignEntryNavigationBusy || IsCampaignCreationBusy || IsScenarioCreationBusy || IsUnitTypeCreationBusy || IsGlobalSaveBusy || IsPendingNavigationDecision ||
+    public bool IsShellBusy => IsProjectCorePinChanging || IsEditorSourceLoading || IsCampaignEntryNavigationBusy || IsCampaignReadAssessmentBusy || IsCampaignCreationBusy || IsScenarioCreationBusy || IsUnitTypeCreationBusy || IsGlobalSaveBusy || IsPendingNavigationDecision ||
         ScenarioEditor.IsWccInlineSaveProgressVisible || ScenarioEditor.IsScenarioUiLoading ||
         CampaignEditor.IsCampaignFieldSaveBusy || CampaignEditor.IsCampaignUiLoading || CampaignEditor.IsCampaignSourceLoading ||
         IsLibraryIndexRefreshing;
@@ -45,7 +45,9 @@ public partial class AppShellViewModel
          Status.StartsWith("Cannot", StringComparison.OrdinalIgnoreCase) ||
          Status.Contains("failed", StringComparison.OrdinalIgnoreCase));
     public string ShellStatusText =>
+        IsProjectCorePinChanging ? "Updating the project Core setting..." :
         IsCampaignEntryNavigationBusy ? "Reading campaign entries and scenario contexts..." :
+        IsCampaignReadAssessmentBusy ? "Checking campaign reading and editing issues..." :
         IsLibraryIndexRefreshing && (IsUnitTypeCreationBusy || IsGlobalSaveBusy) ? LibraryIndexStatus ?? "Updating the saved package..." :
         IsCampaignCreationBusy ? Status ?? "Creating campaign..." :
         IsScenarioCreationBusy && !IsGlobalSaveBusy ? Status ?? "Creating scenario..." :
@@ -168,6 +170,8 @@ public partial class AppShellViewModel
                 OnPropertyChanged(nameof(IsEditorSourceLoading));
                 OnPropertyChanged(nameof(IsShellBusy));
                 OnPropertyChanged(nameof(CanInteractWithEditors));
+                OnPropertyChanged(nameof(CanPinCurrentProjectToActiveWesnoth));
+                OnPropertyChanged(nameof(CanUnpinCurrentProjectCore));
                 OnPropertyChanged(nameof(EditorContentOpacity));
                 OnPropertyChanged(nameof(ShellStatusBrush));
                 OnPropertyChanged(nameof(ShellStatusText));

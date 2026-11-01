@@ -16,16 +16,23 @@ namespace Wcc.App.ViewModels.Wcc;
 public sealed class UnitTypeCatalogEntryVm : ViewModelBase
 {
     private static readonly SemaphoreSlim PreviewLoadGate = new(4, 4);
-    private readonly Func<string?>? _previewPathResolver;
+    private Func<string?>? _previewPathResolver;
+    private object? _sidebarDisplayReceipt;
+    private int _previewGeneration;
+    private bool _previewWasRequested;
+    private bool _previewRetired;
+    private string? _previewLoadedPath;
 
     public UnitTypeCatalogEntryVm(
         WccCatalogItem item,
         string? sourcePath,
         Func<string?>? previewPathResolver = null,
-        string? effectiveRace = null)
+        string? effectiveRace = null,
+        object? sidebarDisplayReceipt = null)
     {
         LibraryItem = item ?? throw new ArgumentNullException(nameof(item));
         _previewPathResolver = previewPathResolver;
+        _sidebarDisplayReceipt = sidebarDisplayReceipt;
         UnitTypeId = item.ExportSymbol ?? string.Empty;
         DisplayUnitTypeId = WccWmlPlainTextCodec.TryReadLiteral(UnitTypeId, out var displayId, out var translatedId) && !translatedId
             ? displayId : UnitTypeId;
@@ -37,7 +44,7 @@ public sealed class UnitTypeCatalogEntryVm : ViewModelBase
             ? $"{DisplayUnitTypeId} - {normalizedName}"
             : normalizedName ?? DisplayUnitTypeId;
 
-        RaceId = effectiveRace ?? DecodeSourceRace(item.Summary.GetValueOrDefault("race"));
+        _raceId = effectiveRace ?? DecodeSourceRace(item.Summary.GetValueOrDefault("race"));
         SourcePath = sourcePath;
         SourceFileName = Path.GetFileName(sourcePath) is { Length: > 0 } fileName
             ? fileName
@@ -76,7 +83,8 @@ public sealed class UnitTypeCatalogEntryVm : ViewModelBase
     public string DisplayName { get; }
     public string UnitTypeId { get; }
     public string DisplayUnitTypeId { get; }
-    public string? RaceId { get; }
+    private string? _raceId;
+    public string? RaceId => _raceId;
     public string? SourcePath { get; }
     public string SourceFileName { get; }
     public string OriginLabel { get; }
@@ -131,22 +139,74 @@ public sealed class UnitTypeCatalogEntryVm : ViewModelBase
         ? new SolidColorBrush(Color.Parse("#BDAC7D"))
         : new SolidColorBrush(Color.Parse("#76674B"));
 
+    // The catalog identity and authored summary remain fixed. Only a current,
+    // detached display receipt may change the derived race and thumbnail.
+    internal bool ApplySidebarSummary(string? effectiveRace, Func<string?>? previewPathResolver, object receipt,
+        bool hasKnownPreviewPath = false, string? knownPreviewPath = null)
+    {
+        if (_previewRetired || ReferenceEquals(_sidebarDisplayReceipt, receipt)) return false;
+        _sidebarDisplayReceipt = receipt;
+        SetField(ref _raceId, effectiveRace ?? DecodeSourceRace(LibraryItem!.Summary.GetValueOrDefault("race")), nameof(RaceId));
+        _previewPathResolver = previewPathResolver;
+        Interlocked.Increment(ref _previewGeneration);
+        _previewLoadStarted = false;
+        if (hasKnownPreviewPath && _previewBitmap is not null &&
+            string.Equals(knownPreviewPath, _previewLoadedPath, OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            _previewLoadStarted = true;
+            return true;
+        }
+        if (hasKnownPreviewPath && knownPreviewPath is null)
+        {
+            ClearPreviewBitmap();
+            _previewLoadStarted = true;
+            return true;
+        }
+        if (_previewWasRequested) StartPreviewLoadIfNeeded();
+        return true;
+    }
+
+    internal void RetireSidebarPreview()
+    {
+        _previewRetired = true;
+        Interlocked.Increment(ref _previewGeneration);
+        _previewPathResolver = null;
+        _sidebarDisplayReceipt = null;
+        ClearPreviewBitmap();
+    }
+
+    private void ClearPreviewBitmap()
+    {
+        var old = _previewBitmap;
+        _previewBitmap = null;
+        _previewLoadedPath = null;
+        if (old is not null)
+        {
+            OnPropertyChanged(nameof(PreviewBitmap));
+            OnPropertyChanged(nameof(HasNoPreviewBitmap));
+            old.Dispose();
+        }
+    }
+
     private void StartPreviewLoadIfNeeded()
     {
-        if (_previewLoadStarted || _previewPathResolver is null)
+        _previewWasRequested = true;
+        if (_previewRetired || _previewLoadStarted || _previewPathResolver is not { } resolver)
             return;
 
         _previewLoadStarted = true;
-        _ = LoadPreviewAsync();
+        _ = LoadPreviewAsync(resolver, Volatile.Read(ref _previewGeneration));
     }
 
-    private async Task LoadPreviewAsync()
+    private async Task LoadPreviewAsync(Func<string?> resolver, int generation)
     {
         await PreviewLoadGate.WaitAsync();
         Bitmap? bitmap = null;
+        string? path = null;
         try
         {
-            bitmap = await Task.Run(() => BitmapFileLoader.TryLoad(_previewPathResolver?.Invoke()));
+            bitmap = await Task.Run(() => BitmapFileLoader.TryLoad(path = resolver()));
         }
         catch
         {
@@ -160,9 +220,17 @@ public sealed class UnitTypeCatalogEntryVm : ViewModelBase
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            if (_previewRetired || generation != Volatile.Read(ref _previewGeneration))
+            {
+                bitmap?.Dispose();
+                return;
+            }
+            var old = _previewBitmap;
             _previewBitmap = bitmap;
+            _previewLoadedPath = bitmap is null ? null : path;
             OnPropertyChanged(nameof(PreviewBitmap));
             OnPropertyChanged(nameof(HasNoPreviewBitmap));
+            old?.Dispose();
         });
     }
 }

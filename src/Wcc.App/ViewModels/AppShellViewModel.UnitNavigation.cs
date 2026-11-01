@@ -30,9 +30,32 @@ public partial class AppShellViewModel
     private async Task<bool> ConfirmUnitNavigationAsync(UnitNavigationRequest request) =>
         await ConfirmSourceNavigationAsync() && IsCurrentUnitNavigation(request);
 
-    private static bool IsShowingIndexedUnit(MainWindowViewModel editor, UnitTypeCatalogEntryVm entry) =>
-        editor.CurrentUnitAsset?.SourcePath is { } path && entry.SourcePath is { } requested &&
-        PathsEqual(path, requested) && editor.CurrentSelectedUnitTypeId == entry.UnitTypeId;
+    private bool IsShowingIndexedUnit(MainWindowViewModel editor, UnitTypeCatalogEntryVm entry)
+    {
+        if (LibrarySnapshot is not { } snapshot || entry.LibraryEntityId is not { } entityId ||
+            editor.CurrentUnitAsset?.SourcePath is not { } path || entry.SourcePath is not { } requested ||
+            !PathsEqual(path, requested) || editor.SelectedUnit?.Document is not { } document ||
+            CaptureIndexedUnitDestination(entityId, false) is not { } destination ||
+            !PathsEqual(path, destination.StoragePath) || destination.ExportSymbol != entry.UnitTypeId ||
+            !snapshot.EntitiesById.TryGetValue(entityId, out var entity) ||
+            !snapshot.SourceFilesById.TryGetValue(entity.SourceFileId, out var file) ||
+            file.ContentHash is not { Length: > 0 } hash ||
+            WccContentHash.ComputeText(document.OriginalText) != hash ||
+            document.BlockSpan.StartIndex != destination.Start || document.BlockSpan.EndIndexExclusive != destination.End ||
+            WccContentHash.ComputeText(document.BlockSpan.RawText) != destination.Fingerprint) return false;
+
+        // Two branches can declare the same ID in one physical file. Compare the
+        // original indexed declaration, so a scalar draft on that declaration is
+        // still a no-op while another branch remains a real navigation request.
+        var visible = GetIndexedUnitVisibleRevisions(snapshot, null);
+        var owners = snapshot.SourceFilesById.Values.Where(candidate => visible.Contains(candidate.PackageRevisionId) &&
+            PathsEqual(candidate.StoragePath, path)).Take(2).ToArray();
+        return owners.Length == 1 && owners[0].Id == file.Id &&
+            snapshot.EntitiesById.Values.Count(candidate => candidate.SourceFileId == file.Id &&
+                candidate.EntityType == WccEntityTypes.UnitType && candidate.ExportSymbol == destination.ExportSymbol &&
+                candidate.SourceSpan?.StartOffset == destination.Start && candidate.SourceSpan?.EndOffsetExclusive == destination.End &&
+                candidate.ContentFingerprint == destination.Fingerprint) == 1;
+    }
 
     private IndexedUnitDestination? CaptureIndexedUnitDestination(WccEntityId entityId, bool projectScope)
     {

@@ -64,7 +64,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         try
         {
             if (proposals.Count == 0) return RefuseBatch("No authored field changes are pending.");
-            if (proposals.Any(proposal => proposal.Route.Owner.TagName == "campaign"))
+            if (proposals.Any(proposal => proposal.Route.Owner.TagName is "campaign" or "difficulty"))
                 return RefuseBatch("Campaign drafts require the explicit CampaignMenu collected review scope.");
             if (proposals.Any(proposal => !WccScenarioFieldValueCodec.TryGetDefinition(proposal.Route.Owner.TagName, proposal.Route.Key, out _)))
                 return RefuseBatch("A draft field has no supported initial-field editing semantics; use RAW source.");
@@ -93,7 +93,8 @@ internal static partial class WccScenarioFieldStaticReviewer
                 cancellationToken.ThrowIfCancellationRequested();
                 var baseline = EvaluateWithDiagnostics(capture, context, state.Plan, environment!, null, cancellationToken, diagnostics);
                 if (!baseline.Evaluation.IsComplete || baseline.Projection.Diagnostics.Count != 0)
-                    return RefuseBatch("A declared context contains unresolved or malformed expanded WML; use RAW review.");
+                    return RefuseBatch("A declared context contains unresolved or malformed expanded WML; use RAW review."
+                        + CompletenessDiagnosticDetail(baseline, context, "Existing context"));
                 baselines.Add(context.SemanticKey, baseline);
             }
             var freshProposals = new WccScenarioFieldEditProposal[proposals.Count];
@@ -141,7 +142,8 @@ internal static partial class WccScenarioFieldStaticReviewer
                 var baseline = baselines[context.SemanticKey];
                 var proposed = EvaluateWithDiagnostics(capture, context, state.Plan, environment!, sourceChange, cancellationToken, diagnostics);
                 if (!proposed.Evaluation.IsComplete || proposed.Projection.Diagnostics.Count != 0)
-                    return RefuseBatch("The combined proposal contains unresolved or malformed expanded WML in a declared context; use RAW review.");
+                    return RefuseBatch("The combined proposal contains unresolved or malformed expanded WML in a declared context; use RAW review."
+                        + CompletenessDiagnosticDetail(proposed, context, "Proposed context"));
                 var oldOwners = FindBatchOwnersWithDiagnostics(baseline.Projection, originalOwners, null, cancellationToken, diagnostics);
                 var newOwners = FindBatchOwnersWithDiagnostics(proposed.Projection, originalOwners, sourceChange, cancellationToken, diagnostics);
                 var targets = new List<ReviewedFieldTarget>();

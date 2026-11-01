@@ -32,8 +32,9 @@ public sealed class CampaignDifficultyDisplayRow : ViewModelBase
     }
     public string Image
     {
-        get => _editable?.Image ?? _captured?.Image ?? "";
-        set { if (_editable is not null) _editable.Image = value; }
+        get => _editor.CampaignDifficultyImageValue(this, _editable?.Image ?? _captured?.Image ?? "");
+        set { if (CanEdit && _editable is not null) _editable.Image = value;
+            else _editor.SetCampaignDifficultyImageValue(this, value ?? ""); }
     }
     // Buffer by the stable editor row, so a presentation refresh cannot strand
     // another field on the same difficulty card during an ordinary commit.
@@ -49,8 +50,14 @@ public sealed class CampaignDifficultyDisplayRow : ViewModelBase
     }
     public string TextImage
     {
-        get => BufferedText("image", Image);
-        set => BufferText("image", value, () => Image, text => Image = text ?? "");
+        get => _editor.TryGetCampaignTextInput((object?)_editable ?? this, "image", out var text) ? text ?? "" : Image;
+        set
+        {
+            if (!CanEditImage || TextImage == (value ?? "")) return;
+            if (_editor.BufferCampaignTextInput((object?)_editable ?? this, "image", value ?? "",
+                () => _editor.IsCurrentCampaignDifficultyDisplayRow(this) && CanEditImage,
+                () => Image, text => Image = text ?? "", RefreshBufferedText)) RefreshBufferedText();
+        }
     }
     private string BufferedText(string slot, string value) => _editable is not null &&
         _editor.TryGetCampaignTextInput(_editable, slot, out var text) ? text ?? "" : value;
@@ -63,11 +70,11 @@ public sealed class CampaignDifficultyDisplayRow : ViewModelBase
     }
     public bool CommitTextInput()
     {
-        if (_editable is null) return true;
-        var committed = _editor.CommitCampaignTextInputs(_editable, out var problem);
+        var committed = _editor.CommitCampaignTextInputs((object?)_editable ?? this, out var problem);
         if (!committed) _editor.Status = problem ?? "The typed difficulty values remain open.";
         return committed;
     }
+    public Func<bool> CommitImageEditorResult => CommitTextInput;
     private void RefreshBufferedText()
     {
         foreach (var property in new[] { nameof(TextLabel), nameof(TextDescription), nameof(TextImage) }) OnPropertyChanged(property);
@@ -80,7 +87,10 @@ public sealed class CampaignDifficultyDisplayRow : ViewModelBase
     }
     public bool CanEdit => _editable?.CanEdit == true;
     public bool IsReadOnly => !CanEdit;
-    public bool CanFitImage => CanEdit && !string.IsNullOrWhiteSpace(TextImage) &&
+    public bool CanEditImage => CanEdit || _editor.CanEditCampaignDifficultyImage(this);
+    public bool IsImageReadOnly => !CanEditImage;
+    public string ImageEditStatus => CanEdit ? "Edit this difficulty icon; Save checks its exact campaign source." : _editor.CampaignDifficultyImageEditStatus(this);
+    public bool CanFitImage => CanEditImage && !string.IsNullOrWhiteSpace(TextImage) &&
         global::Wcc.Core.Scenarios.WccScenarioFieldValueCodec.InferInputKind(TextImage) == global::Wcc.Core.Scenarios.WccScenarioFieldValueInputKind.Literal;
     public void FitImage()
     {
@@ -105,7 +115,7 @@ public sealed class CampaignDifficultyDisplayRow : ViewModelBase
     internal void Refresh()
     {
         foreach (var property in new[] { nameof(Label), nameof(Description), nameof(Image), nameof(TextLabel), nameof(TextDescription), nameof(TextImage), nameof(IsDefault),
-                     nameof(CanEdit), nameof(IsReadOnly), nameof(CanEditRaw), nameof(HasSource), nameof(SourceDescription),
+                     nameof(CanEdit), nameof(IsReadOnly), nameof(CanEditImage), nameof(IsImageReadOnly), nameof(ImageEditStatus), nameof(CanEditRaw), nameof(HasSource), nameof(SourceDescription),
                      nameof(HasImagePreview), nameof(ImagePreview), nameof(CanFitImage) })
             OnPropertyChanged(property);
     }

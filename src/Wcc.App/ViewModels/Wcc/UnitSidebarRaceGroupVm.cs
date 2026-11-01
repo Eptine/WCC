@@ -11,6 +11,7 @@ public sealed class UnitSidebarRaceGroupVm : ViewModelBase
         RaceKey = raceKey;
         DisplayName = displayName;
         _isExpanded = isExpanded;
+        Units.CollectionChanged += (_, _) => OnPropertyChanged(nameof(DisplayNameWithCount));
     }
 
     public string RaceKey { get; }

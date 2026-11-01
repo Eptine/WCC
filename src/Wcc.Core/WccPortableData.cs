@@ -46,6 +46,7 @@ public static class WccPortableData
         RejectLink(manifest);
         var document = JsonNode.Parse(File.ReadAllText(manifest)) as JsonObject
             ?? throw new InvalidDataException("The Library manifest must be an object.");
+        Library.JsonWccLibraryStore.ValidateManifestFormat(document);
         var changed = false;
         foreach (var (arrayName, property) in new[] { ("packages", "sourceLocation"), ("sourceFiles", "storagePath") })
         {

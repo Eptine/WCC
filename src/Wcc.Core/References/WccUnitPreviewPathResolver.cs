@@ -288,10 +288,8 @@ public static class WccUnitPreviewPathResolver
         if (variantDocument.Variant.FieldStates.TryGetValue(fieldKey, out var fieldState) &&
             !fieldState.IsEditable)
         {
-            return new WccUnitPreviewResolution
-            {
-                SourceLabel = $"{variantDocument.Kind.ToWmlTagName()} {fieldKey} (conditional)"
-            };
+            return UnavailableFieldResolution($"{variantDocument.Kind.ToWmlTagName()} {fieldKey}", fieldState,
+                hasReference: false);
         }
 
         // A missing direct override inherits the root value; it must not be copied into
@@ -373,7 +371,7 @@ public static class WccUnitPreviewPathResolver
         if (variant.FieldStates.TryGetValue("profile", out var variantProfileState) &&
             !variantProfileState.IsEditable)
         {
-            return ConditionalResolution($"{variantDocument.Kind.ToWmlTagName()} small portrait (profile conditional)");
+            return UnavailableFieldResolution($"{variantDocument.Kind.ToWmlTagName()} small portrait", variantProfileState);
         }
 
         var effectiveProfile = string.IsNullOrWhiteSpace(variant.Profile)
@@ -400,7 +398,7 @@ public static class WccUnitPreviewPathResolver
         if (variant.FieldStates.TryGetValue("small_profile", out var variantSmallState) &&
             !variantSmallState.IsEditable)
         {
-            return ConditionalResolution($"{variantDocument.Kind.ToWmlTagName()} small portrait (conditional)");
+            return UnavailableFieldResolution($"{variantDocument.Kind.ToWmlTagName()} small portrait", variantSmallState);
         }
 
         if (!string.IsNullOrWhiteSpace(variant.SmallProfile))
@@ -421,7 +419,7 @@ public static class WccUnitPreviewPathResolver
         if (document.Unit.FieldStates.TryGetValue("small_profile", out var rootSmallState) &&
             !rootSmallState.IsEditable)
         {
-            return ConditionalResolution("base small portrait inherited by variant (conditional)");
+            return UnavailableFieldResolution("base small portrait inherited by variant", rootSmallState);
         }
 
         if (!string.IsNullOrWhiteSpace(document.Unit.SmallProfile))
@@ -464,7 +462,7 @@ public static class WccUnitPreviewPathResolver
         if (document.Unit.FieldStates.TryGetValue("profile", out var profileState) &&
             !profileState.IsEditable)
         {
-            return ConditionalResolution("small portrait (profile conditional)");
+            return UnavailableFieldResolution("small portrait", profileState);
         }
 
         var profile = document.Unit.Profile?.Trim();
@@ -489,7 +487,7 @@ public static class WccUnitPreviewPathResolver
         if (document.Unit.FieldStates.TryGetValue("small_profile", out var smallState) &&
             !smallState.IsEditable)
         {
-            return ConditionalResolution("small portrait (conditional)");
+            return UnavailableFieldResolution("small portrait", smallState);
         }
 
         if (string.IsNullOrWhiteSpace(document.Unit.SmallProfile))
@@ -598,7 +596,7 @@ public static class WccUnitPreviewPathResolver
         if (document.Unit.FieldStates.TryGetValue(fieldKey, out var fieldState) &&
             !fieldState.IsEditable)
         {
-            return ConditionalResolution($"{sourceLabel} (conditional)");
+            return UnavailableFieldResolution(sourceLabel, fieldState);
         }
 
         if (kind == WccAssetReferenceKind.Portrait)
@@ -650,12 +648,21 @@ public static class WccUnitPreviewPathResolver
                 string.IsNullOrWhiteSpace(document.Unit.SmallProfile));
     }
 
-    private static WccUnitPreviewResolution ConditionalResolution(string sourceLabel) =>
+    private static WccUnitPreviewResolution UnavailableFieldResolution(string sourceLabel, WmlFieldSafetyState fieldState,
+        bool hasReference = true) =>
         new()
         {
-            SourceLabel = sourceLabel,
-            HasReference = true,
-            UnavailableReason = "The effective image expression is conditional WML and cannot be previewed safely yet."
+            SourceLabel = sourceLabel + (fieldState.Kind == WmlFieldSafetyKind.ConditionalOrMultipleReadOnly
+                ? " (conditional or repeated)" : " (unresolved source context)"),
+            HasReference = hasReference,
+            UnavailableReason = fieldState.Kind switch
+            {
+                WmlFieldSafetyKind.ConditionalOrMultipleReadOnly =>
+                    $"The '{fieldState.Key}' field is conditional or repeated; its effective image expression has not been resolved for this source context.",
+                WmlFieldSafetyKind.UnsafeTopLevelCodeReadOnly =>
+                    $"The '{fieldState.Key}' field is absent, and top-level macro or preprocessor code prevents proving its effective image expression in this source context.",
+                _ => fieldState.Reason ?? "The effective image expression is unresolved in this source context."
+            }
         };
 
     private static WccUnitPreviewResolution WithSourceLabel(

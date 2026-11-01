@@ -19,6 +19,8 @@ public sealed class CampaignInitialFieldProjection
     public WmlStaticSource? EvaluationEntrySource { get; internal init; }
     public WmlEvaluationContext Context { get; }
     public WmlStaticScalarProjection? Projection { get; }
+    /// <summary>The retained ordinary-menu evaluation for read diagnostics; never persistence authority.</summary>
+    public WmlStaticEvaluationResult? Evaluation => Projection?.SourceEvaluation;
     /// <summary>Exact captured metadata when proven; otherwise the original preview. Not persistence authority.</summary>
     public WmlCampaignEvaluationPlan? EffectivePlan { get; }
     public IReadOnlyList<WmlStaticScalarOwner> Campaigns { get; }

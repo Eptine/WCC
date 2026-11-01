@@ -282,10 +282,12 @@ public partial class ScenarioWindowViewModel
             if (!CanInspectWccEventSource || EventWorkspacePreview is not { } preview ||
                 !preview.EventProjection.Events.Any(row => ReferenceEquals(row, entry)) || entry.IsAmendment) return null;
             var binding = EventInspectionBinding();
-            if (entry.SourceKind == ScenarioEventSourceKind.CapturedStaticEvaluation)
+            var row = entry.SourceKind == ScenarioEventSourceKind.CapturedStaticEvaluation
+                ? FindCapturedEventRowSource(entry, preview, binding)
+                : FindEventRowSource(entry, preview, binding);
+            if (entry.SourceKind == ScenarioEventSourceKind.CapturedStaticEvaluation && row is null)
                 return new(this, binding, _eventDraftVersion, _evaluationContext.SemanticKey, preview, entry,
                     null, null, entry.EffectiveRawWml, false, [], canAct: false);
-            var row = FindEventRowSource(entry, preview, binding);
             if (row is null) return null;
             var pending = row.Identity is { } identity
                 ? _eventDrafts.SingleOrDefault(draft => draft.Identity == identity) : null;
@@ -298,6 +300,21 @@ public partial class ScenarioWindowViewModel
                 EventInspectionDefinitions(preview, binding), CanStageWccEvents);
         }
     }
+
+    private EventRowSource? FindCapturedEventRowSource(ScenarioEventProjectionEntry entry,
+        ScenarioMapPreviewVm preview, WccMusicScheduleSourceBinding binding)
+    {
+        if (ReferenceEquals(preview, _eventOverlayPreview) && _eventRowSources.TryGetValue(entry, out var pending)) return pending;
+        if (_capturedEventSourcePreview is not { } captured || !ReferenceEquals(preview.EventProjection, captured.Events) ||
+            entry.IsNested || entry.IsAmendment || !captured.TryGetAuthoredEventSource(entry, out var target) || target is null ||
+            !SameCapturedEventSource(binding.Range.Source, target.Source) ||
+            target.StartOffset < binding.Range.StartOffset ||
+            target.StartOffset + target.Length > binding.Range.StartOffset + binding.Range.Length) return null;
+        return new(null, target, false);
+    }
+
+    private static bool SameCapturedEventSource(WmlStaticSource left, WmlStaticSource right) =>
+        PathsEqual(left.Path, right.Path) && left.ContentHash == right.ContentHash && left.Text == right.Text;
 
     private EventRowSource? FindEventRowSource(ScenarioEventProjectionEntry entry, ScenarioMapPreviewVm preview,
         WccMusicScheduleSourceBinding binding)
@@ -529,6 +546,7 @@ public partial class ScenarioWindowViewModel
         }
         if (_eventSourceBinding is not { } binding || EventBindingProblem(binding) is not null ||
             !TryBuildEventDraftSource(binding, out var candidate, out var patches, out _)) return;
+        if (RefreshCapturedEventDraftSources(preview, binding)) return;
         var version = _eventDraftVersion;
         var context = _evaluationContext.SemanticKey;
         var document = ScenarioImporter.ImportAllFromText(candidate).SingleOrDefault(doc =>
@@ -615,6 +633,30 @@ public partial class ScenarioWindowViewModel
         finally { _publishingEventDrafts = false; }
         if (version != _eventDraftVersion || context != _evaluationContext.SemanticKey ||
             !ReferenceEquals(preview, EventWorkspacePreview) || EventBindingProblem(binding) is not null) _eventRowSources.Clear();
+    }
+
+    private bool RefreshCapturedEventDraftSources(ScenarioMapPreviewVm preview, WccMusicScheduleSourceBinding binding)
+    {
+        if (_capturedEventSourcePreview is not { } captured || !ReferenceEquals(preview.EventProjection, captured.Events) ||
+            _eventDrafts.Any(draft => draft.Recipe.Kind is not
+                (WccScenarioEventSourceEditKind.ReplaceLiteral or WccScenarioEventSourceEditKind.RemoveLiteral))) return false;
+        // Keep the complete active captured list and map until checked Save.
+        // Re-expanding this physical scenario in isolation may stop at a helper's
+        // early closing tag. Pending RAW text is available through the same row,
+        // but no draft is presented as newly evaluated captured output.
+        _eventOverlayPreview = preview;
+        _eventOverlayBaseline = preview.EventProjection;
+        _eventOverlaySpatialBaseline = preview.SpatialProjection;
+        _eventRowSources.Clear();
+        foreach (var entry in captured.Events.Events)
+        {
+            if (entry.IsNested || entry.IsAmendment || !captured.TryGetAuthoredEventSource(entry, out var target) || target is null ||
+                !SameCapturedEventSource(binding.Range.Source, target.Source)) continue;
+            var draft = _eventDrafts.SingleOrDefault(draft => draft.Recipe.Target is { } original &&
+                original.StartOffset == target.StartOffset && original.Length == target.Length);
+            _eventRowSources.Add(entry, new(draft?.Identity, target, false));
+        }
+        return true;
     }
 
     public bool IsWccEventDraftRow(ScenarioEventProjectionEntry entry)

@@ -83,6 +83,24 @@ public partial class AppShellWindow : Window
             return ReferenceEquals(DataContext, shell) && !_libraryRefreshCancellation.IsCancellationRequested
                 ? decision ?? CampaignDependencyNoticeDecision.Continue : CampaignDependencyNoticeDecision.Continue;
         };
+        Opened += (_, _) => shell.CampaignReadIssueNoticeAsync = async request =>
+        {
+            bool IsCurrent() => IsVisible && ReferenceEquals(DataContext, shell)
+                && !_libraryRefreshCancellation.IsCancellationRequested && request.IsCurrent?.Invoke() != false;
+            if (!IsCurrent()) return CampaignReadIssueNoticeDecision.Ignore;
+            var notice = new CampaignReadIssueNoticeWindow(request, async owner =>
+            {
+                if (!IsCurrent()) return;
+                // Keep the acknowledgement open behind its own Tester child. A
+                // general modeless Tester may already have unrelated unsaved work.
+                var tester = new WmlTesterWindow(CampaignReadIssueTester.CreateViewModel(request))
+                { WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                await tester.ShowDialog(owner);
+            });
+            var decision = await notice.ShowDialog<CampaignReadIssueNoticeDecision?>(this);
+            return IsCurrent() ? decision ?? CampaignReadIssueNoticeDecision.Ignore
+                : CampaignReadIssueNoticeDecision.Ignore;
+        };
         DataContext = shell;
         shell.PropertyChanged += CampaignMetadataScopeChanged;
         Opened += AppShellWindowOpened;
@@ -92,6 +110,7 @@ public partial class AppShellWindow : Window
             shell.PropertyChanged -= CampaignMetadataScopeChanged;
             _libraryRefreshCancellation.Cancel();
             shell.CampaignDependencyNoticeAsync = null;
+            shell.CampaignReadIssueNoticeAsync = null;
             if (DataContext is AppShellViewModel vm)
             {
                 vm.PendingNavigationDecisionAsync = null;
@@ -168,6 +187,12 @@ public partial class AppShellWindow : Window
     {
         if (DataContext is AppShellViewModel vm)
             await vm.PinCurrentProjectToActiveWesnothAsync();
+    }
+
+    private async void UnpinCurrentProjectCoreClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is AppShellViewModel vm)
+            await vm.UnpinCurrentProjectCoreAsync();
     }
 
     private async void ViewCurrentSourceWmlClicked(object? sender, RoutedEventArgs e)

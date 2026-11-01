@@ -27,7 +27,9 @@ public static class WmlMacroArgumentTypeInference
         if (name is "X" or "Y" or "RED" or "GREEN" or "BLUE" or "TURN" or "PROB" or "LAYER" or "TIME" or "DURATION" ||
             EndsWithAny(name, "NUMBER", "AMOUNT", "COST", "RADIUS", "_X", "_Y", "_INCREMENT", "_FACTOR", "_TIME", "_SIZE")) return "numeric";
         if (name.EndsWith("PERCENTAGE", StringComparison.Ordinal)) return "percentage";
-        if (name is "POSITION" or "BASE" || name.EndsWith("_POSITION", StringComparison.Ordinal)) return "position";
+        // BASE is ambiguous: callers also use it for terrain codes, unit types,
+        // filenames and numeric bases. Its name alone does not imply coordinates.
+        if (name == "POSITION" || name.EndsWith("_POSITION", StringComparison.Ordinal)) return "position";
         if (name.EndsWith("_SPAN", StringComparison.Ordinal)) return "span";
         if (name == "SIDES" || name.EndsWith("_SIDES", StringComparison.Ordinal)) return "alliance";
         return name switch { "RANGE" => "range", "ALIGN" => "alignment", _ => null };

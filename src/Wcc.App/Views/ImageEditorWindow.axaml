@@ -1,0 +1,110 @@
+﻿<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Wcc.App.Views.Controls" x:Class="Wcc.App.Views.ImageEditorWindow"
+        x:CompileBindings="False" Width="1240" Height="820" MinWidth="940" MinHeight="620"
+        Title="WCC Image Editor" Classes="wccShell">
+  <Window.Resources><controls:ImageEditorIconConverter x:Key="EditorIcon"/></Window.Resources>
+  <Window.Styles>
+    <Style Selector="Expander.imageAdvanced">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <StackPanel x:CompileBindings="False" Spacing="5">
+            <ToggleButton Content="{TemplateBinding Header}" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                          HorizontalAlignment="Left" Padding="0,3" Background="Transparent" BorderThickness="0">
+              <ToggleButton.Template><ControlTemplate>
+                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                  <ContentPresenter Content="{TemplateBinding Content}" Foreground="#D9BF85" FontWeight="SemiBold"/>
+                </Border>
+              </ControlTemplate></ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              IsVisible="{TemplateBinding IsExpanded}"/>
+          </StackPanel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+  </Window.Styles>
+  <Grid Margin="10" ColumnDefinitions="48,*,340" ColumnSpacing="10">
+    <Border Classes="panel" BorderThickness="1" Padding="3">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Spacing="5" Margin="0,10,0,0">
+          <Button x:Name="OpenImageButton" Content="Open image" controls:WccButtonIcon.Action="Browse" controls:WccButtonIcon.IsCompact="False" controls:WccButtonIcon.IconSize="29" Width="38" Height="38" Padding="3" Margin="2" Click="OpenImageClicked"
+                  IsVisible="{Binding IsStandalone}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Open base image"/>
+          <Button Content="Load expression" controls:WccButtonIcon.Action="EditCode" controls:WccButtonIcon.IsCompact="False" controls:WccButtonIcon.IconSize="29" Width="38" Height="38" Padding="3" Margin="2" Click="LoadExpressionClicked"
+                  IsEnabled="{Binding CanEdit}" ToolTip.Tip="Paste an image expression"/>
+        </StackPanel>
+        <StackPanel x:Name="ToolStrip" Spacing="5" IsEnabled="{Binding CanEdit}"/>
+      </DockPanel>
+    </Border>
+    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto" RowSpacing="7">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2"><TextBlock Text="Image Editor" FontSize="20" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding BaseLabel}" FontSize="11" Opacity="0.7" TextTrimming="CharacterEllipsis"/></StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding PreviewQuality}" VerticalAlignment="Center" FontSize="11"/>
+      </Grid>
+      <Grid Grid.Row="1">
+        <Border BorderBrush="#76674B" BorderThickness="1" ClipToBounds="True"><controls:ImageEditorPreview x:Name="MainPreview" Focusable="True" ToolTip.Tip="Wheel: zoom · Drag background or Space+drag: pan · Ctrl +/−: zoom · Ctrl+0: 100%"/></Border>
+      </Grid>
+      <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="5">
+        <Button Content="−" Click="ZoomOutClicked" ToolTip.Tip="Zoom out (Ctrl+−)"/>
+        <TextBlock Grid.Column="1" x:Name="ZoomLabel" Text="100%" MinWidth="50" TextAlignment="Center" VerticalAlignment="Center"/>
+        <Button Grid.Column="2" Content="+" Click="ZoomInClicked" ToolTip.Tip="Zoom in (Ctrl++)"/>
+        <Button Grid.Column="3" Content="100%" Click="ZoomResetClicked" ToolTip.Tip="Reset to actual pixels (Ctrl+0)"/>
+        <Button Grid.Column="4" Content="Undo" controls:WccButtonIcon.Action="Undo" Click="UndoClicked" IsEnabled="{Binding CanUndo}" ToolTip.Tip="Undo (Ctrl+Z)" Margin="7,0,0,0"/>
+        <Button Grid.Column="5" Content="Redo" controls:WccButtonIcon.Action="Redo" Click="RedoClicked" IsEnabled="{Binding CanRedo}" ToolTip.Tip="Redo (Ctrl+Y)"/>
+        <Button Grid.Column="7" Content="Fit" Click="ZoomFitClicked" ToolTip.Tip="Fit the image in the canvas"/>
+      </Grid>
+      <StackPanel Grid.Row="3" Spacing="3">
+        <TextBlock Text="{Binding CanvasHint}" TextWrapping="Wrap" FontSize="11" Opacity="0.75"/>
+        <ScrollViewer MaxHeight="58"><TextBlock Text="{Binding PreviewNotes}" TextWrapping="Wrap" FontSize="11" Foreground="#E9BB70"/></ScrollViewer>
+      </StackPanel>
+      <TextBox Grid.Row="4" Text="{Binding Expression}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="76" MinHeight="48"
+               ToolTip.Tip="Current image modifier string. The original image is never overwritten."/>
+      <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Spacing="3"><TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="11"/>
+          <TextBlock Text="{Binding ComparisonUnavailableReason}" TextWrapping="Wrap" FontSize="11" Foreground="#E9BB70"/></StackPanel>
+        <Button Grid.Column="1" Content="Cancel" controls:WccButtonIcon.Action="Close" controls:WccButtonIcon.ShowLabel="True" Click="CloseClicked" VerticalAlignment="Bottom"/>
+        <Button Grid.Column="2" Content="Preview" ToolTip.Tip="{Binding ApplyLabel}" controls:WccButtonIcon.Action="Preview" controls:WccButtonIcon.ShowLabel="True"
+                Classes="primary" Click="ApplyClicked" IsEnabled="{Binding CanCompare}" VerticalAlignment="Bottom"/>
+      </Grid>
+    </Grid>
+    <Border Grid.Column="2" Classes="panel" BorderThickness="1" Padding="9">
+      <Grid RowDefinitions="3*,Auto,2*" RowSpacing="9">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Effect settings" Classes="sectionHeading" Margin="0,0,0,7"/>
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="7" IsEnabled="{Binding CanEdit}">
+              <TextBlock Text="Select a layer to adjust it, or add an effect below." TextWrapping="Wrap" IsVisible="{Binding !HasSelection}" Opacity="0.7"/>
+              <StackPanel Spacing="7" IsVisible="{Binding HasSelection}">
+                <StackPanel x:Name="VisualParameters" Spacing="7"/>
+                <Expander x:Name="AdvancedArguments" Classes="imageAdvanced" Header="Advanced" HorizontalAlignment="Stretch">
+                  <TextBox x:Name="AdvancedImageArguments" Text="{Binding SelectedModifier.Arguments, Mode=TwoWay}" IsEnabled="{Binding SelectedModifier.CanEditArguments}" Watermark="Function arguments"/>
+                </Expander>
+                <TextBlock Text="{Binding SelectedHelp}" TextWrapping="Wrap" FontSize="11" Opacity="0.75"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+        <StackPanel Grid.Row="1" Spacing="6"><TextBlock Text="Effects" Classes="sectionHeading"/>
+          <WrapPanel x:Name="EffectRack" IsEnabled="{Binding CanEdit}"/></StackPanel>
+        <DockPanel Grid.Row="2">
+          <StackPanel DockPanel.Dock="Top" Spacing="3" Margin="0,0,0,6"><TextBlock Text="Layers" Classes="sectionHeading"/>
+            <TextBlock Text="Top layers affect those below · drag to reorder" FontSize="11" Opacity="0.65"/></StackPanel>
+          <ListBox x:Name="LayerList" ItemsSource="{Binding Modifiers}" SelectedItem="{Binding SelectedModifier, Mode=TwoWay}" IsEnabled="{Binding CanEdit}">
+            <ListBox.ItemTemplate><DataTemplate>
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="5" Margin="0,3">
+                <Button Click="VisibilityClicked" Tag="{Binding}" Padding="2" Width="28" Height="28" ToolTip.Tip="Show or hide this layer">
+                  <Image Source="{Binding VisibilityIcon, Converter={StaticResource EditorIcon}}" Width="23" Height="23"/>
+                </Button>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" ToolTip.Tip="{Binding LayerHint}" Opacity="{Binding LayerOpacity}">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="Overridden by a layer above" IsVisible="{Binding IsOverridden}" FontSize="10" Foreground="#E9BB70"/>
+                </StackPanel>
+                <Button Grid.Column="2" Content="Remove layer" controls:WccButtonIcon.Action="Remove" Click="RemoveLayerClicked" Tag="{Binding}" Padding="2"/>
+              </Grid>
+            </DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -66,16 +66,23 @@ public static class WmlCapturedCampaignEvaluationPlan
         if (!ReadLiteral(campaign, "define", out var campaignDefine) || !ReadLiteral(campaign, "type", out var type)
             || !ReadLiteral(campaign, "extra_defines", out var extraText))
             return Refuse("Campaign context declarations are unresolved or malformed.", out problem);
-        if (type.Length != 0 && type != "sp")
-            return Refuse("Only singleplayer campaign menu settings are supported; multiplayer and hybrid campaigns require RAW review.", out problem);
+        // A hybrid campaign has an ordinary singleplayer entry environment.
+        // Callers still capture that environment with multiplayer/editor inactive;
+        // accepting its menu does not create or authorize either other mode.
+        if (type.Length != 0 && type is not ("sp" or "hybrid"))
+            return Refuse("Only the singleplayer environment of singleplayer or hybrid campaigns is supported; other campaign types require RAW review.", out problem);
         var extras = Symbols(extraText, allowEmpty: true);
         if (campaignDefine.Length != 0 && !Symbol(campaignDefine) || extras is null
             || extras.Distinct(StringComparer.Ordinal).Count() != extras.Length
             || campaignDefine.Length != 0 && extras.Contains(campaignDefine, StringComparer.Ordinal))
             return Refuse("The campaign has malformed or conflicting context symbols.", out problem);
+        if (IsOtherMode(campaignDefine) || extras.Any(IsOtherMode))
+            return Refuse("The declared singleplayer contexts cannot activate MULTIPLAYER or EDITOR; those modes require RAW review.", out problem);
         if (!WmlCampaignDifficultyObserver.TryObserve(campaign, campaignDefine, extras,
                 (owner, key) => ReadLiteral(owner, key, out var value) ? Symbols(value, allowEmpty: false) : null,
                 out var names, out problem)) return false;
+        if (names.Any(IsOtherMode))
+            return Refuse("The declared singleplayer contexts cannot activate MULTIPLAYER or EDITOR; those modes require RAW review.", out problem);
         var children = campaign.DirectChildren.Where(child => child.TagName == "difficulty").ToArray();
         var variants = new List<WmlDifficultyVariant>(names.Count);
         if (children.Length != 0)
@@ -121,6 +128,7 @@ public static class WmlCapturedCampaignEvaluationPlan
     }
     private static bool Symbol(string value) => value.Length != 0 && (value[0] == '_' || char.IsAsciiLetter(value[0]))
         && value.Skip(1).All(character => character == '_' || char.IsAsciiLetterOrDigit(character));
+    private static bool IsOtherMode(string value) => value is "MULTIPLAYER" or "EDITOR";
     private static bool SamePath(string left, string right) => string.Equals(left, right,
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     private static bool Refuse(string message, out string? problem) { problem = message; return false; }

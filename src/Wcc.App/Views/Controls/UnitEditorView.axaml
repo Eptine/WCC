@@ -11,6 +11,10 @@
     <Style Selector="TextBox.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
     <Style Selector="ComboBox.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
     <Style Selector="TextBlock.inherited"><Setter Property="Foreground" Value="Gray"/></Style>
+    <Style Selector="Border.inheritanceWarning">
+      <Setter Property="BorderBrush" Value="#A98C50"/>
+      <Setter Property="Background" Value="#253F3320"/>
+    </Style>
   </UserControl.Styles>
 
   <DockPanel Margin="10">
@@ -50,7 +54,16 @@
 
          <TextBlock Text="Unit" FontWeight="Bold"/>
 
+         <Border BorderThickness="1" BorderBrush="#A98C50" Background="#253F3320"
+                 Padding="10" IsVisible="{Binding HasUnitLibraryPreviewNotice}">
+           <StackPanel Spacing="4">
+             <TextBlock Text="Preview notice" FontWeight="Bold" Foreground="#E2C58D"/>
+             <TextBlock Text="{Binding UnitLibraryPreviewNotice}" TextWrapping="Wrap"/>
+           </StackPanel>
+         </Border>
+
          <Border BorderThickness="1"
+                 Classes.inheritanceWarning="{Binding HasUnitInheritancePreviewWarning}"
                  Padding="10"
                  IsVisible="{Binding UnitHasBaseUnit}">
            <StackPanel Spacing="4">
@@ -235,7 +248,7 @@
 
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit Image"/>
         <TextBox Grid.Row="2" Grid.Column="1"
-                 Text="{Binding VisualImage}"
+                 Text="{Binding VisualImage}" icons:WccImageEditor.FieldKey="image"
                  Classes.inherited="{Binding VisualImageIsInherited}"
                  IsEnabled="{Binding VisualImageIsEditable}"/>
         <Button Grid.Row="2" Grid.Column="2"
@@ -252,7 +265,7 @@
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Profile"/>
         <TextBox Grid.Row="3" Grid.Column="1"
-                 Text="{Binding VisualProfile}"
+                 Text="{Binding VisualProfile}" icons:WccImageEditor.FieldKey="profile"
                  Classes.inherited="{Binding VisualProfileIsInherited}"
                  IsEnabled="{Binding VisualProfileIsEditable}"/>
         <Button Grid.Row="3" Grid.Column="2"
@@ -269,7 +282,7 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" Text="Small Profile"/>
         <TextBox Grid.Row="4" Grid.Column="1"
-                 Text="{Binding VisualSmallProfile}"
+                 Text="{Binding VisualSmallProfile}" icons:WccImageEditor.FieldKey="small_profile"
                  Classes.inherited="{Binding VisualSmallProfileIsInherited}"
                  IsEnabled="{Binding VisualSmallProfileIsEditable}"/>
         <Button Grid.Row="4" Grid.Column="2"
@@ -689,7 +702,7 @@
                     PointerEntered="AttackFieldRawPointerEntered"/>
             <TextBlock Grid.Row="2" Text="Attack icon" VerticalAlignment="Center"/>
             <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-              <TextBox Text="{Binding AttackIcon, Mode=TwoWay}"
+              <TextBox Text="{Binding AttackIcon, Mode=TwoWay}" icons:WccImageEditor.FieldKey="icon"
                        Classes.inherited="{Binding AttackIconIsInherited}" IsEnabled="{Binding AttackIconIsEditable}"
                        Watermark="Default icon from internal name" ToolTip.Tip="Attack icon path; empty uses the default icon from the internal name."/>
               <Button Grid.Column="1" Content="Pick icon…" icons:WccButtonIcon.Action="Select" VerticalAlignment="Center"

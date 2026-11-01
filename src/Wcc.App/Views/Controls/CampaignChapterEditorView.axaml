@@ -18,7 +18,7 @@
           <Grid ColumnDefinitions="95,*,Auto,72" ColumnSpacing="8" Margin="0,0,0,12">
             <TextBlock Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center"/>
             <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-              <TextBox Text="{Binding Reference, Mode=TwoWay}" Watermark="Optional image reference"/>
+              <TextBox Text="{Binding Reference, Mode=TwoWay}" icons:WccImageEditor.FieldKey="image" Watermark="Optional image reference"/>
               <TextBlock Text="{Binding FitGuidance}" TextWrapping="Wrap" FontSize="11" Opacity="0.7"/>
               <TextBlock Text="{Binding PreviewStatus}" TextWrapping="Wrap" FontSize="11" Opacity="0.6"/>
             </StackPanel>
@@ -47,7 +47,7 @@
                 <TextBox Grid.Column="2" Text="{Binding Description, Mode=TwoWay}" Watermark="Description"/>
               </Grid>
               <Grid ColumnDefinitions="*,Auto,Auto,48" ColumnSpacing="6">
-                <TextBox Text="{Binding Image.Reference, Mode=TwoWay}" Watermark="Difficulty icon reference" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding Image.Reference, Mode=TwoWay}" icons:WccImageEditor.FieldKey="image" icons:WccImageEditor.AlwaysVisible="True" Watermark="Difficulty icon reference" VerticalAlignment="Center"/>
                 <Button Grid.Column="1" Content="Browse" icons:WccButtonIcon.Action="Browse" Click="BrowseImageClicked" VerticalAlignment="Center"
                         IsEnabled="{ReflectionBinding $parent[UserControl].DataContext.AllowImageFiles}" ToolTip.Tip="Choose a file to copy on Create or Save"/>
                 <Button Grid.Column="2" Content="Preview" icons:WccButtonIcon.Action="Preview" Click="PreviewImageClicked" IsEnabled="{Binding Image.CanRenderPreview}" VerticalAlignment="Center" ToolTip.Tip="Render the difficulty icon"/>

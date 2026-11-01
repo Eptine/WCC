@@ -14,11 +14,13 @@ public partial class ScenarioWindowViewModel
     private IReadOnlyList<string> _mapPreviewDiagnosticMessages = Array.Empty<string>();
     private string? _initialMapConditionalAdvisory;
     private ScenarioMapPreviewVm? _capturedScenarioOverlayPreview;
+    private WccCapturedScenarioPreview? _capturedEventSourcePreview;
 
     private void RevokeCapturedScenarioOverlays()
     {
         var captured = _capturedScenarioOverlayPreview;
         _capturedScenarioOverlayPreview = null;
+        _capturedEventSourcePreview = null;
         if (captured is not null && ReferenceEquals(MapPreview, captured)) MapPreview = null;
     }
 
@@ -98,7 +100,14 @@ public partial class ScenarioWindowViewModel
         else Publish();
         if (captured is not null && MapPreview is { } published && ReferenceEquals(published.EventProjection, captured.Events))
         {
-            if (IsCurrent()) _capturedScenarioOverlayPreview = published;
+            if (IsCurrent())
+            {
+                _capturedScenarioOverlayPreview = published;
+                _capturedEventSourcePreview = captured;
+                // The map's first notification preceded this independent source
+                // correspondence. Refresh RAW actions without changing display rows.
+                OnPropertyChanged(nameof(EventWorkspacePreview));
+            }
             else MapPreview = null;
         }
     }

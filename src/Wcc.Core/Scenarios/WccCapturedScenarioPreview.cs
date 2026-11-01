@@ -7,12 +7,21 @@ namespace Wcc.Core.Scenarios;
 /// engine output nor a source replacement, and retains no editable source ordinals.</summary>
 public sealed class WccCapturedScenarioPreview
 {
-    private WccCapturedScenarioPreview(ScenarioEventProjection events, ScenarioSpatialProjection spatial)
-    { Events = events; Spatial = spatial; }
+    private readonly IReadOnlyDictionary<ScenarioEventProjectionEntry, WmlStaticSourceRange> _authoredEventSources;
+
+    private WccCapturedScenarioPreview(ScenarioEventProjection events, ScenarioSpatialProjection spatial,
+        IReadOnlyDictionary<ScenarioEventProjectionEntry, WmlStaticSourceRange> authoredEventSources)
+    { Events = events; Spatial = spatial; _authoredEventSources = authoredEventSources; }
 
     public ScenarioEventProjection Events { get; }
     public ScenarioSpatialProjection Spatial { get; }
     public bool AuthorizesPersistence => false;
+
+    /// <summary>Independent physical source correspondence for one complete captured
+    /// literal event. Display rows keep their read-only provenance; hosts must still
+    /// capture an ordinary source draft and perform the full checked Save.</summary>
+    public bool TryGetAuthoredEventSource(ScenarioEventProjectionEntry entry, out WmlStaticSourceRange? source) =>
+        _authoredEventSources.TryGetValue(entry, out source);
 
     public static WccCapturedScenarioPreview? Create(WmlStaticSourceRange scenarioRange,
         WmlStaticScalarProjection projection)
@@ -89,11 +98,28 @@ public sealed class WccCapturedScenarioPreview
         var expansion = new WmlMacroExpansionResult { ExpandedText = text.ToString() };
         var events = new ScenarioEventProjectionBuilder().Build(document, expansion);
         var spatial = new ScenarioSpatialProjectionBuilder().Build(document, expansion);
+        var physicalEvents = owner.DirectChildren.Where(child => child.TagName == "event").ToArray();
+        var directRows = events.Events.Where(entry => entry.AuthoritativeDirectEventOrdinal is not null).ToArray();
+        var sourceEvents = new Dictionary<ScenarioEventProjectionEntry, WmlStaticSourceRange>();
+        // These independently checked physical ranges never come from the synthetic
+        // display's ordinals. Incomplete inspection output cannot establish an edit route.
+        if (evaluation.IsComplete && directRows.Length == physicalEvents.Length)
+        {
+            var inventory = BuildAuthoredEventSources(scenarioRange);
+            for (var index = 0; index < physicalEvents.Length; index++)
+                if (FindAuthoredEventSource(scenarioRange, physicalEvents[index], inventory, evaluation) is { } target)
+                    sourceEvents.Add(directRows[index], target);
+            foreach (var group in sourceEvents.GroupBy(pair => (pair.Value.StartOffset, pair.Value.Length)).Where(group => group.Count() != 1).ToArray())
+                foreach (var duplicate in group) sourceEvents.Remove(duplicate.Key);
+        }
+        var publishedSources = new Dictionary<ScenarioEventProjectionEntry, WmlStaticSourceRange>();
         const string source = "WCC captured selected-context output";
         return new(new ScenarioEventProjection
         {
-            Events = events.Events.Select(entry => new ScenarioEventProjectionEntry
+            Events = events.Events.Select(entry =>
             {
+                var published = new ScenarioEventProjectionEntry
+                {
                 Id = entry.Id, TriggerDisplay = entry.TriggerDisplay, Triggers = entry.Triggers,
                 SourceKind = ScenarioEventSourceKind.CapturedStaticEvaluation, SourceDisplay = source,
                 EffectiveRawWml = entry.EffectiveRawWml, WmlId = entry.WmlId,
@@ -104,6 +130,9 @@ public sealed class WccCapturedScenarioPreview
                 CanEditRaw = false, EditabilityReason = "Captured display only. Inspect or edit the authored scenario source.",
                 TriggerLocations = entry.TriggerLocations, FilterSummaries = entry.FilterSummaries,
                 EffectKinds = entry.EffectKinds, ActionTagNames = entry.ActionTagNames
+                };
+                if (sourceEvents.TryGetValue(entry, out var target)) publishedSources.Add(published, target);
+                return published;
             }).ToArray(), Diagnostics = events.Diagnostics
         }, new ScenarioSpatialProjection
         {
@@ -117,7 +146,46 @@ public sealed class WccCapturedScenarioPreview
                 IsConditional = entry.IsConditional,
                 CanEditDirectly = false, Coordinates = entry.Coordinates
             }).ToArray(), Diagnostics = spatial.Diagnostics
-        });
+        }, publishedSources);
+    }
+
+    private sealed record AuthoredEventSource(WmlStaticSourceRange Range, int ClosingOffset, int OpeningLength, int ClosingLength);
+
+    private static IReadOnlyDictionary<int, AuthoredEventSource> BuildAuthoredEventSources(WmlStaticSourceRange scenario)
+    {
+        var result = new Dictionary<int, AuthoredEventSource>();
+        foreach (var fragment in ScenarioContentSourceInventory.Build(scenario.Text).Where(fragment =>
+                     fragment.Kind == ScenarioContentSourceKind.ChildTag && fragment.Name == "event" && !fragment.IsConditional))
+        {
+            var target = new WmlStaticSourceRange(scenario.Source, scenario.StartOffset + fragment.StartOffset,
+                fragment.EndOffsetExclusive - fragment.StartOffset);
+            var analysis = WmlEditorAnalysis.Build(target.Text);
+            if (analysis.TagOccurrences.FirstOrDefault() is not
+                    { Name: "event", IsClosing: false, IsComplete: true, IsComputedName: false, MatchingTagIndex: { } partner } first ||
+                partner < 0 || partner >= analysis.TagOccurrences.Count ||
+                analysis.TagOccurrences[partner] is not
+                    { Name: "event", IsClosing: true, IsComplete: true, IsComputedName: false } last) continue;
+            result.Add(target.StartOffset + first.StartOffset,
+                new(target, target.StartOffset + last.StartOffset, first.Length, last.Length));
+        }
+        return result;
+    }
+
+    private static WmlStaticSourceRange? FindAuthoredEventSource(WmlStaticSourceRange scenario,
+        WmlStaticScalarOwner owner, IReadOnlyDictionary<int, AuthoredEventSource> inventory,
+        WmlStaticEvaluationResult evaluation)
+    {
+        if (owner.IsAmended || !owner.StructureKnown || owner.OpeningOrigin is not { } opening ||
+            owner.ClosingOrigin is not { } closing || !SameSource(scenario.Source, opening.Source) ||
+            !SameSource(scenario.Source, closing.Source) || owner.OpeningOutputOffset is not { } outputStart ||
+            owner.ClosingOutputOffset is not { } outputEnd || outputStart < 0 || outputEnd < outputStart ||
+            outputStart > evaluation.Text.Length - opening.Length ||
+            outputEnd > evaluation.Text.Length - closing.Length ||
+            !evaluation.Text.AsSpan(outputStart, opening.Length).SequenceEqual(opening.Text) ||
+            !evaluation.Text.AsSpan(outputEnd, closing.Length).SequenceEqual(closing.Text)) return null;
+        return inventory.TryGetValue(opening.StartOffset, out var physical) &&
+            opening.Length == physical.OpeningLength && closing.StartOffset == physical.ClosingOffset &&
+            closing.Length == physical.ClosingLength ? physical.Range : null;
     }
 
     internal static WmlStaticScalarOwner? FindLiteralOwner(WmlStaticSourceRange range,

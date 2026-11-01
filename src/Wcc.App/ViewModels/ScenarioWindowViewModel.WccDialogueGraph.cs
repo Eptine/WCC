@@ -107,6 +107,9 @@ public partial class ScenarioWindowViewModel
 
     public WccEventDialogueGraphDraft? BeginWccDialogueGraphEdit(ScenarioEventProjectionEntry entry)
     {
+        // Exact RAW source correspondence does not turn the captured display
+        // into an authored graph projection or a live graph preview.
+        if (entry.SourceKind == ScenarioEventSourceKind.CapturedStaticEvaluation) return null;
         WccEventEditDraft token; CampaignWindowViewModel? presetHost;
         long hostGeneration; long displayGeneration;
         lock (_wccInitialFieldRefreshGate)

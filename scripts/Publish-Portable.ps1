@@ -3,7 +3,7 @@ param(
     [ValidateSet('win-x64', 'linux-x64')]
     [string[]] $RuntimeIdentifiers = @('win-x64', 'linux-x64'),
     [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$')]
-    [string] $Version = '0.1.1',
+    [string] $Version = '0.2',
     [string] $OutputRoot,
     [string] $NuGetConfig,
     [switch] $NoArchive
@@ -192,6 +192,16 @@ WCC stores Library/, Cache/ and settings.json beside its executable.
 Close WCC before moving/copying this entire folder. Installed Wesnoth and campaign
 paths remain external; select the correct local paths after changing computers.
 The release archive contains no personal Library, settings or analysis caches.
+
+Updating an existing portable installation
+
+Close WCC and extract the new version into a fresh writable folder. Copy the complete
+old Library/ folder and settings.json beside the new executable, including the hidden
+Library/.wcc-location.json file, owned content, resources and notices. Cache/ can be
+omitted. Keep the old installation until you have checked the copied data.
+Keep campaign folders, their assets and their complete .wcc/ directories together.
+External Wesnoth, add-on and campaign paths stay unchanged; reconfigure paths if those
+folders also moved. Updating WCC does not change a campaign's exact Core pin.
 
 Folder layout
 

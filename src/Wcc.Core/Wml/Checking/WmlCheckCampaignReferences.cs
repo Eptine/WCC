@@ -6,6 +6,8 @@ namespace Wcc.Core.Wml.Checking;
 /// </summary>
 public static class WmlCheckCampaignReferences
 {
+    private const string BlockingImpact = "\nWCC cannot fully read this captured context; initial values or checked editing may be unavailable until it is resolved. " +
+        "Error severity describes the WCC reading limitation, not a claim that Wesnoth cannot run the campaign.";
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private static readonly HashSet<string> LexicalCodes = new(StringComparer.Ordinal)
@@ -47,6 +49,9 @@ public static class WmlCheckCampaignReferences
         }
 
         var observations = new Dictionary<InvocationKey, List<Observation>>();
+        // Error severity describes a captured WCC read blocker, not whether a
+        // similarly named lexical candidate is malformed or Wesnoth can run it.
+        var blockingCalls = new Dictionary<EvaluationCall, int>();
         var unmapped = new Dictionary<string, List<WmlStaticSourceRange>>(PathComparer);
         var visits = new Dictionary<string, List<WmlCheckCampaignEvaluation>>(PathComparer);
         foreach (var evaluation in context.Evaluations)
@@ -54,6 +59,15 @@ public static class WmlCheckCampaignReferences
             cancellationToken.ThrowIfCancellationRequested();
             var invalid = evaluation.Evaluation.Sources.Where(source => source.IsAuthored &&
                 !MatchesCaptured(source, captured)).Select(source => KeyPath(source.Path)).ToHashSet(PathComparer);
+            foreach (var diagnostic in evaluation.Evaluation.Diagnostics)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!diagnostic.IsBlocking || diagnostic.Origin is not { Source.IsAuthored: true } origin || !ValidRange(origin)
+                    || !MatchesCaptured(origin.Source, captured) || invalid.Contains(KeyPath(origin.Source.Path))) continue;
+                var call = new EvaluationCall(evaluation, KeyPath(origin.Source.Path), origin.StartOffset);
+                if (!blockingCalls.TryGetValue(call, out var length) || origin.Length < length)
+                    blockingCalls[call] = origin.Length;
+            }
             foreach (var source in evaluation.Evaluation.Sources.Where(source => source.IsAuthored))
             {
                 var path = KeyPath(source.Path);
@@ -231,28 +245,44 @@ public static class WmlCheckCampaignReferences
                     !IsDeferredFailure(item, key, deferred)).ToArray();
                 if (failed.Length == 0) continue;
                 foreach (var failure in failed) failedCalls[new(failure.Evaluation, key.Path, key.Start)] = key.Length;
+                foreach (var group in failed.Where(IsComputedExtraArgument).GroupBy(item =>
+                             ArgumentFailureDetails(item.Trace.ArgumentBindingFailure!)))
+                {
+                    var binding = group.First().Trace.ArgumentBindingFailure!;
+                    diagnostics.Add(Diagnostic("refs.campaign.invocation", Severity(group, key), location,
+                        $"Invocation '{reference.Name}' supplies {binding.SuppliedArgumentCount} argument(s) for {binding.RequiredParameters.Count} required positional slot(s); extra argument {(binding.ArgumentIndex ?? 0) + 1} has no resolved optional-parameter binding.",
+                        "Evaluation contexts: " + string.Join(", ", Labels(group.Select(item => item.Evaluation.Label))) +
+                        "\n" + group.Key +
+                        "\nThe active declaration and authored argument count are known. The extra argument contains a macro or variable substitution, " +
+                        "so its expanded optional name is not proven. It may be ignored by Wesnoth instead of contributing the intended value or WML. " +
+                        "Review this call against the related active declaration; this finding does not establish that the campaign cannot run." + Impact(group, key)) with
+                    {
+                        RelatedLocations = Array.AsReadOnly(group.Where(item => item.Trace.Definition is { Source.IsAuthored: true })
+                            .Select(item => locations.Locate(item.Trace.Definition!, headerOnly: true)).Distinct().ToArray())
+                    });
+                }
                 foreach (var group in failed.Where(IsProvenArgumentFailure).GroupBy(item =>
                              ArgumentFailureDetails(item.Trace.ArgumentBindingFailure!)))
                 {
                     var binding = group.First().Trace.ArgumentBindingFailure!;
-                    diagnostics.Add(Diagnostic("refs.campaign.invocation", WmlCheckSeverity.Warning, location,
+                    diagnostics.Add(Diagnostic("refs.campaign.invocation", Severity(group, key), location,
                         $"Invocation '{reference.Name}' has incompatible arguments: expected {binding.RequiredParameters.Count} required positional argument(s); received {binding.SuppliedArgumentCount} total argument(s).",
                         "Evaluation contexts: " + string.Join(", ", Labels(group.Select(item => item.Evaluation.Label))) +
                         "\nThe active invocation arguments are unsupported by this captured definition.\n" + group.Key +
-                        "\nThis is a binding-count/name check. Formal-name type hints are separate advisories; other environments are not inferred.") with
+                        "\nThis is a binding-count/name check. Formal-name type hints are separate advisories; other environments are not inferred." + Impact(group, key)) with
                     {
                         Confidence = WmlCheckConfidence.Proven,
                         RelatedLocations = Array.AsReadOnly(group.Where(item => item.Trace.Definition is { Source.IsAuthored: true })
                             .Select(item => locations.Locate(item.Trace.Definition!, headerOnly: true)).Distinct().ToArray())
                     });
                 }
-                failed = failed.Where(item => !IsProvenArgumentFailure(item)).ToArray();
+                failed = failed.Where(item => !IsProvenArgumentFailure(item) && !IsComputedExtraArgument(item)).ToArray();
                 if (failed.Length == 0) continue;
-                diagnostics.Add(Diagnostic("refs.campaign.invocation", WmlCheckSeverity.Warning, location,
+                diagnostics.Add(Diagnostic("refs.campaign.invocation", Severity(failed, key), location,
                     $"Invocation '{reference.Name}' could not be fully resolved in the captured campaign context.",
                     string.Join("\n", failed.GroupBy(item => item.Trace.Outcome).Select(group =>
                         string.Join(", ", Labels(group.Select(item => item.Evaluation.Label))) + ": " + OutcomeDetails(group.Key))) +
-                    "\nOther environments and runtime behavior have not been inferred.") with
+                    "\nOther environments and runtime behavior have not been inferred." + Impact(failed, key)) with
                 {
                     RelatedLocations = Array.AsReadOnly(failed.Where(item => item.Trace.Definition is { Source.IsAuthored: true })
                         .Select(item => locations.Locate(item.Trace.Definition!, headerOnly: true)).Distinct().ToArray())
@@ -297,9 +327,10 @@ public static class WmlCheckCampaignReferences
             }
         }
         foreach (var (finding, labels) in evaluationFindings)
-            diagnostics.Add(Diagnostic("refs.campaign.evaluation", finding.IsBlocking ? WmlCheckSeverity.Warning : WmlCheckSeverity.Information,
+            diagnostics.Add(Diagnostic("refs.campaign.evaluation", finding.IsBlocking ? WmlCheckSeverity.Error : WmlCheckSeverity.Information,
                 finding.Location, finding.Message, "Evaluation contexts: " + string.Join(", ", Labels(labels)) +
-                "\nThis is an ordered preprocessor finding, not a game-semantic validation result."));
+                "\nThis is an ordered preprocessor finding, not a game-semantic validation result." +
+                (finding.IsBlocking ? BlockingImpact : "")));
         foreach (var (finding, evidence) in deprecations)
             diagnostics.Add(Diagnostic("refs.campaign.deprecated", WmlCheckSeverity.Information, finding.Caller,
                 finding.Message, "Evaluation contexts: " + string.Join(", ", Labels(evidence.Labels)) +
@@ -315,7 +346,7 @@ public static class WmlCheckCampaignReferences
                      .GroupBy(item => item.Value.Location))
         {
             var delimiter = group.First().Value.Delimiter!;
-            diagnostics.Add(Diagnostic("refs.campaign.deferred", WmlCheckSeverity.Warning, delimiter.Location,
+            diagnostics.Add(Diagnostic("refs.campaign.deferred", WmlCheckSeverity.Error, delimiter.Location,
                 "Later campaign context findings were deferred after this incomplete invocation.",
                 "Evaluation contexts: " + string.Join(", ", Labels(group.Select(item => item.Key.Label))) +
                 "\nThe evaluator reached this captured source delimiter and could no longer establish its shared definition environment. " +
@@ -323,14 +354,14 @@ public static class WmlCheckCampaignReferences
                 "Unobserved lexical reference advisories in these affected environments are also deferred; " +
                 "captured sources and existing lexical declaration evidence are retained without proving an active binding. " +
                 "Earlier observed preprocessor findings, independent structure/formatting checks and unaffected environments remain visible. " +
-                "Campaign reference coverage remains incomplete.\n\n" + delimiter.Details) with
+                "Campaign reference coverage remains incomplete." + BlockingImpact + "\n\n" + delimiter.Details) with
             { RelatedLocations = Array.AsReadOnly(delimiter.RelatedLocations.Append(locations.Entry(context.EntryPath)).Distinct().ToArray()) });
         }
         foreach (var group in deferred.Where(item => item.Value.Reason == DeferralReason.UnavailableAddonInclude)
                      .GroupBy(item => (item.Value.Location, item.Value.IncludeName)))
         {
             var include = group.First().Value;
-            diagnostics.Add(Diagnostic("refs.campaign.dependency-deferred", WmlCheckSeverity.Warning, include.Location,
+            diagnostics.Add(Diagnostic("refs.campaign.dependency-deferred", WmlCheckSeverity.Error, include.Location,
                 "Later campaign context findings were deferred after this unresolved add-on include.",
                 "Evaluation contexts: " + string.Join(", ", Labels(group.Select(item => item.Key.Label))) +
                 "\nThe captured inventory could not resolve '" + include.IncludeName + "'. " +
@@ -340,7 +371,7 @@ public static class WmlCheckCampaignReferences
                 "until the dependency source context is available. " +
                 "Unobserved lexical reference advisories may also be deferred when captured source identities and context otherwise match. " +
                 "Earlier observed problems, independent structure/formatting checks and unaffected environments remain visible. " +
-                "Missing source content and macro bodies have not been invented; campaign reference coverage remains incomplete." +
+                "Missing source content and macro bodies have not been invented; campaign reference coverage remains incomplete." + BlockingImpact +
                 (include.IncludeDiagnostic is null ? "" : "\n\nInclude resolution: " + include.IncludeDiagnostic)) with
             { RelatedLocations = Array.AsReadOnly(new[] { locations.Entry(context.EntryPath) }) });
         }
@@ -353,6 +384,12 @@ public static class WmlCheckCampaignReferences
             diagnostics.Add(Diagnostic("refs.campaign.context", WmlCheckSeverity.Warning, locations.Entry(context.EntryPath),
                 "The captured campaign context has source or coverage problems.", string.Join("\n", problems.Order(StringComparer.Ordinal))));
         cancellationToken.ThrowIfCancellationRequested();
+
+        WmlCheckSeverity Severity(IEnumerable<Observation> observed, InvocationKey key) =>
+            observed.Any(item => blockingCalls.TryGetValue(new(item.Evaluation, key.Path, key.Start), out var length)
+                && length <= key.Length) ? WmlCheckSeverity.Error : WmlCheckSeverity.Warning;
+        string Impact(IEnumerable<Observation> observed, InvocationKey key) =>
+            Severity(observed, key) == WmlCheckSeverity.Error ? BlockingImpact : "";
     }
 
     private static bool IsFailed(WmlStaticInvocationOutcome outcome) => outcome is WmlStaticInvocationOutcome.Unresolved or
@@ -496,7 +533,11 @@ public static class WmlCheckCampaignReferences
         _ => "The invocation remains unresolved."
     };
     private static bool IsProvenArgumentFailure(Observation observation) =>
-        observation.Trace is { Outcome: WmlStaticInvocationOutcome.Unsupported, Definition: not null, ArgumentBindingFailure: not null };
+        observation.Trace is { Outcome: WmlStaticInvocationOutcome.Unsupported, Definition: not null, ArgumentBindingFailure: not null } &&
+        !IsComputedExtraArgument(observation);
+    private static bool IsComputedExtraArgument(Observation observation) =>
+        observation.Trace is { Outcome: WmlStaticInvocationOutcome.Unsupported, Definition: not null,
+            ArgumentBindingFailure.Kind: WmlStaticArgumentBindingFailureKind.ComputedExtra };
     private static string ArgumentFailureDetails(WmlStaticArgumentBindingFailure failure)
     {
         var required = failure.RequiredParameters.Count == 0 ? "none" : string.Join(", ", failure.RequiredParameters);
@@ -508,6 +549,7 @@ public static class WmlCheckCampaignReferences
             WmlStaticArgumentBindingFailureKind.UnexpectedPositional => $"Argument {(failure.ArgumentIndex ?? 0) + 1} is an extra positional argument. Only declared optional NAME=value arguments may follow the required slots.",
             WmlStaticArgumentBindingFailureKind.UnknownNamed => $"Argument {(failure.ArgumentIndex ?? 0) + 1} names undeclared optional parameter '{failure.ParameterName}'.",
             WmlStaticArgumentBindingFailureKind.DuplicateNamed => $"Optional parameter '{failure.ParameterName}' was supplied more than once (argument {(failure.ArgumentIndex ?? 0) + 1}).",
+            WmlStaticArgumentBindingFailureKind.ComputedExtra => $"Argument {(failure.ArgumentIndex ?? 0) + 1} is beyond the required positional slots and needs expansion before it can be matched to a declared optional NAME=value argument.",
             _ => "The captured binder rejected these arguments."
         };
         return $"Expected required positional argument(s): {failure.RequiredParameters.Count} ({required}).\n" +

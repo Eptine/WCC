@@ -32,6 +32,30 @@ public partial class MainWindowViewModel
     public bool HasEffectiveAbilityDefinitions => EffectiveAbilityDefinitions.Count != 0;
     public bool HasEffectiveSelectedAttackSpecials => EffectiveSelectedAttackSpecials.Count != 0;
     private string? _unitInheritancePreviewStatus;
+    private string? _unitLibraryPreviewNotice;
+    private bool _isUsingLibraryContextPreview;
+    // This is display provenance, independent of whether the selected unit needs
+    // a visible preprocessor notice. It never changes authored values or drafts.
+    public bool IsUsingLibraryContextPreview
+    {
+        get => _isUsingLibraryContextPreview;
+        internal set
+        {
+            if (!SetField(ref _isUsingLibraryContextPreview, value)) return;
+            RunUiSync(NotifyEffectiveDisplayFields);
+        }
+    }
+    public string? UnitLibraryPreviewNotice
+    {
+        get => _unitLibraryPreviewNotice;
+        internal set
+        {
+            if (!SetField(ref _unitLibraryPreviewNotice, value)) return;
+            OnPropertyChanged(nameof(HasUnitLibraryPreviewNotice));
+            RunUiSync(NotifyEffectiveDisplayFields);
+        }
+    }
+    public bool HasUnitLibraryPreviewNotice => !string.IsNullOrWhiteSpace(UnitLibraryPreviewNotice);
     public string? UnitInheritancePreviewStatus
     {
         get => _unitInheritancePreviewStatus;
@@ -41,6 +65,7 @@ public partial class MainWindowViewModel
             {
                 OnPropertyChanged(nameof(UnitEffectiveDisplayInfo));
                 OnPropertyChanged(nameof(UnitInheritanceInfo));
+                OnPropertyChanged(nameof(HasUnitInheritancePreviewWarning));
             }
         }
     }
@@ -49,6 +74,8 @@ public partial class MainWindowViewModel
         : "Inherited values are gray. Editing a scalar creates a local override; inherited children are read-only." +
           (string.IsNullOrWhiteSpace(_unitEffectiveDisplayContext) ? "" : " Context: " + _unitEffectiveDisplayContext + ".") +
           (_unitEffectiveDisplay.Diagnostics.Count == 0 ? "" : "\n" + string.Join("\n", _unitEffectiveDisplay.Diagnostics));
+    public bool HasUnitInheritancePreviewWarning => UnitHasBaseUnit &&
+        (_unitEffectiveDisplay is { IsComplete: false } || !string.IsNullOrWhiteSpace(UnitInheritancePreviewStatus));
     public string AddAttackButtonText => UnitHasBaseUnit ? "Add Local Attack" : "Add Attack";
     public string AddAnimationButtonText => UnitHasBaseUnit ? "Add Local Animation" : "Add Animation";
     public string AddAttackHelp => UnitHasBaseUnit
@@ -129,6 +156,7 @@ public partial class MainWindowViewModel
         }
         OnPropertyChanged(nameof(UnitEffectiveDisplayInfo));
         OnPropertyChanged(nameof(UnitInheritanceInfo));
+        OnPropertyChanged(nameof(HasUnitInheritancePreviewWarning));
         OnPropertyChanged(nameof(AddAttackButtonText));
         OnPropertyChanged(nameof(AddAnimationButtonText));
         OnPropertyChanged(nameof(AddAttackHelp));
@@ -168,8 +196,10 @@ public partial class MainWindowViewModel
         (!IsAbsent(selected.Document.Unit.FieldStates, key) || RootTouched(key));
     private string? RootDisplayValue(string? direct, string key)
     {
-        if (direct is not null || RootTouched(key)) return direct;
+        if (RootTouched(key)) return direct;
+        if (direct is not null && !(IsReadOnly && IsUsingLibraryContextPreview)) return direct;
         var value = _unitEffectiveDisplay?.Root.GetKnownValue(key);
+        if (value is null) return direct;
         return key is "hitpoints" or "movement" or "experience" or "level" or "cost"
             && WmlResourceValueTextDecoder.TryDecode(value, out var decoded, out _) ? decoded : value;
     }

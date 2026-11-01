@@ -779,6 +779,7 @@ public static partial class WccStaticSourceCapture
         private readonly Root[] _roots;
         private readonly AddonNamespace? _addonNamespace;
         private readonly string _identity;
+        public string CapturedContentIdentity => _identity;
         public IReadOnlyList<Root> CapturedRoots => _roots;
         public AddonNamespace? CapturedAddonNamespace => _addonNamespace;
         public bool UsesSessionAddonNamespace { get; }

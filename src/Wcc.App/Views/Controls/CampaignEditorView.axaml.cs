@@ -163,13 +163,13 @@ public partial class CampaignEditorView : UserControl
     }
     private async void PickDifficultyImageClicked(object? sender, RoutedEventArgs args)
     {
-        if (DataContext is not CampaignWindowViewModel vm || sender is not Button { Tag: CampaignDifficultyDisplayRow row } || !row.CanEdit || !row.CommitTextInput()) return;
+        if (DataContext is not CampaignWindowViewModel vm || sender is not Button { Tag: CampaignDifficultyDisplayRow row } || !row.CanEditImage || !row.CommitTextInput()) return;
         var project = vm.CurrentProject; var source = vm.GetCurrentMainSourceRawWml(); var selected = vm.SelectedCampaignEntry;
         var previous = row.Image;
         var reference = await PickExistingImage(vm);
         if (reference is null || !ReferenceEquals(DataContext, vm) || !ReferenceEquals(project, vm.CurrentProject) ||
             !ReferenceEquals(selected, vm.SelectedCampaignEntry) || source != vm.GetCurrentMainSourceRawWml() ||
-            !vm.CampaignDifficultyPresentationRows.Contains(row) || !row.CanEdit || previous != row.Image) return;
+            !vm.CampaignDifficultyPresentationRows.Contains(row) || !row.CanEditImage || previous != row.Image) return;
         row.Image = reference + (WccImageExpressionParser.TryParse(previous)?.ModifierSuffix ?? "");
     }
     private async System.Threading.Tasks.Task<string?> PickExistingImage(CampaignWindowViewModel vm)

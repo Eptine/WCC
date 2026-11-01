@@ -48,7 +48,9 @@
                   ToolTip.Tip="Stage this package scenario file as RAW text. Save reviews every campaign entry and difficulty before writing; typed editing remains read-only."/>
           <Button Content="WML Editor" icons:WccButtonIcon.Action="EditCode" icons:WccButtonIcon.ShowLabel="True" Click="OpenStandaloneWmlEditorClicked" Margin="0,0,8,4"
                   ToolTip.Tip="Open .cfg files in an independent editor."/>
-          <Button Content="WML Tester" Click="OpenWmlTesterClicked" Margin="0,0,0,4"
+          <Button Content="Image Editor" icons:WccButtonIcon.Action="ImageEditor" icons:WccButtonIcon.ShowLabel="True" Click="OpenImageEditorClicked" Margin="0,0,8,4"
+                  ToolTip.Tip="Open an image and build image path functions in an independent editor."/>
+          <Button Content="WML Tester" icons:WccButtonIcon.Action="Tester" icons:WccButtonIcon.ShowLabel="True" Click="OpenWmlTesterClicked" Margin="0,0,0,4"
                   ToolTip.Tip="Choose .cfg files and run selected checks in a separate window."/>
         </WrapPanel>
 
@@ -98,11 +100,18 @@
               <TextBlock Text="{Binding CurrentProjectCorePinStatus}"
                          TextWrapping="Wrap"
                          Opacity="0.72"/>
-              <Button Content="Pin Project to Active Wesnoth"
+              <TextBlock Text="{Binding ActiveProjectCoreTargetLabel}" TextWrapping="Wrap" Opacity="0.72"/>
+              <WrapPanel Orientation="Horizontal">
+              <Button Content="{Binding ProjectCorePinActionLabel}"
                       HorizontalAlignment="Left"
                       Click="PinCurrentProjectToActiveWesnothClicked"
                       IsEnabled="{Binding CanPinCurrentProjectToActiveWesnoth}"
-                      ToolTip.Tip="Stores the stable compatibility target and the exact indexed Core revision in .wcc/project.json. It does not validate or migrate WML."/>
+                      Margin="0,0,8,0"
+                      ToolTip.Tip="Use the active installation's exact Core for this project. Validate the campaign with Tester after changing Core."/>
+              <Button Content="Unpin (follow active)" Click="UnpinCurrentProjectCoreClicked"
+                      IsEnabled="{Binding CanUnpinCurrentProjectCore}"
+                      ToolTip.Tip="Remove the exact Core pin. The project will use whichever Wesnoth installation is active."/>
+              </WrapPanel>
             </StackPanel>
           </Border>
 

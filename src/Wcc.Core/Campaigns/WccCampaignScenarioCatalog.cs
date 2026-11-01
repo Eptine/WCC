@@ -57,7 +57,8 @@ public sealed class WccCampaignScenarioCatalogProjection
     public IReadOnlyList<WccCampaignScenarioMembership> Scenarios { get; }
     public IReadOnlyList<string> Diagnostics { get; }
     // Warnings remain visible in Diagnostics without revoking otherwise complete activation evidence.
-    internal bool HasCompleteMembershipInventory { get; init; } = true;
+    /// <summary>False when the reached scenario inventory exceeded its finite catalog limit.</summary>
+    public bool HasCompleteMembershipInventory { get; internal init; } = true;
     public bool IsComplete => Entry.IsContextComplete && Contexts.Count == Entry.Plan?.Contexts.Count
         && Contexts.All(context => context.IsComplete) && HasCompleteMembershipInventory;
     /// <summary>Only an output-buffer limit is a candidate for the separate bounded inspection path.</summary>

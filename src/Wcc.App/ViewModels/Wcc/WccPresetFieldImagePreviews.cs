@@ -41,6 +41,13 @@ internal sealed class WccPresetFieldImagePreviews(WccLibrarySnapshot snapshot, W
         if (!Equals(request, preview.RequestIdentity))
         {
             var work = preview.Begin(request);
+            var context = CreateImageEditorContext(preview, request);
+            preview.EditorContext = context with
+            {
+                IsCurrent = () => context.IsCurrent() &&
+                    request.Value == (request.Key == "unit_sprite" ? null : value(request.Key)) &&
+                    request.Type == value("type")
+            };
             _ = Load(preview, request, work.Version, work.Token, work.Completion);
         }
         return preview;
@@ -55,10 +62,25 @@ internal sealed class WccPresetFieldImagePreviews(WccLibrarySnapshot snapshot, W
         if (!Equals(request, preview.RequestIdentity))
         {
             var work = preview.Begin(request);
+            preview.EditorContext = CreateImageEditorContext(preview, request);
             _ = Load(preview, request, work.Version, work.Token, work.Completion);
         }
         return preview;
     }
+    private ImageEditorFieldContext CreateImageEditorContext(WccFieldImagePreviewVm preview, Request request) =>
+        new(installPath, expression =>
+        {
+            // This editor has a fresh per-leaf native receipt. Prefer the actual
+            // captured binary-path order, including a refusal from that context.
+            // Ordinary compact image previews retain their separate old policy.
+            if (CapturedResourceContext?.Value is { } resources) return resources.Resolve(expression);
+            if (capturedSource is not null)
+                return new() { HasReference = !string.IsNullOrWhiteSpace(expression), RawExpression = expression,
+                    UnavailableReason = "The captured campaign image context is unavailable. Refresh it before editing image functions." };
+            var kind = request.Key is "profile" or "small_profile" ? WccAssetReferenceKind.Portrait : WccAssetReferenceKind.Image;
+            return WccUnitPreviewPathResolver.ResolveRawImageExpression(mainPath, WccSourceOrigin.ImportedExternal,
+                expression, kind, installPath);
+        }, () => !_disposed && isCurrent() && Equals(request, preview.RequestIdentity), true);
     private async Task Load(WccFieldImagePreviewVm preview, Request request, long version,
         CancellationToken token, TaskCompletionSource completion)
     {

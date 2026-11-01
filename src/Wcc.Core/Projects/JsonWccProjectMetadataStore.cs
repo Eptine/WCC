@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Wcc.Core.Projects;
@@ -138,6 +139,133 @@ public sealed class JsonWccProjectMetadataStore
         finally
         {
             _writeLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Changes only an explicitly selected Core pin and its target. Unknown JSON,
+    /// project bindings and compatibility history remain in the existing document.
+    /// The optional commit fence runs on the caller's captured context.
+    /// </summary>
+    public async Task<WccProjectMetadata> UpdateCoreRevisionPinAsync(
+        WccProjectId expectedProjectId,
+        WccProjectCoreRevisionPin? expectedPin,
+        WccProjectCoreRevisionPin? desiredPin,
+        Func<bool>? canCommit = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (expectedProjectId == default)
+            throw new ArgumentException("A Core pin change needs the loaded project identity.", nameof(expectedProjectId));
+        if (desiredPin is not null && (desiredPin.PackageId == default || desiredPin.PackageRevisionId == default ||
+            string.IsNullOrWhiteSpace(desiredPin.ExactWesnothVersion) || string.IsNullOrWhiteSpace(desiredPin.TargetWesnothVersion) ||
+            desiredPin.ContentFingerprint is not { Length: 64 } fingerprint || !fingerprint.All(char.IsAsciiHexDigit)))
+            throw new ArgumentException("A new Core pin needs an exact identity, version, target and SHA256 fingerprint.", nameof(desiredPin));
+
+        // Keep the caller's synchronization context: its fence may inspect UI
+        // state. This operation does not dispatch that predicate to a worker.
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            EnsureCorePinFileIsWritable();
+            var originalBytes = await File.ReadAllBytesAsync(MetadataPath, cancellationToken);
+            var root = ParseMetadataObject(originalBytes);
+            var metadata = root.Deserialize<WccProjectMetadata>(JsonOptions)
+                ?? throw new InvalidDataException($"Project metadata is empty: {MetadataPath}");
+            EnsureSupportedVersion(metadata.FormatVersion);
+            if (metadata.ProjectId != expectedProjectId || !Equals(metadata.Compatibility?.CoreRevision, expectedPin))
+                throw new InvalidOperationException("The project identity or Core pin changed. Reopen the project before changing its Core pin.");
+            CheckCorePinCommitFence(canCommit, cancellationToken);
+
+            if (Equals(expectedPin, desiredPin) && (desiredPin is null ||
+                string.Equals(metadata.Compatibility?.TargetWesnothVersion, desiredPin.TargetWesnothVersion, StringComparison.Ordinal)))
+                return metadata;
+
+            var compatibility = root["compatibility"] as JsonObject;
+            if (desiredPin is null)
+            {
+                // Removing a pin intentionally removes that complete pin object;
+                // its enclosing target, provenance and unknown members remain.
+                compatibility?.Remove("coreRevision");
+            }
+            else
+            {
+                if (compatibility is null)
+                {
+                    compatibility = new JsonObject
+                    {
+                        ["importedFromWesnothVersion"] = desiredPin.ExactWesnothVersion
+                    };
+                    root["compatibility"] = compatibility;
+                }
+                compatibility["targetWesnothVersion"] = desiredPin.TargetWesnothVersion;
+                var pinObject = compatibility["coreRevision"] as JsonObject;
+                if (pinObject is null) compatibility["coreRevision"] = pinObject = new JsonObject();
+                MergeKnownCorePinMembers(pinObject, JsonSerializer.SerializeToNode(desiredPin, JsonOptions)!.AsObject());
+            }
+            root["updatedAtUtc"] = JsonValue.Create(DateTimeOffset.UtcNow);
+            var updated = root.Deserialize<WccProjectMetadata>(JsonOptions)
+                ?? throw new InvalidDataException("The updated project metadata could not be read.");
+            var temporaryPath = Path.Combine(Path.GetDirectoryName(MetadataPath)!, $".{MetadataFileName}.{Guid.NewGuid():N}.tmp");
+            try
+            {
+                await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.None, bufferSize: 81920, useAsync: true))
+                {
+                    await JsonSerializer.SerializeAsync(stream, root, JsonOptions, cancellationToken);
+                    await stream.FlushAsync(cancellationToken);
+                }
+                CheckCorePinCommitFence(canCommit, cancellationToken);
+                EnsureCorePinFileIsWritable();
+                var currentBytes = await File.ReadAllBytesAsync(MetadataPath, cancellationToken);
+                if (!originalBytes.AsSpan().SequenceEqual(currentBytes))
+                    throw new IOException("The project metadata changed before the Core pin could be saved. Reopen the project and try again.");
+                CheckCorePinCommitFence(canCommit, cancellationToken);
+                EnsureCorePinFileIsWritable();
+                File.Move(temporaryPath, MetadataPath, overwrite: true);
+                return updated;
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            }
+        }
+        finally { _writeLock.Release(); }
+    }
+
+    private void EnsureCorePinFileIsWritable()
+    {
+        if (!File.Exists(MetadataPath))
+            throw new FileNotFoundException("The loaded project metadata is unavailable. Reopen the project before changing its Core pin.", MetadataPath);
+        var attributes = File.GetAttributes(MetadataPath);
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+            throw new UnauthorizedAccessException("The project metadata is read-only.");
+        if ((attributes & FileAttributes.ReparsePoint) != 0 ||
+            (File.GetAttributes(Path.GetDirectoryName(MetadataPath)!) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("A Core pin change requires a direct project metadata file and directory.");
+    }
+
+    private static JsonObject ParseMetadataObject(byte[] bytes)
+    {
+        var json = bytes.AsSpan();
+        if (json.StartsWith(new byte[] { 0xef, 0xbb, 0xbf })) json = json[3..];
+        return JsonNode.Parse(json) as JsonObject
+            ?? throw new InvalidDataException("Project metadata must be a JSON object.");
+    }
+
+    private static void CheckCorePinCommitFence(Func<bool>? canCommit, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (canCommit?.Invoke() == false)
+            throw new InvalidOperationException("The project changed before its Core pin could be saved.");
+    }
+
+    private static void MergeKnownCorePinMembers(JsonObject target, JsonObject values)
+    {
+        foreach (var member in values)
+        {
+            if (member.Value is JsonObject children && target[member.Key] is JsonObject existing)
+                MergeKnownCorePinMembers(existing, children);
+            else target[member.Key] = member.Value?.DeepClone();
         }
     }
 

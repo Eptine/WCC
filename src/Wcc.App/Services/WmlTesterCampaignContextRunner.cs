@@ -191,10 +191,15 @@ public sealed class WmlTesterCampaignContextRunner(string? installPath, string i
         ContextPlan? ReadPlan(WmlStaticScalarOwner owner)
         {
             var type = owner.ResolveField("type");
+            var campaignType = type.State == WmlStaticScalarResolutionState.Known
+                ? WccScenarioFieldValueCodec.DecodeLiteral(type.ValueText).Trim() : null;
+            // Hybrid campaigns have an ordinary singleplayer entry environment.
+            // Keep MULTIPLAYER explicitly undefined above; accepting this menu
+            // does not inspect or claim support for its co-op gameplay branch.
             if (type.State == WmlStaticScalarResolutionState.Unresolved || type.State == WmlStaticScalarResolutionState.Known
-                && WccScenarioFieldValueCodec.DecodeLiteral(type.ValueText).Trim() != "sp")
+                && campaignType is not ("sp" or "hybrid"))
             {
-                problems.Add("Only a captured singleplayer campaign menu is supported by this context check.");
+                problems.Add("Only the singleplayer environment of a captured singleplayer or hybrid campaign menu is supported by this context check.");
                 return null;
             }
             var campaignDefine = ReadSymbols(owner, "define", required: true);

@@ -68,12 +68,22 @@ public partial class ScenarioWindowViewModel
             if (!Equals(preview.RequestIdentity, request))
             {
                 var work = preview.Begin(request);
+                preview.EditorContext = CreateImageEditorContext(preview, request);
                 _ = LoadWccImagePreviewAsync(preview, request, work.Version, work.Token, work.Completion);
             }
             return preview;
         }
     }
 
+    private ImageEditorFieldContext CreateImageEditorContext(WccFieldImagePreviewVm preview, WccImagePreviewRequest request) =>
+        new(request.RuntimeInstallPath, expression => request.RequiresCapturedResources
+            ? ApplyCapturedWccImageResources(request, new() { HasReference = true, RawExpression = expression,
+                SourceLabel = "Captured campaign image" })
+            : WccUnitPreviewPathResolver.ResolveRawImageExpression(request.SourcePath, WccSourceOrigin.ImportedExternal,
+                expression, request.Key is "profile" or "small_profile" ? WccAssetReferenceKind.Portrait : WccAssetReferenceKind.Image,
+                request.SourceInstallPath),
+            () => Equals(request, preview.RequestIdentity) && Equals(request, CaptureWccImagePreviewRequest(request.Owner, request.Key)),
+            true);
     private void RefreshWccFieldImagePreviews()
     {
         lock (_wccInitialFieldRefreshGate)

@@ -174,6 +174,7 @@ public partial class StoryEditorWindow
         var box = new TextBox { Name = inputName, AcceptsReturn = multiline, TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             MinHeight = multiline ? 130 : 32, VerticalAlignment = VerticalAlignment.Stretch };
         box.Bind(TextBox.TextProperty, new Binding(nameof(StoryFieldVm.Text)) { Source = field, Mode = BindingMode.TwoWay });
+        AttachStoryImageEditor(box, field, () => CanEditStorySetting(part, field, locked, child));
         ToolTip.SetTip(box, field.Key is "title" or "story" ? "Enter text normally. Quotes and translation formatting are handled automatically. Empty keeps the inherited/default value." : "Wesnoth resource path. Use … to choose or upload an image.");
         Grid.SetColumn(box, 1); row.Children.Add(box);
         if (field.IsPlainText)
@@ -220,7 +221,8 @@ public partial class StoryEditorWindow
         content.Children.Add(labelGroup);
         Grid.SetColumn(reset, 1); header.Children.Add(reset); content.Children.Add(header);
         var box = new TextBox { Name = "StorySetting_" + field.Key, MinHeight = 32, Watermark = "Inherited / default" };
-        box.Bind(TextBox.TextProperty, new Binding(nameof(StoryFieldVm.Text)) { Source = field, Mode = BindingMode.TwoWay }); header.Children.Add(box);
+        box.Bind(TextBox.TextProperty, new Binding(nameof(StoryFieldVm.Text)) { Source = field, Mode = BindingMode.TwoWay });
+        AttachStoryImageEditor(box, field, () => CanEditStorySetting(part, field, false, child)); header.Children.Add(box);
         ObserveStoryField(content, field, () => { box.IsReadOnly = !CanEditStorySetting(part, field, false, child); box.Opacity = !field.CanEdit || !child.CanEdit ? 0.65 : 1; });
         AddStoryFieldOrigin(content, field); return content;
     }

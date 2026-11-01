@@ -18,10 +18,10 @@ internal static partial class WccScenarioFieldStaticReviewer
     {
         try
         {
-            if (proposals.Count == 0 || proposals.Any(proposal => proposal.Route.Owner.TagName != "campaign"
+            if (proposals.Count == 0 || proposals.Any(proposal => !IsCampaignMenuScalar(proposal.Route.Owner, proposal.Route.Key)
                     || proposal.Route.ContextSemanticKey != state.Context.SemanticKey
-                    || !WccScenarioFieldValueCodec.TryGetDefinition("campaign", proposal.Route.Key, out _)))
-                return RefuseBatch("Campaign drafts require supported ordinary menu scalars; bootstrap and difficulty settings remain in RAW.");
+                    || !WccScenarioFieldValueCodec.TryGetDefinition(proposal.Route.Owner.TagName, proposal.Route.Key, out _)))
+                return RefuseBatch("Campaign drafts require supported ordinary menu scalars or an exact difficulty image; bootstrap and difficulty topology remain in RAW.");
             if (CheckScope(state) is { } scopeRefusal) return RefuseBatch(scopeRefusal);
             var capture = await CaptureBatchWithDiagnosticsAsync(state, state.Source.Path, cancellationToken, diagnostics).ConfigureAwait(false);
             if (CheckCapture(state, capture) is { } captureRefusal) return RefuseBatch(captureRefusal);
@@ -49,8 +49,11 @@ internal static partial class WccScenarioFieldStaticReviewer
                 using var fieldMeasurement = diagnostics?.Measure(WccSourceSavePhase.FieldValidation);
                 diagnostics?.Add(WccSourceSaveCount.FieldValidations);
                 var owner = FindCampaignBatchOwnerWithDiagnostics(menu.Projection, proposal.Route.Owner, null, diagnostics);
-                if (owner is null || !ReferenceEquals(owner, anchor)) return RefuseBatch("A campaign draft belongs to a different captured menu owner.");
+                if (owner is null || !IsCampaignMenuScalarWithin(owner, proposal.Route.Key, anchor))
+                    return RefuseBatch("A campaign draft belongs to a different captured menu owner.");
                 var route = WccScenarioFieldRouteAnalyzer.Analyze(owner, proposal.Route.Key, state.Source, state.Context);
+                if (!IsSupportedCampaignScalarRoute(route))
+                    return RefuseBatch("A difficulty image requires an exact existing token or required macro argument; use RAW source.");
                 if (!EquivalentRoute(proposal.Route, route)) return RefuseBatch("The campaign field's winning value or exact source route changed.");
                 freshProposals.Add(proposal with { Route = route });
             }
@@ -88,18 +91,29 @@ internal static partial class WccScenarioFieldStaticReviewer
                     using var fieldMeasurement = diagnostics?.Measure(WccSourceSavePhase.FieldValidation);
                     diagnostics?.Add(WccSourceSaveCount.FieldValidations);
                     var edit = candidate.Edits[index];
-                    if (oldOwner is null || newOwner is null)
+                    var beforeField = FindCampaignBatchOwnerWithDiagnostics(baseline.Projection, edit.Route.Owner, null, diagnostics);
+                    var afterField = FindCampaignBatchOwnerWithDiagnostics(proposed.Projection, edit.Route.Owner, change, diagnostics);
+                    if (beforeField is null || afterField is null)
                     {
+                        if (isMenu || beforeField is not null || afterField is not null
+                            || HasMatchingOwnerKey(baseline.Projection, edit.Route.Owner, null)
+                            || HasMatchingOwnerKey(proposed.Projection, edit.Route.Owner, change))
+                            return RefuseBatch("A campaign field owner is absent, ambiguous or structurally uncertain in a reviewed phase.");
                         fieldContexts[index].Add(new(context.SemanticKey, "Campaign play: " + context.DisplayName, null, null, []));
                         continue;
                     }
-                    WccScenarioFieldValueCodec.TryGetDefinition("campaign", edit.Route.Key, out var definition);
-                    ValidateCompositeFieldContext(edit, oldOwner, newOwner);
-                    var oldValue = oldOwner.ResolveField(edit.Route.Key);
-                    var newValue = newOwner.ResolveField(edit.Route.Key);
+                    if (oldOwner is null || newOwner is null ||
+                        !IsCampaignMenuScalarWithin(beforeField, edit.Route.Key, oldOwner) ||
+                        !IsCampaignMenuScalarWithin(afterField, edit.Route.Key, newOwner) ||
+                        !HasSameCampaignDifficultyOccurrence(beforeField, afterField, change))
+                        return RefuseBatch("A campaign field no longer belongs to the exact selected menu owner.");
+                    WccScenarioFieldValueCodec.TryGetDefinition(edit.Route.Owner.TagName, edit.Route.Key, out var definition);
+                    ValidateCompositeFieldContext(edit, beforeField, afterField);
+                    var oldValue = beforeField.ResolveField(edit.Route.Key);
+                    var newValue = afterField.ResolveField(edit.Route.Key);
                     if (oldValue.State == WmlStaticScalarResolutionState.Unresolved || newValue.State == WmlStaticScalarResolutionState.Unresolved
                         || oldValue.State == WmlStaticScalarResolutionState.Known && !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, oldValue.ValueText)
-                            && !IsFreshKnownEmptyComposite(oldOwner, edit.Route.Key, state.Source)
+                            && !IsFreshKnownEmptyComposite(beforeField, edit.Route.Key, state.Source)
                         || newValue.State == WmlStaticScalarResolutionState.Known && !WccScenarioFieldValueCodec.IsSupportedResolvedValue(definition!, newValue.ValueText))
                         return RefuseBatch("A campaign field is not a known supported scalar in a reviewed phase.");
                     if (edit.Route.Origin == WccScenarioFieldOrigin.Absent && oldValue.State != WmlStaticScalarResolutionState.ProvenAbsent)
@@ -108,9 +122,9 @@ internal static partial class WccScenarioFieldStaticReviewer
                         && (newValue.State != WmlStaticScalarResolutionState.Known
                             || !(edit.ValueInputKind == WccScenarioFieldValueInputKind.Literal
                                 ? WccScenarioFieldValueCodec.Equivalent(definition!, newValue.ValueText, edit.RequestedValue)
-                                : HasExactProposedScalarAncestry(newOwner, edit.Route.Key, edit, proposed.Evaluation))))
+                                : HasExactProposedScalarAncestry(afterField, edit.Route.Key, edit, proposed.Evaluation))))
                         return RefuseBatch("The campaign proposal does not resolve to the requested menu field value.");
-                    targets.Add(new(oldOwner, newOwner, edit.Route) { Edit = edit });
+                    targets.Add(new(beforeField, afterField, edit.Route) { Edit = edit });
                     fieldContexts[index].Add(new(context.SemanticKey, isMenu ? "Campaign menu" : "Campaign play: " + context.DisplayName,
                         oldValue.ValueText, newValue.ValueText, []));
                 }
@@ -152,6 +166,30 @@ internal static partial class WccScenarioFieldStaticReviewer
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
         { return RefuseBatch("Campaign source review was refused: " + exception.Message); }
     }
+
+    private static bool IsCampaignMenuScalar(WmlStaticScalarOwner owner, string key) => owner.TagName == "campaign" ||
+        owner.TagName == "difficulty" && key == "image" && owner.Parent is { TagName: "campaign", Parent: null };
+
+    private static bool IsCampaignMenuScalarWithin(WmlStaticScalarOwner owner, string key, WmlStaticScalarOwner anchor) =>
+        ReferenceEquals(owner, anchor) && owner.TagName == "campaign" ||
+        IsCampaignMenuScalar(owner, key) && owner.TagName == "difficulty" && ReferenceEquals(owner.Parent, anchor) &&
+        owner.OpeningOutputOffset is not null && owner.ClosingOutputOffset is not null &&
+        owner.OpeningOrigin is not null && owner.ClosingOrigin is not null;
+
+    // An existing image token remains writable when another contribution marks
+    // this difficulty as default. No amended boundary grants insertion authority:
+    // the original opening, final closing and their complete ancestry must survive.
+    private static bool HasSameCampaignDifficultyOccurrence(WmlStaticScalarOwner before,
+        WmlStaticScalarOwner after, WccScenarioFieldSourceChange change) => before.TagName != "difficulty" ||
+        after.TagName == "difficulty" && before.IsAmended == after.IsAmended &&
+        before.OpeningOrigin is { } opening && after.OpeningOrigin is { } currentOpening &&
+        before.ClosingOrigin is { } closing && after.ClosingOrigin is { } currentClosing &&
+        SameMappedRange(opening, currentOpening, change) && SameMappedRange(closing, currentClosing, change) &&
+        SameMappedFrames(before.OpeningExpansionStack, after.OpeningExpansionStack, change) &&
+        SameMappedFrames(before.ClosingExpansionStack, after.ClosingExpansionStack, change);
+
+    private static bool IsSupportedCampaignScalarRoute(WccScenarioFieldRoute route) => route.Owner.TagName != "difficulty" ||
+        route.Key == "image" && route.Kind is WccScenarioFieldRouteKind.DirectToken or WccScenarioFieldRouteKind.ScalarArgument;
 
     private static WmlStaticScalarOwner? FindCampaignBatchOwnerWithDiagnostics(WmlStaticScalarProjection projection,
         WmlStaticScalarOwner original, WccScenarioFieldSourceChange? candidate, WccSourceSaveDiagnosticCollector? diagnostics)

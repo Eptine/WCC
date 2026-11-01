@@ -44,7 +44,15 @@ public static class WccLibraryUnitEntityLoader
         asset.Documents.AddRange(UnitTypeImporter.ImportAllFromText(content.SourceFileText));
         asset.MacroDefinitions.AddRange(WmlMacroDefinitionScanner.Scan(content.SourceFileText));
 
-        var preferred = asset.Documents.FirstOrDefault(document =>
+        // Identical unit bodies can occur in separate preprocessor branches.
+        // The indexed span identifies which physical declaration was selected.
+        var preferred = entity.SourceSpan is { StartOffset: { } start, EndOffsetExclusive: { } end }
+            ? asset.Documents.FirstOrDefault(document =>
+                document.BlockSpan.StartIndex == start && document.BlockSpan.EndIndexExclusive == end &&
+                string.Equals(WccContentHash.ComputeText(document.BlockSpan.RawText),
+                    entity.ContentFingerprint, StringComparison.OrdinalIgnoreCase))
+            : null;
+        preferred ??= asset.Documents.FirstOrDefault(document =>
                             string.Equals(
                                 WccContentHash.ComputeText(document.BlockSpan.RawText),
                                 entity.ContentFingerprint,

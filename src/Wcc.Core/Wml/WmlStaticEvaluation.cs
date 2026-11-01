@@ -78,10 +78,15 @@ public enum WmlStaticInvocationOutcome
 
 public enum WmlStaticArgumentBindingFailureKind
 {
-    MissingRequired, UnexpectedPositional, UnknownNamed, DuplicateNamed
+    MissingRequired, UnexpectedPositional, UnknownNamed, DuplicateNamed,
+    /// <summary>The extra raw argument needs expansion before its optional name can be established.</summary>
+    ComputedExtra
 }
 
-/// <summary>A mismatch proved by the existing binder against its supported active definition.</summary>
+/// <summary>
+/// A rejection recorded by the existing binder against its supported active definition.
+/// ComputedExtra proves the required/received counts, but not an invalid expanded optional name.
+/// </summary>
 public sealed record WmlStaticArgumentBindingFailure(
     WmlStaticArgumentBindingFailureKind Kind,
     IReadOnlyList<string> RequiredParameters,
@@ -104,7 +109,7 @@ public sealed record WmlStaticInvocationTrace(
 {
     /// <summary>Exact caller frames also retain the ancestry of nested silent invocations.</summary>
     public IReadOnlyList<WmlStaticExpansionFrame> ExpansionStack { get; init; } = [];
-    /// <summary>Null when syntax, the definition or its argument binding could not be proved.</summary>
+    /// <summary>Null without a supported active declaration; ComputedExtra retains counts without proving the expanded name.</summary>
     public WmlStaticArgumentBindingFailure? ArgumentBindingFailure { get; init; }
 }
 
@@ -151,6 +156,27 @@ public sealed record WmlStaticEvaluationRequest(
     bool IsInitialEnvironmentComplete = false,
     IWmlStaticIncludeResolver? IncludeResolver = null,
     WmlStaticEvaluationLimits? Limits = null);
+
+/// <summary>Immutable run inputs for compatible read-only reuse. The resolver is
+/// weak so retaining an evaluation cannot retain its captured namespace/resource graph.</summary>
+internal sealed class WmlStaticSourceInputs
+{
+    private readonly WeakReference<IWmlStaticIncludeResolver>? _resolver;
+
+    internal WmlStaticSourceInputs(WmlStaticEvaluationRequest request)
+    {
+        _resolver = request.IncludeResolver is { } resolver ? new(resolver) : null;
+        PreludeSources = Array.AsReadOnly((request.PreludeSources ?? []).ToArray());
+        KnownUndefinedSymbols = Array.AsReadOnly((request.KnownUndefinedSymbols ?? []).ToArray());
+        IsInitialEnvironmentComplete = request.IsInitialEnvironmentComplete;
+    }
+
+    internal IReadOnlyList<WmlStaticSource> PreludeSources { get; }
+    internal IReadOnlyList<string> KnownUndefinedSymbols { get; }
+    internal bool IsInitialEnvironmentComplete { get; }
+    internal bool UsesResolver(IWmlStaticIncludeResolver resolver) =>
+        _resolver is not null && _resolver.TryGetTarget(out var actual) && ReferenceEquals(actual, resolver);
+}
 
 public sealed class WmlStaticEvaluationResult
 {
@@ -208,6 +234,9 @@ public sealed class WmlStaticEvaluationResult
         Includes = original.Includes;
         IsComplete = original.IsComplete;
         OutputLimitExceeded = original.OutputLimitExceeded;
+        SourceContext = original.SourceContext;
+        SourceEntry = original.SourceEntry;
+        SourceInputs = original.SourceInputs;
         // The previous masked-result constructor supplied no invocation traces.
         Invocations = Array.AsReadOnly(Array.Empty<WmlStaticInvocationTrace>());
     }
@@ -257,6 +286,12 @@ public sealed class WmlStaticEvaluationResult
     /// <summary>Branch observations in evaluation order; no entry proves an unvisited call is absent.</summary>
     public IReadOnlyList<WmlStaticInvocationTrace> Invocations { get; }
     public bool IsComplete { get; }
+    /// <summary>The immutable request context retained by the evaluator; not persistence authority.</summary>
+    internal WmlEvaluationContext? SourceContext { get; init; }
+    /// <summary>The exact source supplied as the evaluator entry, distinct from visited includes.</summary>
+    internal WmlStaticSource? SourceEntry { get; init; }
+    /// <summary>Immutable prelude/environment inputs with only a weak resolver receipt.</summary>
+    internal WmlStaticSourceInputs? SourceInputs { get; init; }
     /// <summary>A retained-output buffer reached its limit. Other evaluation failures do not set this flag.</summary>
     public bool OutputLimitExceeded { get; internal init; }
     /// <summary>Direct provenance for an internal equal-length mapping-preserving view; never a Save ticket.</summary>

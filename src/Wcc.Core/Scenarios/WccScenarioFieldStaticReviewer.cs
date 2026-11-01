@@ -60,7 +60,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         {
             if (state.EntryReview is not null)
                 return Refuse("Selected-entry edits use the collected source review and its ordinary recipe validators.");
-            if (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu || route.Owner.TagName == "campaign")
+            if (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu || route.Owner.TagName is "campaign" or "difficulty")
                 return Refuse("Campaign menu fields require the collected CampaignMenu review; use the collected Save operation.");
             if (!WccScenarioFieldValueCodec.TryGetDefinition(route.Owner.TagName, route.Key, out var definition))
                 return Refuse("This field has no supported initial-field editing semantics; use RAW source.");
@@ -91,7 +91,8 @@ internal static partial class WccScenarioFieldStaticReviewer
             // than trusting its public enum, booleans or a previously cached owner.
             var selected = Evaluate(capture, state.Context, state.Plan, environment!, null, cancellationToken);
             if (!selected.Evaluation.IsComplete || selected.Projection.Diagnostics.Count != 0)
-                return Refuse("The current WCC context has unresolved or malformed expanded WML; use RAW source.");
+                return Refuse("The current WCC context has unresolved or malformed expanded WML; use RAW source."
+                    + CompletenessDiagnosticDetail(selected, state.Context, "Existing context"));
             var freshOwner = FindOwner(selected.Projection, state.Owner, null);
             if (freshOwner is null)
                 return Refuse("The selected field cannot be matched to one exact current owner and invocation chain.");
@@ -113,7 +114,12 @@ internal static partial class WccScenarioFieldStaticReviewer
                 var proposed = Evaluate(capture, context, state.Plan, environment!, candidate, cancellationToken);
                 if (!baseline.Evaluation.IsComplete || !proposed.Evaluation.IsComplete
                     || baseline.Projection.Diagnostics.Count != 0 || proposed.Projection.Diagnostics.Count != 0)
-                    return Refuse("A declared context contains unresolved or malformed expanded WML; the local edit needs RAW review.");
+                {
+                    var baselineIncomplete = !baseline.Evaluation.IsComplete || baseline.Projection.Diagnostics.Count != 0;
+                    return Refuse("A declared context contains unresolved or malformed expanded WML; the local edit needs RAW review."
+                        + CompletenessDiagnosticDetail(baselineIncomplete ? baseline : proposed, context,
+                            baselineIncomplete ? "Existing context" : "Proposed context"));
+                }
 
                 var oldOwner = FindOwner(baseline.Projection, state.Owner, null);
                 var newOwner = FindOwner(proposed.Projection, state.Owner, candidate);
@@ -194,7 +200,7 @@ internal static partial class WccScenarioFieldStaticReviewer
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu || candidate.Route.Owner.TagName == "campaign")
+            if (state.ReviewScope == WccScenarioFieldReviewScope.CampaignMenu || candidate.Route.Owner.TagName is "campaign" or "difficulty")
                 return new(WccScenarioFieldEditStatus.ReviewRefused,
                     "Campaign menu fields require the collected CampaignMenu review; use the collected Save operation.");
             if (!ReferenceEquals(candidate, proof.Candidate) || ScopeIdentity(state) != proof.ScopeIdentity)

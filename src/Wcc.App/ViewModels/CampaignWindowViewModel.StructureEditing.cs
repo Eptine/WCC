@@ -296,7 +296,8 @@ public partial class CampaignWindowViewModel
             draft.ValueInputKind == WccScenarioFieldValueInputKind.Literal && !string.IsNullOrWhiteSpace(text))
         {
             if (draft.Route.Key == "icon") text = CampaignPresentationImagePolicy.Fit(text, CampaignPresentationImagePurpose.CampaignIcon);
-            else if (draft.Route.Key == "image") text = CampaignPresentationImagePolicy.Fit(text, CampaignPresentationImagePurpose.CampaignImage);
+            else if (draft.Route.Key == "image") text = CampaignPresentationImagePolicy.Fit(text,
+                draft.Route.Owner.TagName == "difficulty" ? CampaignPresentationImagePurpose.DifficultyIcon : CampaignPresentationImagePurpose.CampaignImage);
         }
         return new(draft.Route, draft.Operation, text) { ValueInputKind = draft.ValueInputKind };
     }

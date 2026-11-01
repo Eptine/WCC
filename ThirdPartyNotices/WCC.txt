@@ -23,4 +23,7 @@ Source: https://github.com/wesnoth/wesnoth/tree/1.19.28
 
 WCC icons incorporate Pictogrammers artwork adapted for WCC: Apache-2.0.txt and
 Pictogrammers.txt (Apache License 2.0). WCC.ico wraps the WCC.png application image.
+The ImageEditor icon collection was supplied for WCC on 2026-10-29. Original PNG
+filenames and bytes are retained; hashes are listed in Assets/Wcc/Icons/provenance.json.
+The Tester icon was supplied for WCC on 2026-10-31 and is bundled unchanged.
 Source: https://pictogrammers.com/docs/general/license/

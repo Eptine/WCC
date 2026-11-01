@@ -90,6 +90,11 @@ public partial class AppShellViewModel
         public WccStaticSourceCaptureResult Capture { get; } = capture;
         public WmlStaticEvaluationResult Evaluation { get; } = evaluation;
         public WmlStaticScalarProjection Projection { get; } = projection;
+        public bool RequiresCapturedImages { get; init; }
+        public string? LibraryPreviewNotice { get; init; }
+        public string? LibraryBaseClosureUnavailableReason { get; init; }
+        public string PreviewContextLabel => request.Context.DisplayName;
+        public Func<WccCapturedImageResourceContext>? LibraryImageFactory { get; init; }
         public long RetainedExpandedCharacters
         {
             get { lock (_drafts) return (long)Evaluation.Text.Length + (_completedDraft?.Evaluation.Text.Length ?? 0); }
@@ -108,7 +113,10 @@ public partial class AppShellViewModel
         private readonly Lazy<WccCapturedImageResourceContext> _imageResources = new(() =>
             imageInspection is null ? WccCapturedImageResourceContext.Create(capture, evaluation, projection)
                 : WccCapturedImageResourceContext.Create(capture, imageInspection));
-        public WccCapturedImageResourceContext ImageResources => _imageResources.Value;
+        private Lazy<WccCapturedImageResourceContext>? _libraryImages;
+        public WccCapturedImageResourceContext ImageResources => LibraryImageFactory is { } factory
+            ? LazyInitializer.EnsureInitialized(ref _libraryImages, () => new Lazy<WccCapturedImageResourceContext>(factory)).Value
+            : _imageResources.Value;
 
         public async Task<UnitDisplayScope?> EvaluateDraftAsync(WmlStaticSource original, string text, CancellationToken cancellationToken)
         {
@@ -229,7 +237,9 @@ public partial class AppShellViewModel
                     token.ThrowIfCancellationRequested();
                     var result = new WmlStaticEvaluator().Evaluate(draftRequest, token);
                     var scope = new UnitDisplayScope(Capture, draftRequest, result, WmlStaticScalarProjection.Create(result, token))
-                        { LifetimeCancellation = LifetimeCancellation };
+                        { LifetimeCancellation = LifetimeCancellation, RequiresCapturedImages = RequiresCapturedImages,
+                            LibraryPreviewNotice = LibraryPreviewNotice,
+                            LibraryBaseClosureUnavailableReason = LibraryBaseClosureUnavailableReason };
                     lock (_drafts)
                     {
                         if (_retired || token.IsCancellationRequested) { work.Completion.TrySetResult(null); continue; }
@@ -253,6 +263,13 @@ public partial class AppShellViewModel
             => Find(path, contentHash, start, length, CancellationToken.None);
 
         public WccUnitTypeEffectiveDisplay? Find(string path, string contentHash, int start, int length, CancellationToken cancellationToken)
+            => FindCore(path, contentHash, start, length, false, cancellationToken);
+
+        public WccUnitTypeEffectiveDisplay? FindScalarPreview(string path, string contentHash, int start, int length, CancellationToken cancellationToken)
+            => FindCore(path, contentHash, start, length, true, cancellationToken);
+
+        private WccUnitTypeEffectiveDisplay? FindCore(string path, string contentHash, int start, int length,
+            bool scalarOnly, CancellationToken cancellationToken)
         {
             using var linked = cancellationToken.CanBeCanceled && LifetimeCancellation.CanBeCanceled
                 ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, LifetimeCancellation) : null;
@@ -262,7 +279,7 @@ public partial class AppShellViewModel
             token.ThrowIfCancellationRequested();
             if (Volatile.Read(ref _retired)) return null;
             var key = (path, contentHash, start, length);
-            if (_displays.TryGetValue(key, out var cached)) return cached;
+            if (!scalarOnly && _displays.TryGetValue(key, out var cached)) return cached;
             var candidates = Projection.Owners.Where(owner => owner.TagName == "unit_type" &&
                 owner.Parent is { TagName: "units", Parent: null } &&
                 owner.OpeningOrigin is { } opening && owner.ClosingOrigin is { } closing &&
@@ -270,14 +287,16 @@ public partial class AppShellViewModel
                 PathsEqual(closing.Source.Path, path) && closing.Source.ContentHash == contentHash &&
                 opening.StartOffset >= start && opening.StartOffset < start + length &&
                 closing.StartOffset >= start && closing.StartOffset + closing.Length <= start + length).ToArray();
-            if (candidates.Length != 1) { _displays[key] = null; return null; }
+            if (candidates.Length != 1) { if (!scalarOnly) _displays[key] = null; return null; }
             var selected = candidates[0];
             WccUnitTypeEffectiveDisplay? display;
-                try { display = WccUnitTypeEffectiveDisplay.Create(Evaluation, Projection, selected, GetUnitRegistry(token), token); }
+                try { display = scalarOnly
+                    ? WccUnitTypeEffectiveDisplay.CreateScalarPreview(Evaluation, Projection, selected, GetUnitRegistry(token), token)
+                    : WccUnitTypeEffectiveDisplay.Create(Evaluation, Projection, selected, GetUnitRegistry(token), token); }
                 catch (Exception failure) when (failure is ArgumentException or InvalidOperationException) { display = null; }
             token.ThrowIfCancellationRequested();
             if (Volatile.Read(ref _retired)) return null;
-            _displays[key] = display;
+            if (!scalarOnly) _displays[key] = display;
             return display;
             }
         }
@@ -319,7 +338,8 @@ public partial class AppShellViewModel
 
     // Sidebar receipts deliberately contain detached documents only. Retaining a
     // scalar owner here would retain its parent units container and sibling graph.
-    private sealed record UnitDisplaySummary(string? EffectiveRace, UnitTypeDocument PreviewDocument);
+    private sealed record UnitDisplaySummary(string? EffectiveRace, UnitTypeDocument? PreviewDocument,
+        string? PreviewPath, bool RequiresCapturedImages);
     private sealed record UnitDisplayGrouping(UnitDisplayBinding Binding,
         IReadOnlyDictionary<UnitDisplayLookup, UnitDisplaySummary?> Values);
 
@@ -564,6 +584,7 @@ public partial class AppShellViewModel
 
     private void RetireUnitDisplayScopes(bool campaignOnly)
     {
+        if (!campaignOnly) RetireLibraryUnitSidebarPreparation();
         UnitDisplayWork[] retired;
         UnitDisplayLease[] readers;
         CancellationTokenSource[] requests;
@@ -608,6 +629,10 @@ public partial class AppShellViewModel
         {
             if (!StillRetired(editor)) continue;
             editor.ConfigureUnitEffectiveDisplayResolver(null);
+            if (!StillRetired(editor)) continue;
+            editor.UnitLibraryPreviewNotice = null;
+            if (!StillRetired(editor)) continue;
+            editor.IsUsingLibraryContextPreview = false;
             // A reentrant current publication owns its newly established lease.
             if (!StillRetired(editor)) continue;
             editor.ConfigureCapturedImageResourceContext(null, unavailableReason: campaignOnly
@@ -674,40 +699,53 @@ public partial class AppShellViewModel
             if (!capture.IsCaptureComplete || !capture.HasCompleteCoreUnitPrelude ||
                 !WmlStaticSingleplayerEnvironment.TryCreate(capture.CoreVersion, out var environment)) return null;
             if (binding.Campaign && (binding.Plan is null || capture.EntrySource!.ContentHash != binding.Plan.CampaignMainTextHash)) return null;
-            return await Task.Run(() =>
-            {
-                // The Library has no game entry point. This explicit, nonauthored
-                // preview wrapper registers the selected file in its captured Core
-                // scope. Stored sibling files are independent reusable content,
-                // not an entry point: their unknown macros must not invalidate this
-                // file's preview. It is never written into a Library or campaign.
-                var entry = binding.Campaign ? capture.EntrySource! : binding.Core ?
-                    new WmlStaticSource("wcc-static://unit-display/core.cfg", "", false) :
-                    new WmlStaticSource(Path.Combine(Path.GetDirectoryName(binding.EntryPath)!, "__wcc_unit_display__.cfg"),
-                        "[units]\n{./" + Path.GetFileName(binding.EntryPath) + "}\n[/units]\n", false);
-                var undefined = binding.UndefinedSymbols;
-                var request = new WmlStaticEvaluationRequest(entry, binding.Context,
-                    new[] { environment!.DefinitionsSource }.Concat(capture.PreludeSources).Concat(capture.CoreUnitPreludeSources).ToArray(),
-                    undefined, true, capture.IncludeResolver,
-                    Limits: WmlStaticEvaluationLimits.Campaign);
-                var evaluated = new WmlStaticEvaluator().Evaluate(request, cancellationToken);
-                var projection = WmlStaticScalarProjection.Create(evaluated, cancellationToken);
-                // Reuse the ordered, bounded inspection solely for active image
-                // paths. Full unit values, inheritance and write proof still use
-                // the ordinary result above. Changed-source draft scopes keep
-                // their existing full-evaluation guard and cannot borrow this
-                // exact baseline receipt. Compute off the UI thread, once per
-                // captured package/context rather than once per opened unit.
-                var imageInspection = binding.Campaign && evaluated.OutputLimitExceeded
-                    ? new WmlStaticEvaluator().InspectScenarios(request, cancellationToken) : null;
-                return new UnitDisplayScope(capture, request, evaluated, projection, imageInspection)
-                    { LifetimeCancellation = cancellationToken };
-            }, cancellationToken).ConfigureAwait(false);
+            return await Task.Run(() => CreateCapturedUnitDisplayScope(binding, capture, null, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
         }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
             return null;
         }
+    }
+
+    private static UnitDisplayScope? CreateCapturedUnitDisplayScope(UnitDisplayBinding binding,
+        WccStaticSourceCaptureResult capture, IReadOnlyList<string>? batchPaths, CancellationToken cancellationToken)
+    {
+        if (!WmlStaticSingleplayerEnvironment.TryCreate(capture.CoreVersion, out var environment)) return null;
+        // The Library has no game entry point. This explicit, nonauthored
+        // preview wrapper registers the selected file in its captured Core
+        // scope. Stored sibling files are independent reusable content,
+        // not an entry point: their unknown macros must not invalidate this
+        // file's preview. It is never written into a Library or campaign.
+        var libraryPreview = !binding.Campaign && !binding.Core && !binding.Managed
+            ? WccLibraryUnitPreviewPlan.TryCreateWithLiteralBaseClosure(capture, binding.Snapshot, binding.Revision,
+                binding.PackageRoot, batchPaths ?? [binding.EntryPath], binding.Context.TargetCompatibility, cancellationToken)
+            : null;
+        if (batchPaths is not null && libraryPreview is null) return null;
+        var entry = libraryPreview?.EntrySource ?? (binding.Campaign ? capture.EntrySource! : binding.Core ?
+            new WmlStaticSource("wcc-static://unit-display/core.cfg", "", false) :
+            new WmlStaticSource(Path.Combine(Path.GetDirectoryName(binding.EntryPath)!, "__wcc_unit_display__.cfg"),
+                "[units]\n{./" + Path.GetFileName(binding.EntryPath) + "}\n[/units]\n", false));
+        var undefined = libraryPreview?.UndefinedSymbols ?? binding.UndefinedSymbols;
+        var request = new WmlStaticEvaluationRequest(entry, libraryPreview?.Context ?? binding.Context,
+            new[] { environment!.DefinitionsSource }.Concat(capture.PreludeSources).Concat(capture.CoreUnitPreludeSources).ToArray(),
+            undefined, true, capture.IncludeResolver,
+            Limits: WmlStaticEvaluationLimits.Campaign);
+        var evaluated = new WmlStaticEvaluator().Evaluate(request, cancellationToken);
+        var projection = WmlStaticScalarProjection.Create(evaluated, cancellationToken);
+        // Reuse the ordered, bounded inspection solely for active image
+        // paths. Full unit values, inheritance and write proof still use
+        // the ordinary result above. Changed-source draft scopes keep
+        // their existing full-evaluation guard and cannot borrow this
+        // exact baseline receipt. Compute off the UI thread, once per
+        // captured package/context rather than once per opened unit.
+        var imageInspection = binding.Campaign && evaluated.OutputLimitExceeded
+            ? new WmlStaticEvaluator().InspectScenarios(request, cancellationToken) : null;
+        return new UnitDisplayScope(capture, request, evaluated, projection, imageInspection)
+            { LifetimeCancellation = cancellationToken, RequiresCapturedImages = binding.Campaign || libraryPreview is not null,
+                LibraryImageFactory = libraryPreview is null ? null : () => libraryPreview.CreateImageResourceContext(capture, evaluated, cancellationToken),
+                LibraryPreviewNotice = libraryPreview?.Notice,
+                LibraryBaseClosureUnavailableReason = libraryPreview?.BaseClosureUnavailableReason };
     }
 
     public async Task WaitForUnitInheritanceDisplayAsync(CancellationToken cancellationToken = default)
@@ -808,6 +846,8 @@ public partial class AppShellViewModel
         var selected = editor.SelectedUnit;
         var editVersion = editor.EditVersion;
         var inherits = selected?.Document.Unit.BaseUnits.Count is > 0;
+        if (IsRequestCurrent()) editor.UnitLibraryPreviewNotice = null;
+        if (IsRequestCurrent()) editor.IsUsingLibraryContextPreview = false;
         if (selected is null)
         {
             ReleaseUnitEditorDisplayLease(editor);
@@ -839,7 +879,8 @@ public partial class AppShellViewModel
             editor.ConfigureCapturedImageResourceContext(null,
                 unavailableReason: "Resolving the captured campaign image search paths...");
         if (!IsRequestCurrent()) return;
-        if (!inherits && !binding.Campaign)
+        var resolveEffective = inherits || !binding.Campaign && !binding.Core && !binding.Managed;
+        if (!resolveEffective && !binding.Campaign)
         {
             ReleaseUnitEditorDisplayLease(editor);
             if (!IsRequestCurrent()) return;
@@ -852,7 +893,7 @@ public partial class AppShellViewModel
         if (reader is null || !IsRequestCurrent()) return;
         SetUnitEditorDisplayLease(editor, reader.Work);
         var task = reader.Task;
-        if (inherits) lock (_unitDisplaySync) _unitDisplayGroupingRequests.Add(binding.Key);
+        if (resolveEffective) lock (_unitDisplaySync) _unitDisplayGroupingRequests.Add(binding.Key);
         if (!task.IsCompleted)
         {
             editor.UnitInheritancePreviewStatus = inherits ? "Resolving inherited values in " + binding.Context.DisplayName + "..." : null;
@@ -876,7 +917,7 @@ public partial class AppShellViewModel
         if (!IsCurrent()) return;
         source = scope?.Capture.Sources.SingleOrDefault(source => PathsEqual(source.Path, path));
         var originals = source is null ? [] : UnitTypeImporter.ImportAllFromText(source.Text);
-        candidate = inherits ? editor.CaptureUnitDraftDisplayCandidate() : editor.CaptureUnitImageResourceDraft();
+        candidate = resolveEffective && !editor.IsReadOnly ? editor.CaptureUnitDraftDisplayCandidate() : editor.CaptureUnitImageResourceDraft();
         // The renderer works on detached blocks, but its draft still needs an
         // exact captured baseline and declaration position. IDs alone are not a
         // receipt, and a RAW edit may change the number of physical declarations.
@@ -897,7 +938,7 @@ public partial class AppShellViewModel
             return;
         }
         }
-        if (inherits) QueueUnitDisplayGrouping(binding);
+        if (resolveEffective) QueueUnitDisplayGrouping(binding);
         // Coalesce quick field edits before evaluating the immutable candidate.
         // No disk capture or index refresh is needed for a local draft.
         if (candidate.Text != source.Text) await Task.Delay(80, cancellationToken);
@@ -917,24 +958,39 @@ public partial class AppShellViewModel
         {
             cancellationToken.ThrowIfCancellationRequested();
             reader.Token.ThrowIfCancellationRequested();
-            var images = binding.Campaign ? draftScope?.ImageResources : null;
-            var display = inherits ? draftScope?.Find(path, WccContentHash.ComputeText(candidate.Text),
+            var images = draftScope?.RequiresCapturedImages == true ? draftScope.ImageResources : null;
+            var display = resolveEffective ? draftScope?.Find(path, WccContentHash.ComputeText(candidate.Text),
                 draftDocument.BlockSpan.StartIndex, draftDocument.BlockSpan.EndIndexExclusive - draftDocument.BlockSpan.StartIndex,
                 cancellationToken) : null;
+            WccUnitPreviewContextObservation? observation = null;
+            if (!binding.Campaign && draftScope is not null)
+            {
+                var actualSources = draftScope.Evaluation.Sources.Where(value => PathsEqual(value.Path, path) &&
+                    value.ContentHash == WccContentHash.ComputeText(candidate.Text)).Take(2).ToArray();
+                if (actualSources.Length == 1)
+                    observation = WccUnitPreviewContextObservation.Observe(draftScope.Evaluation, draftScope.Projection,
+                        new(actualSources[0], draftDocument.BlockSpan.StartIndex,
+                            draftDocument.BlockSpan.EndIndexExclusive - draftDocument.BlockSpan.StartIndex),
+                        draftScope.LibraryPreviewNotice, draftScope.Capture.CoreVersion, cancellationToken);
+            }
             cancellationToken.ThrowIfCancellationRequested();
             reader.Token.ThrowIfCancellationRequested();
-            return (Images: images, Display: display);
+            return (Images: images, Display: display, Observation: observation);
         }, cancellationToken);
         TrackUnitDisplayWorker(preparation);
         var prepared = await preparation;
         lock (_unitDisplaySync)
         {
             if (!IsCurrent()) return;
-            if (binding.Campaign)
+            editor.IsUsingLibraryContextPreview = !binding.Campaign && draftScope is not null;
+            if (!IsCurrent()) return;
+            editor.UnitLibraryPreviewNotice = prepared.Observation?.Notice ?? (!inherits ? prepared.Observation?.UnavailableReason : null);
+            if (!IsCurrent()) return;
+            if (binding.Campaign || draftScope?.RequiresCapturedImages == true)
                 editor.ConfigureCapturedImageResourceContext(prepared.Images, IsResourceContextCurrent,
                     draftScope is null ? "The campaign image search context could not be captured." : null);
             if (!IsCurrent()) return;
-            if (!inherits)
+            if (!resolveEffective)
             {
                 editor.UnitInheritancePreviewStatus = null;
                 if (!IsCurrent()) return;
@@ -944,12 +1000,14 @@ public partial class AppShellViewModel
                 return;
             }
             var display = prepared.Display;
-            editor.UnitInheritancePreviewStatus = display is null
-                ? "Inherited values are unavailable in " + binding.Context.DisplayName + ". Check RAW macros and the captured source context." : null;
+            editor.UnitInheritancePreviewStatus = prepared.Observation?.UnavailableReason ?? (display is null
+                ? "Inherited values are unavailable in " + binding.Context.DisplayName + ". Check RAW macros and the captured source context." : null);
+            if (inherits && display?.HasResolvedInheritance != true && draftScope?.LibraryBaseClosureUnavailableReason is { } closureProblem)
+                editor.UnitInheritancePreviewStatus = (editor.UnitInheritancePreviewStatus is { } existingProblem ? existingProblem + "\n" : "") + closureProblem;
             if (!IsCurrent()) return;
             editor.SetUnitEffectiveDraftCandidate(candidate);
             editor.ConfigureUnitEffectiveDisplayResolver(display is null ? null : document =>
-                ReferenceEquals(document, selected.Document) ? display : null, binding.Context.DisplayName);
+                ReferenceEquals(document, selected.Document) ? display : null, draftScope?.PreviewContextLabel ?? binding.Context.DisplayName);
         }
     }
 
@@ -963,6 +1021,10 @@ public partial class AppShellViewModel
 
     private Func<UnitFileAsset, UnitTypeDocument, UnitDisplaySummary?> CreateProjectUnitSummaryReader()
     {
+        // Thumbnail callbacks can query the current receipt from a worker while
+        // the UI publishes or retires the summary dictionary.
+        lock (_unitDisplaySync)
+        {
         if (LibrarySnapshot is not { } snapshot || FindCurrentProjectRevisionId(snapshot) is not { } revision ||
             CampaignEditor.CurrentProject?.SourcePath is not { } entryPath ||
             CreateUnitDisplayBinding(snapshot, revision, entryPath, true) is not { } binding ||
@@ -981,6 +1043,7 @@ public partial class AppShellViewModel
             return grouping.Values.GetValueOrDefault(new(path, hash, document.BlockSpan.StartIndex,
                 document.BlockSpan.EndIndexExclusive - document.BlockSpan.StartIndex));
         };
+        }
     }
 
     private UnitDisplaySummary? CachedIndexedUnitSummary(WccEntityRecord entity, WccSourceFileRecord source)
@@ -1027,7 +1090,7 @@ public partial class AppShellViewModel
     private void QueueProjectUnitInheritanceDisplay()
     {
         if (LibrarySnapshot is not { } snapshot || CampaignEditor.CurrentProject is not { } project ||
-            !project.ProjectUnitFiles.Any(file => file.Documents.Any(doc => doc.Unit.BaseUnits.Count != 0)) ||
+            !project.ProjectUnitFiles.Any(file => file.Documents.Count != 0) ||
             FindCurrentProjectRevisionId(snapshot) is not { } revision || project.SourcePath is not { } path) return;
         if (CreateUnitDisplayBinding(snapshot, revision, path, true) is { } binding) QueueUnitDisplayGrouping(binding);
     }
@@ -1103,13 +1166,54 @@ public partial class AppShellViewModel
                 var summaries = await Task.Run(() =>
                 {
                     var values = new Dictionary<UnitDisplayLookup, UnitDisplaySummary?>();
+                    var rawDocuments = new Dictionary<string, IReadOnlyList<UnitTypeDocument>>(StringComparer.Ordinal);
                     foreach (var lookup in lookups)
                     {
                         reader.Token.ThrowIfCancellationRequested();
                         var display = scope.Find(lookup.Path, lookup.Hash, lookup.Start, lookup.Length);
-                        values[lookup] = display is null ? null : new(display.EffectiveRace, display.PreviewDocument);
+                        var preview = display?.PreviewDocument;
+                        if (preview is null && scope.RequiresCapturedImages)
+                        {
+                            // Bounded image inspection may be complete while full
+                            // unit output is limited. Only an exact captured literal
+                            // block may supply image syntax in that case; it supplies
+                            // no effective scalar or inheritance evidence.
+                            var sources = scope.Capture.Sources.Where(source => PathsEqual(source.Path, lookup.Path) &&
+                                source.ContentHash == lookup.Hash).Take(2).ToArray();
+                            if (sources.Length == 1)
+                            {
+                                var source = sources[0];
+                                var key = source.Path + "\u001f" + source.ContentHash;
+                                if (!rawDocuments.TryGetValue(key, out var documents))
+                                    rawDocuments.Add(key, documents = UnitTypeImporter.ImportAllFromText(source.Text));
+                                var exact = documents.Where(document => document.BlockSpan.StartIndex == lookup.Start &&
+                                    document.BlockSpan.EndIndexExclusive - document.BlockSpan.StartIndex == lookup.Length)
+                                    .Take(2).ToArray();
+                                if (exact.Length == 1)
+                                    preview = UnitTypeImporter.ImportSingleUnitFromRawText(exact[0].BlockSpan.RawText);
+                            }
+                        }
+                        values[lookup] = preview is null ? null : new(display?.EffectiveRace, preview,
+                            scope.RequiresCapturedImages && (display is not null || scope.Evaluation.OutputLimitExceeded)
+                                ? CapturedPreview(preview) : null, scope.RequiresCapturedImages);
                     }
                     return values;
+
+                    string? CapturedPreview(UnitTypeDocument document)
+                    {
+                        foreach (var kind in new[] { WccAssetReferenceKind.Image, WccAssetReferenceKind.Portrait })
+                        {
+                            reader.Token.ThrowIfCancellationRequested();
+                            // Null physical roots retain the shared field-safety,
+                            // quoting and profile rules without legacy file lookup.
+                            var candidate = WccUnitPreviewPathResolver.ResolveKind(null,
+                                WccSourceOrigin.ImportedExternal, document, kind);
+                            if (!candidate.HasReference || candidate.IsSuppressed || candidate.RawExpression is null) continue;
+                            var resolved = scope.ImageResources.Resolve(candidate.RawExpression, candidate.SourceLabel);
+                            if (resolved.IsResolved) return resolved.ResolvedAbsolutePath;
+                        }
+                        return null;
+                    }
                 }, reader.Token);
                 if (!reader.Work.Lifetime.IsRetired && ReferenceEquals(scope, CachedUnitDisplayScope(binding)))
                 {
@@ -1138,7 +1242,8 @@ public partial class AppShellViewModel
             !binding.Campaign && !_activeLibraryRevisionIds.Contains(binding.Revision) ||
             !_unitDisplayPublications.Add(binding.Key)) return;
         if (binding.Campaign) RefreshProjectUnitWorkspaceEntries();
-        else RefreshUnitCatalogEntries(selectFallbackEntry: false);
+        else if (_unitDisplaySummaries.TryGetValue(binding.Key, out var grouping))
+            ApplyLibraryUnitSidebarSummaries(grouping.Values.Keys.Select(lookup => lookup.Path).Distinct());
         }
     }
 }

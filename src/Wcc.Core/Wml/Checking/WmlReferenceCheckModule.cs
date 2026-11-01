@@ -128,6 +128,7 @@ public sealed class WmlReferenceCheckModule : IWmlCheckEvidenceModule
                     projections.Add(evaluation, projection = WmlStaticScalarProjection.Create(evaluation, token));
                 return projection;
             }
+            WmlCheckCampaignProjectionDiagnostics.Apply(documents, diagnostics, campaign, Project, cancellationToken);
             WmlCheckUnitReferences.Apply(documents, diagnostics, campaign, Project, cancellationToken);
             WmlCheckDefinitionReferences.Apply(documents, diagnostics, campaign, Project, cancellationToken);
         }

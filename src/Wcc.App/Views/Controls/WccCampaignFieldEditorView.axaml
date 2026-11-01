@@ -22,7 +22,7 @@
                    Watermark="Override value or macro" ToolTip.Tip="A nonempty override wins. Clear it to use the checkbox value."/>
         </Grid>
         <Grid x:Name="TextInputGrid" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding ShowsText}">
-          <TextBox x:Name="TextInput" Classes.pending="{Binding HasDraft}" BorderThickness="1" Text="{Binding TextValue, Mode=TwoWay}" GotFocus="TextFocusGained" LostFocus="TextFocusLost" IsReadOnly="{Binding IsReadOnly}"
+          <TextBox x:Name="ImageExpressionInput" Classes.pending="{Binding HasDraft}" BorderThickness="1" Text="{Binding TextValue, Mode=TwoWay}" GotFocus="TextFocusGained" LostFocus="TextFocusLost" IsReadOnly="{Binding IsReadOnly}"
                    Opacity="{Binding ValueOpacity}" AcceptsReturn="{Binding IsMultiline}" MinHeight="{Binding MinimumTextHeight}" MaxHeight="{Binding MaximumTextHeight}"
                    TextWrapping="Wrap" ToolTip.Tip="{Binding Tooltip}"/>
           <ComboBox x:Name="StaticChoices" Grid.Column="1" MinWidth="110" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice, Mode=TwoWay}"

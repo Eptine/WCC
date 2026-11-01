@@ -35,10 +35,10 @@ public sealed record WmlCheckReport(IReadOnlyList<WmlCheckSource> Sources,
     public WmlCheckCampaignContext? CampaignContext => ReferenceContext?.CampaignContext;
     public string CoverageText => (CampaignContext?.Coverage ?? Coverage) +
         (Modules.Contains(WmlCheckModuleId.Structure) && CampaignContext is not null
-            ? " Unmatched tags in macro definitions are fragment context notices unless captured expanded pairs explain them. Translation hints are metadata."
+            ? " Structure checks include bounded malformed assignment names in authored literal tag bodies; arbitrary custom-key semantics are not validated. Unmatched tags in macro definitions are fragment context notices unless captured expanded pairs explain them. Translation hints are metadata."
             : "") +
         (Modules.Contains(WmlCheckModuleId.References) && CampaignContext is not null
-            ? " References: captured unit/recruit/advancement/base types, race and movement definitions, and campaign first/next scenario links. Missing literal names require a complete captured registry for that domain. Adjacent literal guards and finite value choices are observed conservatively; inheritance, stored/array types, runtime links and unvisited files remain unvalidated."
+            ? " References: active macro argument counts and optional-name binding, captured unit/recruit/advancement/base types, race and movement definitions, and campaign first/next scenario links. Captured failures that block WCC reading are errors; confidence still distinguishes contextual limitations from proven source facts. Missing literal names require a complete captured registry for that domain. Adjacent literal guards and finite value choices are observed conservatively; inheritance, stored/array types, runtime links and unvisited files remain unvalidated."
             : "") +
         (Modules.Contains(WmlCheckModuleId.Resources)
             ? " Resources: recognized literal music, sound, image/animation, map and Lua-file references from captured expanded uses. WML quoting/concatenation, captured Core/binary/data/installation paths and PNG/JPG-to-WebP fallback are supported. Unused definitions, dynamic/unsupported paths, lookup precedence, Lua execution, asset decoding, game validity and edit safety remain unvalidated."

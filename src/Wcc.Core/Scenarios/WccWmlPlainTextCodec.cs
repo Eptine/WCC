@@ -111,6 +111,8 @@ public static class WccWmlPlainTextCodec
 
     /// <summary>Human-text syntax roles only; this never creates a writable field definition.</summary>
     internal static bool IsTextField(string tag, string key, string? parentTag = null) =>
+        (tag is "unit_type" or "variation" or "male" or "female") && (key is "name" or "description") ||
+        tag == "attack" && key == "description" ||
         tag == "part" && (key is "story" or "title") ||
         tag == "message" && (key is "message" or "caption") ||
         tag == "difficulty" && (key is "label" or "description") ||

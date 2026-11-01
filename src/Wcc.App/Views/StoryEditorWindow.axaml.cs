@@ -134,6 +134,7 @@ public partial class StoryEditorWindow : Window
             var box = new TextBox { AcceptsReturn = multiline, TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap, MinHeight = multiline ? 170 : 0,
                 Watermark = string.IsNullOrEmpty(watermark) ? "Inherited / default" : watermark, IsReadOnly = !enabled, Opacity = field.CanEdit ? 1 : 0.65 };
             box.Bind(TextBox.TextProperty, new Binding(nameof(StoryFieldVm.Text)) { Source = field, Mode = BindingMode.TwoWay }); section.Children.Add(box);
+            AttachStoryImageEditor(box, field);
             if (pick is not null)
             {
                 var picker = ActionButton("Choose / upload image…", pick, enabled);
@@ -153,6 +154,7 @@ public partial class StoryEditorWindow : Window
         {
             content.Children.Add(new TextBlock { Text = context.DisplayName }); var box = new TextBox { Text = field.Raw(context.Define), AcceptsReturn = field.Key == "story", TextWrapping = TextWrapping.Wrap };
             box.TextChanged += (_, _) => field.SetForDefine(context.Define, string.IsNullOrWhiteSpace(box.Text) ? null : box.Text); content.Children.Add(box);
+            AttachStoryImageEditor(box, field, define: context.Define);
         }
         var apply = ActionButton("Use displayed value for all difficulties", () => { field.MakeShared(); window.Close(); BuildInspector(); });
         WccButtonIcon.SetAction(apply, WccActionIcon.Accept); WccButtonIcon.SetShowLabel(apply, true); content.Children.Add(apply);

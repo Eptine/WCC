@@ -372,7 +372,7 @@ public partial class CampaignWindowViewModel
         lock (_campaignFieldGate)
         {
             if (_campaignRoutes.TryGetValue((owner, key), out var route)) return route;
-            if (!ReferenceEquals(owner, _campaignMenuOwner) || _campaignProjection?.Source is not { } source) return null;
+            if (!IsCurrentCampaignFieldOwner(owner, key) || _campaignProjection?.Source is not { } source) return null;
             route = WccScenarioFieldRouteAnalyzer.Analyze(owner, key, source, _campaignProjection.Context);
             _campaignRoutes[(owner, key)] = route;
             return route;
@@ -380,7 +380,7 @@ public partial class CampaignWindowViewModel
     }
 
     internal bool CanReviewCampaignField(WmlStaticScalarOwner owner, string key) =>
-        CampaignInitialFieldCatalog.TryGet(key, out var definition) && definition.IsEditable &&
+        IsCurrentCampaignFieldOwner(owner, key) && TryGetCampaignFieldDefinition(owner, key, out var definition) && definition!.IsEditable &&
         GetCampaignFieldBlockReason(GetCampaignFieldRoute(owner, key)) is null;
     internal string GetCampaignFieldEditStatus(WmlStaticScalarOwner owner, string key) =>
         GetCampaignFieldBlockReason(GetCampaignFieldRoute(owner, key)) ??
@@ -411,9 +411,15 @@ public partial class CampaignWindowViewModel
         if (_campaignMenuOwner is not { } currentOwner) return "This field has no current exact campaign owner.";
         if (CheckCurrentCampaignContextPlan(currentOwner) is { } contextProblem)
             return contextProblem;
-        if (route is null || !ReferenceEquals(route.Owner, _campaignMenuOwner)) return "This field has no current exact campaign owner.";
-        if (!CampaignInitialFieldCatalog.TryGet(route.Key, out var definition) || !definition.IsEditable)
+        if (route is null || !IsCurrentCampaignFieldOwner(route.Owner, route.Key)) return "This field has no current exact campaign owner.";
+        if (!TryGetCampaignFieldDefinition(route.Owner, route.Key, out var definition) || !definition!.IsEditable)
             return definition?.Hint ?? "Campaign context configuration is available in RAW source in this slice.";
+        if (route.Owner.TagName == "difficulty" &&
+            (route.Owner.OpeningOutputOffset is null || route.Owner.ClosingOutputOffset is null))
+            return "This difficulty icon needs one exact captured difficulty owner. Use View or Edit source for this source form.";
+        if (route.Owner.TagName == "difficulty" &&
+            route.Kind is not (WccScenarioFieldRouteKind.DirectToken or WccScenarioFieldRouteKind.ScalarArgument))
+            return "This difficulty icon needs an exact existing scalar or required macro argument. Use View or Edit source for this source form.";
         if (route.Kind == WccScenarioFieldRouteKind.RawOnly || !(route.CanSet || route.CanInsert)) return route.Diagnostic;
         if (!IsPathInsideCampaignRoot(route.Source.Path)) return "The source must be inside the open writable campaign project.";
         return null;
@@ -467,13 +473,13 @@ public partial class CampaignWindowViewModel
     private void SetCampaignFieldDraft(WccScenarioFieldRoute route, WmlFieldOperation operation, string? text,
         WccScenarioFieldValueInputKind inputKind)
     {
-        if (!CampaignInitialFieldCatalog.TryGet(route.Key, out var definition)) return;
+        if (!TryGetCampaignFieldDefinition(route.Owner, route.Key, out var definition)) return;
         var identity = WccScenarioFieldBatchCandidatePlanner.GetSourceEditIdentity(route);
         var existing = _campaignDrafts.FirstOrDefault(draft => draft.GroupIdentity == identity);
-        var validation = operation == WmlFieldOperation.Remove ? null : WccScenarioFieldValueCodec.ValidateInput(definition, text, inputKind);
+        var validation = operation == WmlFieldOperation.Remove ? null : WccScenarioFieldValueCodec.ValidateInput(definition!, text, inputKind);
         var sourceIsExpression = WccScenarioFieldValueCodec.InferInputKind(route.SourceValue) == WccScenarioFieldValueInputKind.WmlExpression;
         var unchanged = operation != WmlFieldOperation.Remove && validation is null && route.CanSet &&
-            (inputKind == WccScenarioFieldValueInputKind.Literal && !sourceIsExpression && WccScenarioFieldValueCodec.Equivalent(definition, route.Value, text) ||
+            (inputKind == WccScenarioFieldValueInputKind.Literal && !sourceIsExpression && WccScenarioFieldValueCodec.Equivalent(definition!, route.Value, text) ||
              inputKind == WccScenarioFieldValueInputKind.WmlExpression && string.Equals(route.SourceValue, text, StringComparison.Ordinal));
         if (unchanged)
         {
@@ -482,7 +488,7 @@ public partial class CampaignWindowViewModel
             return;
         }
         _campaignDraftBinding ??= new(_project!, _project!.Campaign!, _campaignFieldConfiguration!, _campaignFieldGeneration);
-        var draft = new WccScenarioInlineDraft(identity, route, operation, text, definition.Label, validation) { ValueInputKind = inputKind };
+        var draft = new WccScenarioInlineDraft(identity, route, operation, text, definition!.Label, validation) { ValueInputKind = inputKind };
         if (existing is null) _campaignDrafts.Add(draft); else _campaignDrafts[_campaignDrafts.IndexOf(existing)] = draft;
         _campaignFieldStatus = null;
         _campaignReviewSummary = null;
@@ -596,7 +602,7 @@ public partial class CampaignWindowViewModel
         if (GetCampaignFieldBlockReason(_campaignDrafts[0].Route) is { } problem) return RefuseCampaignSave(problem);
         var binding = _campaignDraftBinding!;
         var configuration = binding.Configuration;
-        var owner = _campaignDrafts[0].Route.Owner;
+        var owner = _campaignMenuOwner!;
         var state = new WccScenarioFieldEditSessionState(configuration.ProjectIdentity!, configuration.Session.RootPath!,
             configuration.RootRevision!.Value.Value.ToString(), true, configuration.Snapshot!, configuration.RootRevision.Value,
             _campaignProjection!.Source!, EffectiveCampaignPlan, _campaignProjection.Context, owner,

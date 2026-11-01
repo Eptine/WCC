@@ -395,7 +395,9 @@ public partial class AppShellViewModel : ViewModelBase
         {
             var pin = _currentProjectMetadata?.Compatibility?.CoreRevision;
             if (pin is null)
-                return "Exact Core revision: not pinned.";
+                return _activeWesnothInstallation is { } active
+                    ? $"Exact Core revision: following active Wesnoth {active.ExactVersion}."
+                    : "Exact Core revision: following the active installation; no installation is currently available.";
 
             var fingerprint = string.IsNullOrWhiteSpace(pin.ContentFingerprint)
                 ? "fingerprint unavailable"
@@ -410,16 +412,7 @@ public partial class AppShellViewModel : ViewModelBase
         }
     }
 
-    public bool CanPinCurrentProjectToActiveWesnoth =>
-        _currentProjectMetadata is not null &&
-        _currentProjectMetadata.Compatibility is null &&
-        !string.IsNullOrWhiteSpace(_currentProjectMetadataRoot) &&
-        ProjectSession.CanWrite &&
-        _activeWesnothInstallation is not null &&
-        WccCompatibilityPolicy.CanCreateFor(_activeWesnothInstallation.CompatibilityTarget) &&
-        LibrarySnapshot is { } snapshot &&
-        TryFindActiveCoreRevision(snapshot, out _, out var revision) &&
-        !string.IsNullOrWhiteSpace(revision.ContentFingerprint);
+    public bool CanPinCurrentProjectToActiveWesnoth => CanPinProjectCore;
 
     public int AssetRegistryEntryCount => AssetRegistry.Entries.Count;
     public string AssetRegistrySummary => $"{AssetRegistry.Entries.Count} unique tracked asset(s)";
@@ -2365,91 +2358,16 @@ public partial class AppShellViewModel : ViewModelBase
         RaiseProjectCompatibilityPropertiesChanged();
     }
 
-    public async Task PinCurrentProjectToActiveWesnothAsync()
-    {
-        var metadata = _currentProjectMetadata;
-        var projectRoot = _currentProjectMetadataRoot;
-        var installation = _activeWesnothInstallation;
-        var snapshot = LibrarySnapshot;
-        if (metadata is null || metadata.Compatibility is not null ||
-            string.IsNullOrWhiteSpace(projectRoot) || !ProjectSession.CanWrite ||
-            installation is null || snapshot is null)
-        {
-            Status = "The current project cannot be pinned in its present state.";
-            return;
-        }
-
-        if (!WccCompatibilityPolicy.CanCreateFor(installation.CompatibilityTarget))
-        {
-            Status =
-                $"This WCC release creates projects for Wesnoth {WccCompatibilityPolicy.CurrentAuthoringTarget}. " +
-                $"The selected {installation.CompatibilityTarget} profile is available as a migration and validation runtime.";
-            return;
-        }
-
-        if (!TryFindActiveCoreRevision(snapshot, out var corePackage, out var coreRevision) ||
-            string.IsNullOrWhiteSpace(coreRevision.ContentFingerprint))
-        {
-            Status = "Refresh the active installation's package index before pinning this project.";
-            return;
-        }
-
-        var compatibility = new WccProjectCompatibility
-        {
-            TargetWesnothVersion = installation.CompatibilityTarget,
-            ImportedFromWesnothVersion = installation.ExactVersion,
-            CoreRevision = new WccProjectCoreRevisionPin(
-                corePackage.Id,
-                coreRevision.Id,
-                coreRevision.ContentFingerprint,
-                installation.ExactVersion,
-                installation.CompatibilityTarget)
-        };
-        var updated = new WccProjectMetadata
-        {
-            FormatVersion = metadata.FormatVersion,
-            ProjectId = metadata.ProjectId,
-            UpdatedAtUtc = DateTimeOffset.UtcNow,
-            Compatibility = compatibility,
-            Authoring = metadata.Authoring,
-            EntityBindings = metadata.EntityBindings.ToList()
-        };
-
-        await _projectMetadataWriteLock.WaitAsync();
-        try
-        {
-            if (!PathsEqual(_currentProjectMetadataRoot, projectRoot) ||
-                _currentProjectMetadata?.Compatibility is not null)
-            {
-                Status = "The current project changed before its compatibility pin could be saved.";
-                return;
-            }
-
-            var store = new JsonWccProjectMetadataStore(projectRoot);
-            await store.SaveAsync(updated);
-            ApplyProjectMetadata(projectRoot, updated);
-            Status =
-                $"Pinned the project to Wesnoth {installation.CompatibilityTarget} using exact " +
-                $"Core build {installation.ExactVersion}.";
-        }
-        catch (Exception ex)
-        {
-            Status = $"Could not pin the project compatibility target: {ex.Message}";
-            return;
-        }
-        finally
-        {
-            _projectMetadataWriteLock.Release();
-        }
-
-        await RefreshConfiguredLibraryIndexAsync();
-    }
+    public Task PinCurrentProjectToActiveWesnothAsync() => ChangeCurrentProjectCorePinAsync(unpin: false);
 
     private void RaiseProjectCompatibilityPropertiesChanged()
     {
         OnPropertyChanged(nameof(CurrentProjectCompatibilityStatus));
         OnPropertyChanged(nameof(CurrentProjectCorePinStatus));
         OnPropertyChanged(nameof(CanPinCurrentProjectToActiveWesnoth));
+        OnPropertyChanged(nameof(CanUnpinCurrentProjectCore));
+        OnPropertyChanged(nameof(ProjectCorePinActionLabel));
+        OnPropertyChanged(nameof(ActiveProjectCoreTargetLabel));
     }
 
     private void QueueProjectLibraryBindingPersistence(
@@ -3443,7 +3361,9 @@ public partial class AppShellViewModel : ViewModelBase
         var selectedSidebarKey = SelectedUnitCatalogEntry?.SelectionKey;
         var selectedInspectorKey = SelectedInspectorUnitCatalogEntry?.SelectionKey;
 
+        foreach (var previous in _allUnitCatalogEntryVms) previous.RetireSidebarPreview();
         _allUnitCatalogEntryVms.Clear();
+        _libraryUnitCatalogRowsByPath.Clear();
 
         if (LibrarySnapshot is { } snapshot)
         {
@@ -3461,16 +3381,25 @@ public partial class AppShellViewModel : ViewModelBase
                 var package = snapshot.FindPackageForEntity(item.EntityId);
                 var inheritedDisplay = entity is not null && sourceFile is not null
                     ? CachedIndexedUnitSummary(entity, sourceFile) : null;
-                _allUnitCatalogEntryVms.Add(new UnitTypeCatalogEntryVm(
+                var row = new UnitTypeCatalogEntryVm(
                     item,
                     sourceFile?.StoragePath,
-                    inheritedDisplay?.PreviewDocument is { } preview && sourceFile is not null
+                    inheritedDisplay is { RequiresCapturedImages: true } captured && entity is not null && sourceFile is not null
+                        ? () => ReferenceEquals(captured, CachedIndexedUnitSummary(entity, sourceFile)) ? captured.PreviewPath : null
+                        : inheritedDisplay?.PreviewDocument is { } preview && sourceFile is not null
                         ? () => WccUnitPreviewPathResolver.Resolve(sourceFile.StoragePath,
                             WccSourceOrigin.WccGenerated, preview, WesnothInstallPath).ResolvedAbsolutePath
                         : entity is not null && sourceFile is not null
                         ? CreateIndexedUnitPreviewResolver(entity, sourceFile, package)
                         : null,
-                    inheritedDisplay?.EffectiveRace));
+                    inheritedDisplay?.EffectiveRace, inheritedDisplay);
+                _allUnitCatalogEntryVms.Add(row);
+                if (sourceFile?.StoragePath is { } path)
+                {
+                    if (!_libraryUnitCatalogRowsByPath.TryGetValue(path, out var rows))
+                        _libraryUnitCatalogRowsByPath.Add(path, rows = new());
+                    rows.Add(row);
+                }
             }
         }
 
@@ -3518,6 +3447,7 @@ public partial class AppShellViewModel : ViewModelBase
         RestoreLibraryPickerProjection();
         }
         QueueManagedUnitInheritanceDisplay();
+        QueueLibraryUnitSidebarPreparation();
     }
 
     public void RefreshProjectUnitWorkspaceEntries()
@@ -3559,7 +3489,9 @@ public partial class AppShellViewModel : ViewModelBase
                     document.Unit.Id,
                     WmlDisplayStringNormalizer.Normalize(document.Unit.NameWml) ?? document.Unit.Id,
                     race,
-                    () => WccUnitPreviewPathResolver.Resolve(
+                    inheritedDisplay is { RequiresCapturedImages: true } captured
+                        ? () => ReferenceEquals(captured, CreateProjectUnitSummaryReader()(asset, document)) ? captured.PreviewPath : null
+                        : () => WccUnitPreviewPathResolver.Resolve(
                         asset,
                         preview,
                         WesnothInstallPath).ResolvedAbsolutePath));
@@ -3744,8 +3676,17 @@ public partial class AppShellViewModel : ViewModelBase
     {
         IReadOnlyList<WmlMacroDefinition>? sourceMacroDefinitions = null;
         var sourceMacroDefinitionsLoaded = false;
+        UnitDisplaySummary? capturedReceipt = null;
         return () =>
         {
+            // A captured search receipt, including an unresolved result, owns
+            // this thumbnail route. Do not replace it with owner/Core guesses.
+            if (CachedIndexedUnitSummary(entity, sourceFile) is { RequiresCapturedImages: true } captured)
+            {
+                capturedReceipt ??= captured;
+                return ReferenceEquals(capturedReceipt, captured) ? captured.PreviewPath : null;
+            }
+            if (capturedReceipt is not null) return null;
             var origin = package?.SourceKind == WccPackageSourceKinds.WesnothCore ||
                          package?.SourceKind == WccPackageSourceKinds.WesnothMainline
                 ? WccSourceOrigin.CoreInstall
@@ -3964,7 +3905,14 @@ public partial class AppShellViewModel : ViewModelBase
             if (!IsCurrentUnitNavigation(navigation)) return;
             LoadOwnedProjectUnitDocument(entry);
             if (navigation.Version != _unitNavigationVersion) return;
-            SelectedProjectUnitEntry = entry;
+            // Loading can synchronously publish completed display grouping and
+            // replace workspace rows. Select the current row for this exact
+            // owned document rather than restoring the pre-publication row.
+            var loadedEntry = FindCurrentProjectUnitNavigationRow(requestedKey);
+            if (loadedEntry is null || !ReferenceEquals(entry.OwnedAsset, loadedEntry.OwnedAsset) ||
+                entry.OwnedDocumentInternalId != loadedEntry.OwnedDocumentInternalId)
+            { ReportChangedUnitDestination(navigation); return; }
+            SelectedProjectUnitEntry = loadedEntry;
             SelectedTabIndex = 2;
             Status = $"Opened project unit type: {entry.UnitTypeId}";
             return;
@@ -4265,6 +4213,7 @@ public partial class AppShellViewModel : ViewModelBase
 
         UnitSidebarGroups.Clear();
         _allUnitSidebarGroups.Clear();
+        _unitSidebarGroupsByRace.Clear();
 
         var query = UnitSidebarSearchText?.Trim();
 
@@ -4303,6 +4252,7 @@ public partial class AppShellViewModel : ViewModelBase
             }
 
             _allUnitSidebarGroups.Add(groupVm);
+            _unitSidebarGroupsByRace.Add(groupVm.RaceKey, groupVm);
             UnitSidebarGroups.Add(groupVm);
         }
 
@@ -4371,6 +4321,7 @@ public partial class AppShellViewModel : ViewModelBase
         lock (_unitDisplaySync)
         {
         CatalogInspectorUnitEntries.Clear();
+        _catalogInspectorUnitEntrySet.Clear();
 
         var query = CatalogInspectorUnitSearchText?.Trim();
 
@@ -4386,6 +4337,7 @@ public partial class AppShellViewModel : ViewModelBase
             }
 
             CatalogInspectorUnitEntries.Add(entry);
+            _catalogInspectorUnitEntrySet.Add(entry);
         }
 
         RebuildCatalogInspectorUnitRaceGroups();
@@ -4399,6 +4351,7 @@ public partial class AppShellViewModel : ViewModelBase
             group => group.IsExpanded,
             StringComparer.OrdinalIgnoreCase);
         CatalogInspectorUnitRaceGroups.Clear();
+        _catalogInspectorUnitGroupsByRace.Clear();
 
         var raceNames = RaceCatalog.Entries
             .GroupBy(entry => entry.Id, StringComparer.OrdinalIgnoreCase)
@@ -4426,6 +4379,7 @@ public partial class AppShellViewModel : ViewModelBase
             }
 
             CatalogInspectorUnitRaceGroups.Add(groupVm);
+            _catalogInspectorUnitGroupsByRace.Add(groupVm.RaceKey, groupVm);
         }
 
         ExpandCatalogInspectorGroupForSelectedUnit();

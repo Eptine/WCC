@@ -266,8 +266,11 @@ public sealed class CampaignCreationImageViewModel : ViewModelBase, IDisposable
         get => _reference;
         set
         {
+            var previousBase = WccImageExpressionParser.TryParse(_reference)?.BaseReference;
             if (!SetField(ref _reference, value ?? "")) return;
-            _filePath = null; OnPropertyChanged(nameof(FilePath));
+            if (previousBase is null || previousBase != WccImageExpressionParser.TryParse(_reference)?.BaseReference)
+                _filePath = null;
+            OnPropertyChanged(nameof(FilePath));
             RefreshPreview(); _changed();
         }
     }
@@ -310,6 +313,18 @@ public sealed class CampaignCreationImageViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Explicit user action only: shared engine rendering may populate its preview cache.</summary>
+    internal ImageEditorFieldContext CaptureImageEditorContext()
+    {
+        var reference = Reference;
+        var file = FilePath;
+        var install = _installPath;
+        var basis = WccImageExpressionParser.TryParse(reference)?.BaseReference;
+        return new(install, expression => file is not null && basis == WccImageExpressionParser.TryParse(expression)?.BaseReference
+            ? new() { HasReference = true, RawExpression = expression, ResolvedAbsolutePath = file, SourceLabel = "Selected image to copy" }
+            : WccUnitPreviewPathResolver.ResolveRawImageExpression(null, WccSourceOrigin.CoreInstall, expression,
+                WccAssetReferenceKind.Image, install),
+            () => !_disposed && reference == Reference && file == FilePath && install == _installPath, true);
+    }
     public async Task RenderPreviewAsync()
     {
         if (!CanRenderPreview) return;
